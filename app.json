@@ -2,15 +2,31 @@
   "expo": {
     "name": "Orbit Notes",
     "slug": "orbit-notes",
-    "version": "0.12.0",
+    "version": "0.13.0",
     "orientation": "portrait",
+    "androidStatusBar": {
+      "translucent": false,
+      "backgroundColor": "#f8fafc",
+      "barStyle": "dark-content"
+    },
     "userInterfaceStyle": "automatic",
     "plugins": [
       "expo-local-authentication",
       "expo-secure-store"
     ],
     "android": {
-      "package": "com.orbitnotes.prototype"
+      "package": "com.orbitnotes.prototype",
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#211184"
+      },
+      "icon": "./assets/icon.png",
+      "versionCode": 13
+    },
+    "icon": "./assets/icon.png",
+    "notification": {
+      "icon": "./assets/notification-icon.png",
+      "color": "#315fd6"
     }
   }
 }
