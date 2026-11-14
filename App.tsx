@@ -380,7 +380,7 @@ const visible=useMemo(()=>{
 },[notes,current.id]);
 
 const focusPoint=visible.find(x=>x.note.id===focused)||visible[0];
-const parentPoint:{x:number;y:number}|null=null;
+const parentPoint:{x:number;y:number}|null=null as {x:number;y:number}|null;
 
 const addPoint=useMemo(()=>{
   const siblings=visible.filter(v=>v.note.parentId===current.id);
