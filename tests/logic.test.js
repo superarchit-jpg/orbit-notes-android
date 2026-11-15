@@ -1,7 +1,7 @@
 
 'use strict';
 
-// Orbit Notes v0.15
+// Orbit Notes v0.16
 // Lightweight source-level regression checks.
 // Device gesture and animation testing remains manual.
 
@@ -12,6 +12,7 @@ const read = (filename) =>
   fs.readFileSync(filename, 'utf8');
 
 const layout = read('layout.ts');
+const geometry = read('mapGeometry.ts');
 const trash = read('trash.ts');
 const app = read('App.tsx');
 const exp = read('export.ts');
@@ -32,6 +33,7 @@ for (const name of [
   );
 }
 
+for (const name of ['radialTree','fitMap','circularDragAngle','screenToWorld']) check(geometry.includes(`function ${name}`), `Missing map geometry helper: ${name}`);
 console.log('PASS: map layout helpers');
 
 // Recently Deleted and recovery
@@ -55,8 +57,8 @@ console.log('PASS: deletion and recovery wiring');
 
 // Map gestures
 check(
-  app.includes('Gesture.Exclusive(long,double,single)'),
-  'Missing long-press, double-tap and single-tap gestures'
+  app.includes('Gesture.Exclusive(long,triple,double,single)'),
+  'Missing long-press, triple-tap, double-tap and single-tap gestures'
 );
 
 check(
