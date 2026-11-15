@@ -36,6 +36,7 @@ export default function App(){
 const [notes,setNotes]=useState<Note[]>(initial),[folders,setFolders]=useState<Folder[]>([]),[focused,setFocused]=useState('root'),[overview,setOverview]=useState(false),[menu,setMenu]=useState(true),[reader,setReader]=useState<string|null>(null),[editing,setEditing]=useState(false),[title,setTitle]=useState(''),[body,setBody]=useState(''),[folderName,setFolderName]=useState(''),[creatingFolder,setCreatingFolder]=useState(false),[selected,setSelected]=useState<string[]>([]),[folderFilter,setFolderFilter]=useState<string|null>(null),[loaded,setLoaded]=useState(false),[storageError,setStorageError]=useState<string|null>(null),[trash,setTrash]=useState<TrashBatch[]>([]),[showTrash,setShowTrash]=useState(false),[undoBatch,setUndoBatch]=useState<string|null>(null);
 
 const [mapPrefs,setMapPrefs]=useState(emptyMapPreferences);
+const [showMiniMap,setShowMiniMap]=useState(false);
 const [mapMenu,setMapMenu]=useState(false),[libraryMenu,setLibraryMenu]=useState(false),[selectionMenu,setSelectionMenu]=useState(false),[sidebar,setSidebar]=useState(false),[moveFolderMenu,setMoveFolderMenu]=useState(false),[exportTarget,setExportTarget]=useState<string|null>(null);
 
 const [backupMode,setBackupMode]=useState<'save'|'restore'|null>(null),[backupPassword,setBackupPassword]=useState(''),[backupBusy,setBackupBusy]=useState(false);
@@ -365,6 +366,13 @@ const visible=useMemo(()=>{
 },[notes,current.id,mapPrefs.offsets,mapPrefs.collapsed]);
 
 const focusPoint=visible.find(x=>x.note.id===focused)||visible[0];
+const fitCurrentMap=()=>{
+  const fit=fitMap(visible,canvasW,canvasH);
+  tx.value=withTiming(fit.x);
+  ty.value=withTiming(fit.y);
+  scale.value=withTiming(fit.scale);
+  rotation.value=withTiming(0);
+};
 const parentPoint:{x:number;y:number}={x:0,y:0};
 
 const addPoint=useMemo(()=>{
@@ -735,6 +743,9 @@ if(locked){
           </View>
         </View>
 
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{flexGrow:0,maxHeight:48}} contentContainerStyle={{alignItems:'center',paddingHorizontal:12,gap:4}}>
+          {ancestors.filter(n=>n.id!=='root').map((n,i)=><Pressable key={n.id} accessibilityRole="button" accessibilityLabel={`Focus ${n.title||'Untitled'}`} onPress={()=>moveTo(n.id)} style={{padding:8}}><Text style={{color:n.id===focused?'#1d4ed8':'#475569',fontWeight:n.id===focused?'800':'500'}}>{i?'› ':''}{n.title||'Untitled'}</Text></Pressable>)}
+        </ScrollView>
         {mapMenu&&(
           <View style={styles.popup}>
             <Button
@@ -818,34 +829,7 @@ if(locked){
     strokeDasharray="6 6"
   />
 
-  {visible.map(({note,x,y,level})=>{
-    const count=notes.filter(
-      k=>k.parentId===note.id
-    ).length;
-    const r=level===0?60:level===1?48:39;
 
-    if(level===0)return [];
-
-    return Array.from(
-      {length:Math.min(count,36)},
-      (_,i)=>{
-        const theta=
-          2*Math.PI*i/Math.max(1,count);
-
-        return (
-          <Line
-            key={`prong-${note.id}-${i}`}
-            x1={512+x+Math.cos(theta)*r*.85}
-            y1={512+y+Math.sin(theta)*r*.85}
-            x2={512+x+Math.cos(theta)*(r+8)}
-            y2={512+y+Math.sin(theta)*(r+8)}
-            stroke="#2563eb"
-            strokeWidth="2.5"
-          />
-        );
-      }
-    );
-  })}
 </Svg>
 
               {visible.map(({note,x,y,level})=>
@@ -881,6 +865,15 @@ if(locked){
           </GestureDetector>
         </View>
 
+        {!menu&&<View style={{flexDirection:'row',justifyContent:'center',gap:6,paddingVertical:5,flexWrap:'wrap'}}>
+          <Button label="−" onPress={()=>{scale.value=withTiming(Math.max(.35,scale.value/1.2));}}/>
+          <Button label="+" onPress={()=>{scale.value=withTiming(Math.min(4,scale.value*1.2));}}/>
+          <Button label="Fit" onPress={fitCurrentMap}/>
+          <Button label="Reset angle" onPress={()=>{rotation.value=withTiming(0);}}/>
+          <Button label={mapPrefs.collapsed[focused]?'Expand branch':'Collapse branch'} onPress={()=>setMapPrefs(p=>({...p,collapsed:{...p.collapsed,[focused]:!p.collapsed[focused]}}))}/>
+          <Button label={showMiniMap?'Hide overview':'Mini-map'} onPress={()=>setShowMiniMap(v=>!v)}/>
+        </View>}
+        {!menu&&showMiniMap&&<View style={{height:105,marginHorizontal:14,marginBottom:6,backgroundColor:'#e2e8f0',borderRadius:12,overflow:'hidden',alignItems:'center',justifyContent:'center'}}><Text style={styles.muted}>{visible.length} visible notes · {current.title||'Untitled map'}</Text><Text style={styles.muted}>Map overview</Text></View>}
         {undoBatch&&(
           <View style={styles.toolbar}>
             <Button
