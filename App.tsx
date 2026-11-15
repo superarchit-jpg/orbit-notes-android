@@ -391,7 +391,7 @@ const visible=useMemo(()=>{
 },[notes,current.id]);
 
 const focusPoint=visible.find(x=>x.note.id===focused)||visible[0];
-const parentPoint:{x:number;y:number}|null=null as {x:number;y:number}|null;
+const parentPoint:{x:number;y:number}={x:0,y:0};
 
 const addPoint=useMemo(()=>{
   const siblings=visible.filter(v=>v.note.parentId===current.id);
@@ -499,7 +499,7 @@ const [canvasW,setCanvasW]=useState(W);
 const [canvasH,setCanvasH]=useState(H-180);
 const centerX=canvasW/2,centerY=canvasH/2;
 
-const activeReader=notes.find(n=>n.id===reader);
+const activeReader=notes.find(n=>n.id===reader)||initial[0];
 const listNotes=notes.filter(n=>n.parentId==='root');
 const shown=listNotes.filter(n=>!folderFilter||n.folderId===folderFilter);
 
