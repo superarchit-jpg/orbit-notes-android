@@ -91,7 +91,7 @@ useEffect(()=>{
     }catch(e){
       if(alive)setStorageError(String(e));
     }finally{
-      if(alive)setLoaded(false);
+      if(alive)setLoaded(true);
     }
   })();
   return()=>{alive=false};
@@ -712,8 +712,15 @@ if(locked){
     </SafeAreaView>
   );
 }
-
+// DIAGNOSTIC: bypass the main interface.
 return (
+  <SafeAreaView style={styles.screen}>
+    <Text style={styles.logo}>
+      Startup completed successfully
+    </Text>
+  </SafeAreaView>
+);
+  return (
   <SafeAreaProvider>
     <GestureHandlerRootView style={{flex:1}}>
       <SafeAreaView style={styles.screen}>
