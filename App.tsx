@@ -712,13 +712,17 @@ if(locked){
     </SafeAreaView>
   );
 }
-// DIAGNOSTIC: bypass the main interface.
+// DIAGNOSTIC: test the main interface containers.
 return (
-  <SafeAreaView style={styles.screen}>
-    <Text style={styles.logo}>
-      Startup completed successfully
-    </Text>
-  </SafeAreaView>
+  <SafeAreaProvider>
+    <GestureHandlerRootView style={{flex:1}}>
+      <SafeAreaView style={styles.screen}>
+        <Text style={styles.logo}>
+          Gesture container loaded successfully
+        </Text>
+      </SafeAreaView>
+    </GestureHandlerRootView>
+  </SafeAreaProvider>
 );
   return (
   <SafeAreaProvider>
