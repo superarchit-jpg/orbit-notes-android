@@ -43,6 +43,7 @@ const IconButton=({label,onPress,danger=false}:{label:string;onPress:()=>void;da
 
 export default function App(){
   diagnosticEffectNumber = 0;
+  const [diagnosticStage,setDiagnosticStage]=useState(0);
 const [notes,setNotes]=useState<Note[]>(initial),[folders,setFolders]=useState<Folder[]>([]),[focused,setFocused]=useState('root'),[overview,setOverview]=useState(false),[menu,setMenu]=useState(true),[reader,setReader]=useState<string|null>(null),[editing,setEditing]=useState(false),[title,setTitle]=useState(''),[body,setBody]=useState(''),[folderName,setFolderName]=useState(''),[creatingFolder,setCreatingFolder]=useState(false),[selected,setSelected]=useState<string[]>([]),[folderFilter,setFolderFilter]=useState<string|null>(null),[loaded,setLoaded]=useState(false),[storageError,setStorageError]=useState<string|null>(null),[trash,setTrash]=useState<TrashBatch[]>([]),[showTrash,setShowTrash]=useState(false),[undoBatch,setUndoBatch]=useState<string|null>(null);
 
 const [mapMenu,setMapMenu]=useState(false),[libraryMenu,setLibraryMenu]=useState(false),[selectionMenu,setSelectionMenu]=useState(false),[sidebar,setSidebar]=useState(false),[moveFolderMenu,setMoveFolderMenu]=useState(false),[exportTarget,setExportTarget]=useState<string|null>(null);
@@ -712,20 +713,102 @@ if(locked){
     </SafeAreaView>
   );
 }
-// DIAGNOSTIC: test the main interface containers.
-return (
-  <SafeAreaProvider>
-    <GestureHandlerRootView style={{flex:1}}>
-      <SafeAreaView style={styles.screen}>
-  <Animated.View style={animated}>
-    <Text style={styles.logo}>
-      Animated view loaded successfully
-    </Text>
-  </Animated.View>
-</SafeAreaView>
-    </GestureHandlerRootView>
-  </SafeAreaProvider>
-);
+
+// CONSOLIDATED DIAGNOSTIC
+if(diagnosticStage < 4){
+  const testContent = (
+    <Animated.View style={animated}>
+      <Text style={styles.section}>
+        {diagnosticStage === 0
+          ? 'Basic rendering: PASS'
+          : diagnosticStage === 1
+          ? 'Pan gesture test'
+          : diagnosticStage === 2
+          ? 'Combined gesture test'
+          : 'SVG and node rendering test'}
+      </Text>
+
+      {diagnosticStage === 3 && (
+        <View style={{width:240,height:240}}>
+          <Svg width={200} height={100}>
+            <Line
+              x1={10}
+              y1={10}
+              x2={180}
+              y2={80}
+              stroke="#315fd6"
+              strokeWidth={3}
+            />
+          </Svg>
+          {node(initial[0],100,150,0)}
+        </View>
+      )}
+    </Animated.View>
+  );
+
+  const gesture =
+    diagnosticStage === 1
+      ? pan
+      : Gesture.Simultaneous(pan,pinch,rotate);
+
+  return (
+    <SafeAreaProvider>
+      <GestureHandlerRootView style={{flex:1}}>
+        <SafeAreaView
+          style={[styles.screen,{padding:24,gap:16}]}
+        >
+          <Text style={styles.logo}>
+            Orbit Notes Diagnostic
+          </Text>
+
+          <Text style={styles.section}>
+            Test {diagnosticStage + 1} of 5
+          </Text>
+
+          {diagnosticStage === 0
+            ? testContent
+            : (
+              <GestureDetector gesture={gesture}>
+                {testContent}
+              </GestureDetector>
+            )
+          }
+
+          <Button
+            label="Test 1: Basic rendering"
+            onPress={()=>setDiagnosticStage(0)}
+          />
+
+          <Button
+            label="Test 2: Pan gesture"
+            onPress={()=>setDiagnosticStage(1)}
+          />
+
+          <Button
+            label="Test 3: Combined gestures"
+            onPress={()=>setDiagnosticStage(2)}
+          />
+
+          <Button
+            label="Test 4: SVG and node"
+            onPress={()=>setDiagnosticStage(3)}
+          />
+
+          <Button
+            label="Test 5: Full interface"
+            primary
+            onPress={()=>setDiagnosticStage(4)}
+          />
+
+          <Text style={styles.muted}>
+            If the app crashes, report the last
+            test selected. Reopen to start again.
+          </Text>
+        </SafeAreaView>
+      </GestureHandlerRootView>
+    </SafeAreaProvider>
+  );
+}
   return (
   <SafeAreaProvider>
     <GestureHandlerRootView style={{flex:1}}>
