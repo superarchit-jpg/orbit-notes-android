@@ -1,14 +1,4 @@
-import React,{useEffect as realUseEffect,useMemo,useState} from 'react';
-// DIAGNOSTIC ONLY: enable the first effect on every render.
-let diagnosticEffectNumber = 0;
-
-const useEffect: typeof realUseEffect = (effect, deps) => {
-  diagnosticEffectNumber += 1;
-  realUseEffect(
-    diagnosticEffectNumber === 1 ? effect : () => {},
-    deps
-  );
-};
+import React,{useEffect,useMemo,useState} from 'react';
 import {Alert,AppState,BackHandler,Dimensions,Modal,Pressable,ScrollView,StatusBar,StyleSheet,Text,TextInput,View} from 'react-native';
 import Svg,{Line,Circle} from 'react-native-svg';
 import {SafeAreaProvider,SafeAreaView as InsetSafeAreaView} from 'react-native-safe-area-context';
@@ -42,7 +32,6 @@ const Upright=({angle,children}:{angle:SharedValue<number>;children:React.ReactN
 const IconButton=({label,onPress,danger=false}:{label:string;onPress:()=>void;danger?:boolean})=><Pressable accessibilityRole="button" accessibilityLabel={label} onPress={onPress} style={{paddingHorizontal:12,paddingVertical:9,minWidth:42,alignItems:'center'}}><Text style={{fontSize:23,color:danger?'#dc2626':'#1e293b'}}>{label}</Text></Pressable>;
 
 export default function App(){
-  diagnosticEffectNumber = 0;
   const [diagnosticStage,setDiagnosticStage]=useState(4);
 const [notes,setNotes]=useState<Note[]>(initial),[folders,setFolders]=useState<Folder[]>([]),[focused,setFocused]=useState('root'),[overview,setOverview]=useState(false),[menu,setMenu]=useState(true),[reader,setReader]=useState<string|null>(null),[editing,setEditing]=useState(false),[title,setTitle]=useState(''),[body,setBody]=useState(''),[folderName,setFolderName]=useState(''),[creatingFolder,setCreatingFolder]=useState(false),[selected,setSelected]=useState<string[]>([]),[folderFilter,setFolderFilter]=useState<string|null>(null),[loaded,setLoaded]=useState(false),[storageError,setStorageError]=useState<string|null>(null),[trash,setTrash]=useState<TrashBatch[]>([]),[showTrash,setShowTrash]=useState(false),[undoBatch,setUndoBatch]=useState<string|null>(null);
 
