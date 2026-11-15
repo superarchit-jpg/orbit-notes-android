@@ -91,7 +91,7 @@ useEffect(()=>{
     }catch(e){
       if(alive)setStorageError(String(e));
     }finally{
-      if(alive)setLoaded(true);
+      if(alive)setLoaded(false);
     }
   })();
   return()=>{alive=false};
