@@ -71,3 +71,33 @@ export function saveSnapshot(snapshot:LocalSnapshot):Promise<void>{
  });
  writeQueue=job;return job;
 }
+
+/** Per-map visual preferences, stored on-device in the existing SQLite metadata table. */
+export type MapPreferences={
+  offsets:Record<string,number>;
+  collapsed:Record<string,boolean>;
+  colors:Record<string,string>;
+};
+export const emptyMapPreferences=():MapPreferences=>({offsets:{},collapsed:{},colors:{}});
+export async function loadMapPreferences():Promise<MapPreferences>{
+  await writeQueue;
+  const db=await getDatabase();
+  const row=await db.getFirstAsync<{value:string}>("SELECT value FROM metadata WHERE key='map_preferences'");
+  if(!row)return emptyMapPreferences();
+  try{
+    const parsed=JSON.parse(row.value) as Partial<MapPreferences>;
+    return {
+      offsets:parsed.offsets&&typeof parsed.offsets==='object'?parsed.offsets:{},
+      collapsed:parsed.collapsed&&typeof parsed.collapsed==='object'?parsed.collapsed:{},
+      colors:parsed.colors&&typeof parsed.colors==='object'?parsed.colors:{}
+    };
+  }catch{return emptyMapPreferences();}
+}
+export function saveMapPreferences(prefs:MapPreferences):Promise<void>{
+  const job=writeQueue.catch(()=>{}).then(async()=>{
+    const db=await getDatabase();
+    await db.runAsync("INSERT INTO metadata(key,value) VALUES('map_preferences',?) ON CONFLICT(key) DO UPDATE SET value=excluded.value",JSON.stringify(prefs));
+  });
+  writeQueue=job;
+  return job;
+}
