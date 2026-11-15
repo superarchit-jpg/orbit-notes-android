@@ -717,10 +717,12 @@ return (
   <SafeAreaProvider>
     <GestureHandlerRootView style={{flex:1}}>
       <SafeAreaView style={styles.screen}>
-        <Text style={styles.logo}>
-          Gesture container loaded successfully
-        </Text>
-      </SafeAreaView>
+  <Animated.View style={animated}>
+    <Text style={styles.logo}>
+      Animated view loaded successfully
+    </Text>
+  </Animated.View>
+</SafeAreaView>
     </GestureHandlerRootView>
   </SafeAreaProvider>
 );
