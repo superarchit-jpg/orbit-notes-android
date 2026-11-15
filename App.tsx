@@ -1,16 +1,13 @@
 import React,{useEffect as realUseEffect,useMemo,useState} from 'react';
-// DIAGNOSTIC ONLY: disable startup effects.
-// Restore normal useEffect before releasing the app.
+// DIAGNOSTIC ONLY: enable the first effect on every render.
 let diagnosticEffectNumber = 0;
+
 const useEffect: typeof realUseEffect = (effect, deps) => {
   diagnosticEffectNumber += 1;
-
-  // Enable only the first startup effect.
-  if (diagnosticEffectNumber === 1) {
-    realUseEffect(effect, deps);
-  } else {
-    realUseEffect(() => {}, deps);
-  }
+  realUseEffect(
+    diagnosticEffectNumber === 1 ? effect : () => {},
+    deps
+  );
 };
 import {Alert,AppState,BackHandler,Dimensions,Modal,Pressable,ScrollView,StatusBar,StyleSheet,Text,TextInput,View} from 'react-native';
 import Svg,{Line,Circle} from 'react-native-svg';
@@ -45,6 +42,7 @@ const Upright=({angle,children}:{angle:SharedValue<number>;children:React.ReactN
 const IconButton=({label,onPress,danger=false}:{label:string;onPress:()=>void;danger?:boolean})=><Pressable accessibilityRole="button" accessibilityLabel={label} onPress={onPress} style={{paddingHorizontal:12,paddingVertical:9,minWidth:42,alignItems:'center'}}><Text style={{fontSize:23,color:danger?'#dc2626':'#1e293b'}}>{label}</Text></Pressable>;
 
 export default function App(){
+  diagnosticEffectNumber = 0;
 const [notes,setNotes]=useState<Note[]>(initial),[folders,setFolders]=useState<Folder[]>([]),[focused,setFocused]=useState('root'),[overview,setOverview]=useState(false),[menu,setMenu]=useState(true),[reader,setReader]=useState<string|null>(null),[editing,setEditing]=useState(false),[title,setTitle]=useState(''),[body,setBody]=useState(''),[folderName,setFolderName]=useState(''),[creatingFolder,setCreatingFolder]=useState(false),[selected,setSelected]=useState<string[]>([]),[folderFilter,setFolderFilter]=useState<string|null>(null),[loaded,setLoaded]=useState(false),[storageError,setStorageError]=useState<string|null>(null),[trash,setTrash]=useState<TrashBatch[]>([]),[showTrash,setShowTrash]=useState(false),[undoBatch,setUndoBatch]=useState<string|null>(null);
 
 const [mapMenu,setMapMenu]=useState(false),[libraryMenu,setLibraryMenu]=useState(false),[selectionMenu,setSelectionMenu]=useState(false),[sidebar,setSidebar]=useState(false),[moveFolderMenu,setMoveFolderMenu]=useState(false),[exportTarget,setExportTarget]=useState<string|null>(null);
