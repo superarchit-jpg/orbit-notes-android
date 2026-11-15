@@ -1,4 +1,7 @@
-import React,{useEffect,useMemo,useState} from 'react';
+import React,{useEffect as realUseEffect,useMemo,useState} from 'react';
+// DIAGNOSTIC ONLY: disable startup effects.
+// Restore normal useEffect before releasing the app.
+const useEffect: typeof realUseEffect = (_effect, _deps) => {};
 import {Alert,AppState,BackHandler,Dimensions,Modal,Pressable,ScrollView,StatusBar,StyleSheet,Text,TextInput,View} from 'react-native';
 import Svg,{Line,Circle} from 'react-native-svg';
 import {SafeAreaProvider,SafeAreaView as InsetSafeAreaView} from 'react-native-safe-area-context';
