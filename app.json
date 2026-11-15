@@ -1,6 +1,6 @@
 {
   "expo": {
-    "name": "Orbit Notes Diagnostic",
+    "name": "Orbit Notes",
     "slug": "orbit-notes",
     "version": "0.15.1",
     "orientation": "portrait",
@@ -15,7 +15,7 @@
       "expo-secure-store"
     ],
     "android": {
-      "package": "com.orbitnotes.diagnostic",
+      "package": "com.orbitnotes.prototype",
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#5d6071"
