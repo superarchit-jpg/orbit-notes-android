@@ -891,77 +891,78 @@ if(diagnosticStage < 4){
                 {left:centerX,top:centerY}
               ]}
             >
-              <Svg
-                width={1024}
-                height={1024}
-                style={{
-                  position:'absolute',
-                  left:-2048,
-                  top:-2048
-                }}
-              >
-                {lines.map(l=>(
-                  <Line
-                    key={l.id}
-                    x1={2048+l.x1}
-                    y1={2048+l.y1}
-                    x2={2048+l.x2}
-                    y2={2048+l.y2}
-                    stroke="#94a3b8"
-                    strokeWidth="2"
-                  />
-                ))}
+              
+<Svg
+  width={1024}
+  height={1024}
+  style={{
+    position:'absolute',
+    left:-512,
+    top:-512
+  }}
+>
+  {lines.map(l=>(
+    <Line
+      key={l.id}
+      x1={512+l.x1}
+      y1={512+l.y1}
+      x2={512+l.x2}
+      y2={512+l.y2}
+      stroke="#94a3b8"
+      strokeWidth="2"
+    />
+  ))}
 
-                {parentPoint&&(
-                  <Line
-                    x1={2048}
-                    y1={2048}
-                    x2={2048+parentPoint.x}
-                    y2={2048+parentPoint.y}
-                    stroke="#64748b"
-                    strokeWidth="2"
-                  />
-                )}
+  {parentPoint&&(
+    <Line
+      x1={512}
+      y1={512}
+      x2={512+parentPoint.x}
+      y2={512+parentPoint.y}
+      stroke="#64748b"
+      strokeWidth="2"
+    />
+  )}
 
-                <Line
-                  x1={2048+(focusPoint?.x||0)}
-                  y1={2048+(focusPoint?.y||0)}
-                  x2={2048+addPoint.x}
-                  y2={2048+addPoint.y}
-                  stroke="#64748b"
-                  strokeWidth="2"
-                  strokeDasharray="6 6"
-                />
+  <Line
+    x1={512+(focusPoint?.x||0)}
+    y1={512+(focusPoint?.y||0)}
+    x2={512+addPoint.x}
+    y2={512+addPoint.y}
+    stroke="#64748b"
+    strokeWidth="2"
+    strokeDasharray="6 6"
+  />
 
-                {visible.map(({note,x,y,level})=>{
-                  const count=notes.filter(
-                    k=>k.parentId===note.id
-                  ).length;
-                  const r=level===0?60:level===1?48:39;
+  {visible.map(({note,x,y,level})=>{
+    const count=notes.filter(
+      k=>k.parentId===note.id
+    ).length;
+    const r=level===0?60:level===1?48:39;
 
-                  if(level===0)return [];
+    if(level===0)return [];
 
-                  return Array.from(
-                    {length:Math.min(count,36)},
-                    (_,i)=>{
-                      const theta=
-                        2*Math.PI*i/Math.max(1,count);
+    return Array.from(
+      {length:Math.min(count,36)},
+      (_,i)=>{
+        const theta=
+          2*Math.PI*i/Math.max(1,count);
 
-                      return (
-                        <Line
-                          key={`prong-${note.id}-${i}`}
-                          x1={2048+x+Math.cos(theta)*r*.85}
-                          y1={2048+y+Math.sin(theta)*r*.85}
-                          x2={2048+x+Math.cos(theta)*(r+8)}
-                          y2={2048+y+Math.sin(theta)*(r+8)}
-                          stroke="#2563eb"
-                          strokeWidth="2.5"
-                        />
-                      );
-                    }
-                  );
-                })}
-              </Svg>
+        return (
+          <Line
+            key={`prong-${note.id}-${i}`}
+            x1={512+x+Math.cos(theta)*r*.85}
+            y1={512+y+Math.sin(theta)*r*.85}
+            x2={512+x+Math.cos(theta)*(r+8)}
+            y2={512+y+Math.sin(theta)*(r+8)}
+            stroke="#2563eb"
+            strokeWidth="2.5"
+          />
+        );
+      }
+    );
+  })}
+</Svg>
 
               {visible.map(({note,x,y,level})=>
                 node(note,x,y,level)
