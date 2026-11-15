@@ -1,62 +1,77 @@
+import 'react-native-gesture-handler';
 
-import React, { useEffect, useState } from 'react';
-import { View, Text, ScrollView } from 'react-native';
+import React from 'react';
+import {
+  ScrollView,
+  Text,
+  StyleSheet,
+} from 'react-native';
 import { registerRootComponent } from 'expo';
 
-function StartupTest() {
-  const [result, setResult] = useState(
-    'Testing Orbit Notes module imports...'
-  );
+class ErrorBoundary extends React.Component {
+  constructor(props) {
+    super(props);
+    this.state = { error: null };
+  }
 
-  useEffect(() => {
-    try {
-      const appModule = require('./App');
+  static getDerivedStateFromError(error) {
+    return { error };
+  }
 
-      if (appModule.default || appModule) {
-        setResult(
-          'SUCCESS: App.tsx imported successfully.\n\n' +
-          'The application has NOT been rendered yet.'
-        );
-      } else {
-        setResult('ERROR: App.tsx has no export.');
-      }
-    } catch (error) {
-      setResult(
-        'IMPORT ERROR:\n\n' +
-        String(error?.stack || error?.message || error)
+  render() {
+    if (this.state.error) {
+      return (
+        <ScrollView
+          style={styles.screen}
+          contentContainerStyle={styles.content}
+        >
+          <Text style={styles.heading}>
+            Orbit Notes Render Error
+          </Text>
+          <Text selectable style={styles.error}>
+            {String(
+              this.state.error?.stack ||
+              this.state.error?.message ||
+              this.state.error
+            )}
+          </Text>
+        </ScrollView>
       );
     }
-  }, []);
 
+    return this.props.children;
+  }
+}
+
+import App from './App';
+
+function DiagnosticApp() {
   return (
-    <ScrollView
-      style={{ flex: 1, backgroundColor: '#f8fafc' }}
-      contentContainerStyle={{
-        padding: 24,
-        paddingTop: 70
-      }}
-    >
-      <Text style={{
-        fontSize: 24,
-        fontWeight: 'bold',
-        color: '#0f172a'
-      }}>
-        Orbit Notes Import Test
-      </Text>
-
-      <Text
-        selectable
-        style={{
-          fontSize: 16,
-          marginTop: 24,
-          color: '#334155',
-          lineHeight: 25
-        }}
-      >
-        {result}
-      </Text>
-    </ScrollView>
+    <ErrorBoundary>
+      <App />
+    </ErrorBoundary>
   );
 }
 
-registerRootComponent(StartupTest);
+const styles = StyleSheet.create({
+  screen: {
+    flex: 1,
+    backgroundColor: '#f8fafc',
+  },
+  content: {
+    padding: 24,
+    paddingTop: 64,
+  },
+  heading: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    color: '#0f172a',
+  },
+  error: {
+    marginTop: 20,
+    fontSize: 13,
+    color: '#b91c1c',
+  },
+});
+
+registerRootComponent(DiagnosticApp);
