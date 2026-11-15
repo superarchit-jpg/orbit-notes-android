@@ -37,6 +37,7 @@ const [notes,setNotes]=useState<Note[]>(initial),[folders,setFolders]=useState<F
 
 const [mapPrefs,setMapPrefs]=useState(emptyMapPreferences);
 const [showMiniMap,setShowMiniMap]=useState(false);
+const [nodeActions,setNodeActions]=useState<string|null>(null);
 const [mapMenu,setMapMenu]=useState(false),[libraryMenu,setLibraryMenu]=useState(false),[selectionMenu,setSelectionMenu]=useState(false),[sidebar,setSidebar]=useState(false),[moveFolderMenu,setMoveFolderMenu]=useState(false),[exportTarget,setExportTarget]=useState<string|null>(null);
 
 const [backupMode,setBackupMode]=useState<'save'|'restore'|null>(null),[backupPassword,setBackupPassword]=useState(''),[backupBusy,setBackupBusy]=useState(false);
@@ -269,15 +270,7 @@ const reparent=(target:string,direction:'up'|'down')=>{
   ]);
 };
 
-const showNodeActions=(target:string)=>{
-  if(target==='root')return;
-  Alert.alert('Note actions',notes.find(n=>n.id===target)?.title||'Untitled',[
-    {text:'Delete note',style:'destructive',onPress:()=>removeBranch(target)},
-    {text:'Move to previous level',onPress:()=>reparent(target,'up')},
-    {text:'Move to next level',onPress:()=>reparent(target,'down')},
-    {text:'Cancel',style:'cancel'}
-  ]);
-};
+const showNodeActions=(target:string)=>setNodeActions(target);
 
 const newMap=()=>{
   const newId=id();
@@ -455,7 +448,7 @@ const node=(n:Note,x:number,y:number,level:number)=>{
           borderRadius:size/2,
           left:x-size/2,
           top:y-size/2,
-          backgroundColor:n.id===focused?'#315fd6':level<=1?'#dbeafe':'#eef2ff',
+          backgroundColor:n.id===focused?'#315fd6':mapPrefs.colors[n.id]|| (level<=1?'#dbeafe':'#eef2ff'),
           borderColor:n.id===focused?'#315fd6':'#93c5fd'
         }
       ]}>
@@ -746,6 +739,16 @@ if(locked){
         <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{flexGrow:0,maxHeight:48}} contentContainerStyle={{alignItems:'center',paddingHorizontal:12,gap:4}}>
           {ancestors.filter(n=>n.id!=='root').map((n,i)=><Pressable key={n.id} accessibilityRole="button" accessibilityLabel={`Focus ${n.title||'Untitled'}`} onPress={()=>moveTo(n.id)} style={{padding:8}}><Text style={{color:n.id===focused?'#1d4ed8':'#475569',fontWeight:n.id===focused?'800':'500'}}>{i?'› ':''}{n.title||'Untitled'}</Text></Pressable>)}
         </ScrollView>
+        {nodeActions&&<View style={[styles.popup,{top:115,right:12,maxWidth:220}]}>
+          <Text style={{fontWeight:'800',color:'#334155'}} numberOfLines={2}>{notes.find(n=>n.id===nodeActions)?.title||'Note actions'}</Text>
+          <Button label="Read note" onPress={()=>{openReader(nodeActions);setNodeActions(null);}}/>
+          <Button label="Edit note" onPress={()=>{beginEdit(nodeActions);setNodeActions(null);}}/>
+          <Button label="Add child" onPress={()=>{addChild(nodeActions);setNodeActions(null);}}/>
+          <Button label="Move up a level" onPress={()=>{reparent(nodeActions,'up');setNodeActions(null);}}/>
+          <Button label="Move down a level" onPress={()=>{reparent(nodeActions,'down');setNodeActions(null);}}/>
+          <Button label="Delete branch" danger onPress={()=>{removeBranch(nodeActions);setNodeActions(null);}}/>
+          <Button label="Cancel" onPress={()=>setNodeActions(null)}/>
+        </View>}
         {mapMenu&&(
           <View style={styles.popup}>
             <Button
@@ -871,6 +874,7 @@ if(locked){
           <Button label="Fit" onPress={fitCurrentMap}/>
           <Button label="Reset angle" onPress={()=>{rotation.value=withTiming(0);}}/>
           <Button label={mapPrefs.collapsed[focused]?'Expand branch':'Collapse branch'} onPress={()=>setMapPrefs(p=>({...p,collapsed:{...p.collapsed,[focused]:!p.collapsed[focused]}}))}/>
+          <Button label="Node color" onPress={()=>setMapPrefs(p=>{const palette=['#dbeafe','#dcfce7','#fef3c7','#fce7f3','#e9d5ff'];const current=p.colors[focused]||palette[0];return {...p,colors:{...p.colors,[focused]:palette[(palette.indexOf(current)+1)%palette.length]}};})}/>
           <Button label={showMiniMap?'Hide overview':'Mini-map'} onPress={()=>setShowMiniMap(v=>!v)}/>
         </View>}
         {!menu&&showMiniMap&&<View style={{height:105,marginHorizontal:14,marginBottom:6,backgroundColor:'#e2e8f0',borderRadius:12,overflow:'hidden',alignItems:'center',justifyContent:'center'}}><Text style={styles.muted}>{visible.length} visible notes · {current.title||'Untitled map'}</Text><Text style={styles.muted}>Map overview</Text></View>}
