@@ -5,7 +5,8 @@ import {SafeAreaProvider,SafeAreaView as InsetSafeAreaView} from 'react-native-s
 import {Gesture,GestureDetector,GestureHandlerRootView} from 'react-native-gesture-handler';
 import Animated,{runOnJS,useAnimatedStyle,useSharedValue,withTiming} from 'react-native-reanimated';
 import type {SharedValue} from 'react-native-reanimated';
-import {loadSnapshot,saveSnapshot} from './storage';
+import {loadSnapshot,saveSnapshot,loadMapPreferences,saveMapPreferences,emptyMapPreferences} from './storage';
+import {radialTree,fitMap} from './mapGeometry';
 import {hasPin,setPin,checkPin,removePin,biometricEnabled,setBiometricEnabled,biometricAvailable,authenticateBiometric,lockStatus,recordPinAttempt} from './appLock';
 import {exportPDF,Note} from './export';
 import {safeExportName,saveExportToAndroid,ExportFormat} from './localSave';
@@ -34,6 +35,7 @@ const IconButton=({label,onPress,danger=false}:{label:string;onPress:()=>void;da
 export default function App(){
 const [notes,setNotes]=useState<Note[]>(initial),[folders,setFolders]=useState<Folder[]>([]),[focused,setFocused]=useState('root'),[overview,setOverview]=useState(false),[menu,setMenu]=useState(true),[reader,setReader]=useState<string|null>(null),[editing,setEditing]=useState(false),[title,setTitle]=useState(''),[body,setBody]=useState(''),[folderName,setFolderName]=useState(''),[creatingFolder,setCreatingFolder]=useState(false),[selected,setSelected]=useState<string[]>([]),[folderFilter,setFolderFilter]=useState<string|null>(null),[loaded,setLoaded]=useState(false),[storageError,setStorageError]=useState<string|null>(null),[trash,setTrash]=useState<TrashBatch[]>([]),[showTrash,setShowTrash]=useState(false),[undoBatch,setUndoBatch]=useState<string|null>(null);
 
+const [mapPrefs,setMapPrefs]=useState(emptyMapPreferences);
 const [mapMenu,setMapMenu]=useState(false),[libraryMenu,setLibraryMenu]=useState(false),[selectionMenu,setSelectionMenu]=useState(false),[sidebar,setSidebar]=useState(false),[moveFolderMenu,setMoveFolderMenu]=useState(false),[exportTarget,setExportTarget]=useState<string|null>(null);
 
 const [backupMode,setBackupMode]=useState<'save'|'restore'|null>(null),[backupPassword,setBackupPassword]=useState(''),[backupBusy,setBackupBusy]=useState(false);
@@ -48,6 +50,8 @@ useEffect(()=>{
   (async()=>{
     try{
       const existing=await loadSnapshot();
+      const preferences=await loadMapPreferences();
+      if(alive)setMapPrefs(preferences);
       if(existing){
         if(alive){
           setNotes(existing.notes);
@@ -90,6 +94,11 @@ useEffect(()=>{
   if(!loaded||storageError)return;
   saveSnapshot({notes,folders,focused,trash}).catch(e=>Alert.alert('Save failed',String(e)));
 },[notes,folders,focused,trash,loaded,storageError]);
+
+useEffect(()=>{
+  if(!loaded||storageError)return;
+  saveMapPreferences(mapPrefs).catch(e=>Alert.alert('Map preferences save failed',String(e)));
+},[mapPrefs,loaded,storageError]);
 
 useEffect(()=>{
   const sub=AppState.addEventListener('change',state=>{
@@ -179,6 +188,7 @@ const saveEdit=()=>{
   if(!reader)return;
   setNotes(ns=>ns.map(n=>n.id===reader?{...n,title:title.trim()||'Untitled',body,updatedAt:Date.now()}:n));
   setEditing(false);
+  setReader(null);
 };
 
 const addChild=(parentId:string)=>{
@@ -307,7 +317,7 @@ const restore=(batch:TrashBatch)=>{
   }
 };
 
-const pan=Gesture.Pan()
+const pan=Gesture.Pan().minPointers(2)
   .onStart(()=>{
     startX.value=tx.value;
     startY.value=ty.value;
@@ -351,33 +361,8 @@ const visible=useMemo(()=>{
     return n;
   })();
 
-  const items:{note:Note;x:number;y:number;level:number}[]=[];
-  const seen=new Set<string>();
-
-  const walk=(n:Note,x:number,y:number,depth:number)=>{
-    if(seen.has(n.id))return;
-    seen.add(n.id);
-    items.push({note:n,x,y,level:depth});
-
-    const children=notes.filter(k=>k.parentId===n.id);
-    // Each generation gets its own ring.
-    // Spacing grows for larger families.
-    const radius=Math.max(165,children.length*46)+Math.max(0,depth-1)*48;
-
-    children.forEach((child,i)=>{
-      const angle=-Math.PI/2+2*Math.PI*i/Math.max(1,children.length);
-      walk(
-        child,
-        x+Math.cos(angle)*radius,
-        y+Math.sin(angle)*radius,
-        depth+1
-      );
-    });
-  };
-
-  walk(mapRoot,0,0,0);
-  return items;
-},[notes,current.id]);
+  return radialTree(mapRoot,notes,mapPrefs.offsets,mapPrefs.collapsed);
+},[notes,current.id,mapPrefs.offsets,mapPrefs.collapsed]);
 
 const focusPoint=visible.find(x=>x.note.id===focused)||visible[0];
 const parentPoint:{x:number;y:number}={x:0,y:0};
@@ -435,17 +420,24 @@ const node=(n:Note,x:number,y:number,level:number)=>{
       if(ok)runOnJS(nodePress)(n);
     });
 
-  const double=Gesture.Tap()
-    .numberOfTaps(2)
+  const triple=Gesture.Tap()
+    .numberOfTaps(3)
     .maxDelay(280)
     .onEnd((_e,ok)=>{
       if(ok)runOnJS(beginEdit)(n.id);
     });
 
+  const double=Gesture.Tap()
+    .numberOfTaps(2)
+    .maxDelay(280)
+    .onEnd((_e,ok)=>{
+      if(ok)runOnJS(openReader)(n.id);
+    });
+
   return (
     <GestureDetector
       key={n.id}
-      gesture={Gesture.Exclusive(long,double,single)}
+      gesture={Gesture.Exclusive(long,triple,double,single)}
     >
       <View style={[
         styles.node,
