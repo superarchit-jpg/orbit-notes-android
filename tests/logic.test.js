@@ -62,8 +62,8 @@ check(
 );
 
 check(
-  app.includes('Gesture.Simultaneous(pan,pinch,rotate)'),
-  'Missing pan, pinch and rotation gestures'
+  app.includes('Gesture.Simultaneous(pan,pinch,rotate,rotateChildren)'),
+  'Missing two-finger pan, pinch, map rotation and one-finger branch rotation gestures'
 );
 
 check(
