@@ -6,7 +6,7 @@ import {Gesture,GestureDetector,GestureHandlerRootView} from 'react-native-gestu
 import Animated,{runOnJS,useAnimatedStyle,useSharedValue,withTiming} from 'react-native-reanimated';
 import type {SharedValue} from 'react-native-reanimated';
 import {loadSnapshot,saveSnapshot,loadMapPreferences,saveMapPreferences,emptyMapPreferences} from './storage';
-import {radialTree,fitMap} from './mapGeometry';
+import {radialTree,fitMap,pointSegmentDistance} from './mapGeometry';
 import {hasPin,setPin,checkPin,removePin,biometricEnabled,setBiometricEnabled,biometricAvailable,authenticateBiometric,lockStatus,recordPinAttempt} from './appLock';
 import {exportPDF,Note} from './export';
 import {safeExportName,saveExportToAndroid,ExportFormat} from './localSave';
@@ -389,22 +389,23 @@ const parentPoint:{x:number;y:number}={x:0,y:0};
 const addPoint=useMemo(()=>{
   const siblings=visible.filter(v=>v.note.parentId===focused);
   const center=visible.find(v=>v.note.id===focused)||{x:0,y:0};
-  let best={x:center.x,y:center.y+210},clearance=-Infinity;
-
-  for(let i=0;i<96;i++){
-    const a=2*Math.PI*i/96;
-    const radius=Math.min(205,Math.max(135,(siblings.length+1)*38));
-    const candidate={
-      x:center.x+radius*Math.cos(a),
-      y:center.y+radius*Math.sin(a)
-    };
-    const d=Math.min(...visible.map(v=>
-      Math.hypot(candidate.x-v.x,candidate.y-v.y)-92
-    ));
-    if(d>clearance){
-      clearance=d;
-      best=candidate;
+  const byId=new Map(visible.map(v=>[v.note.id,v]));
+  const segments=visible.flatMap(v=>{
+    const p=byId.get(v.note.parentId||'');
+    return p?[{start:p,end:v}]:[];
+  });
+  let best={x:center.x,y:center.y+210},bestScore=-Infinity;
+  // Search multiple radii, checking nodes AND existing connector segments.
+  for(const radius of [170,215,270,325,390]){
+    for(let i=0;i<96;i++){
+      const a=2*Math.PI*i/96;
+      const candidate={x:center.x+radius*Math.cos(a),y:center.y+radius*Math.sin(a)};
+      const nodeClearance=Math.min(...visible.map(v=>Math.hypot(candidate.x-v.x,candidate.y-v.y)-88));
+      const lineClearance=segments.length?Math.min(...segments.map(seg=>pointSegmentDistance(candidate,seg.start,seg.end)-44)):999;
+      const score=Math.min(nodeClearance,lineClearance)-radius*0.08;
+      if(score>bestScore){bestScore=score;best=candidate;}
     }
+    if(bestScore>65)break;
   }
   return best;
 },[visible,focused]);
