@@ -376,15 +376,20 @@ const visible=useMemo(()=>{
   return radialTree(mapRoot,notes,mapPrefs.offsets,mapPrefs.collapsed,focused);
 },[notes,current.id,focused,mapPrefs.offsets,mapPrefs.collapsed]);
 
+// Use a fixed local drawing space and transform every point into it.
+// This avoids SVG viewport width/preserveAspectRatio mismatches that made
+// the overview appear pushed to the right on Android.
 const miniBounds=useMemo(()=>{
+  const width=1000,height=140,pad=18;
+  if(!visible.length)return {width,height,scale:1,dx:width/2,dy:height/2};
   const xs=visible.map(v=>v.x),ys=visible.map(v=>v.y);
   const minX=Math.min(...xs),maxX=Math.max(...xs),minY=Math.min(...ys),maxY=Math.max(...ys);
-  const cx=(minX+maxX)/2,cy=(minY+maxY)/2;
-  const width=Math.max(200,maxX-minX+160),height=Math.max(180,maxY-minY+160);
-  const aspect=Math.max(1,(canvasW-40)/108);
-  const viewW=Math.max(width,height*aspect),viewH=viewW/aspect;
-  return {x:cx-viewW/2,y:cy-viewH/2,width:viewW,height:viewH};
-},[visible,canvasW]);
+  const spanX=Math.max(1,maxX-minX),spanY=Math.max(1,maxY-minY);
+  const scale=Math.min((width-2*pad)/spanX,(height-2*pad)/spanY);
+  const dx=width/2-(minX+maxX)*scale/2;
+  const dy=height/2-(minY+maxY)*scale/2;
+  return {width,height,scale,dx,dy};
+},[visible]);
 const focusPoint=visible.find(x=>x.note.id===focused)||visible[0];
 const fitCurrentMap=()=>{
   const fit=fitMap(visible,canvasW,canvasH);
@@ -880,7 +885,7 @@ if(locked){
           <Button label={mapPrefs.collapsed[focused]?'Expand branch':'Collapse branch'} onPress={()=>setMapPrefs(p=>{const expand=!!p.collapsed[focused];const collapsed={...p.collapsed};if(expand){const stack=[focused];while(stack.length){const parentId=stack.pop()!;delete collapsed[parentId];notes.filter(n=>n.parentId===parentId).forEach(n=>stack.push(n.id));}}else collapsed[focused]=true;return {...p,collapsed};})}/>
           <Button label="Node color" onPress={()=>setMapPrefs(p=>{const palette=['#dbeafe','#dcfce7','#fef3c7','#fce7f3','#e9d5ff'];const current=p.colors[focused]||palette[0];return {...p,colors:{...p.colors,[focused]:palette[(palette.indexOf(current)+1)%palette.length]}};})}/>
         </View>}
-        {!menu&&showMiniMap&&<View style={{height:140,marginHorizontal:14,marginBottom:6,backgroundColor:'#e2e8f0',borderRadius:12,overflow:'hidden',padding:6}}><Text style={styles.muted}>Map overview · {visible.length} notes</Text><Svg width={Math.max(180,canvasW-40)} height={108} viewBox={`${miniBounds.x} ${miniBounds.y} ${miniBounds.width} ${miniBounds.height}`} preserveAspectRatio="xMidYMid meet">{lines.map(l=><Line key={l.id} x1={l.x1} y1={l.y1} x2={l.x2} y2={l.y2} stroke="#94a3b8" strokeWidth={7}/>)}{visible.map(v=><Circle key={v.note.id} cx={v.x} cy={v.y} r={v.note.id===focused?23:14} fill={v.note.id===focused?'#2563eb':'#64748b'}/>)}</Svg></View>}
+        {!menu&&showMiniMap&&<View style={{height:140,marginHorizontal:14,marginBottom:6,backgroundColor:'#e2e8f0',borderRadius:12,overflow:'hidden',padding:6}}><Text style={styles.muted}>Map overview · {visible.length} notes</Text><Svg width="100%" height={108} viewBox="0 0 1000 140" preserveAspectRatio="xMidYMid meet">{lines.map(l=><Line key={l.id} x1={l.x1*miniBounds.scale+miniBounds.dx} y1={l.y1*miniBounds.scale+miniBounds.dy} x2={l.x2*miniBounds.scale+miniBounds.dx} y2={l.y2*miniBounds.scale+miniBounds.dy} stroke="#94a3b8" strokeWidth={2}/>)}{visible.map(v=><Circle key={v.note.id} cx={v.x*miniBounds.scale+miniBounds.dx} cy={v.y*miniBounds.scale+miniBounds.dy} r={v.note.id===focused?5:3.5} fill={v.note.id===focused?'#2563eb':'#64748b'}/>)}</Svg></View>}
         {undoBatch&&(
           <View style={styles.toolbar}>
             <Button
