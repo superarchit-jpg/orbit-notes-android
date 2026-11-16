@@ -40,6 +40,10 @@ const [showMiniMap,setShowMiniMap]=useState(false);
 const [nodeActions,setNodeActions]=useState<string|null>(null);
 const [draftChildId,setDraftChildId]=useState<string|null>(null);
 const [readerTapAt,setReaderTapAt]=useState(0);
+const [librarySearch,setLibrarySearch]=useState('');
+const [librarySort,setLibrarySort]=useState<'modified'|'title'|'created'>('modified');
+const [pinned,setPinned]=useState<string[]>([]);
+const [foldersExpanded,setFoldersExpanded]=useState(true);
 const [mapMenu,setMapMenu]=useState(false),[libraryMenu,setLibraryMenu]=useState(false),[selectionMenu,setSelectionMenu]=useState(false),[sidebar,setSidebar]=useState(false),[moveFolderMenu,setMoveFolderMenu]=useState(false),[exportTarget,setExportTarget]=useState<string|null>(null);
 
 const [backupMode,setBackupMode]=useState<'save'|'restore'|null>(null),[backupPassword,setBackupPassword]=useState(''),[backupBusy,setBackupBusy]=useState(false);
@@ -494,7 +498,7 @@ const centerX=canvasW/2,centerY=canvasH/2;
 
 const activeReader=notes.find(n=>n.id===reader)||initial[0];
 const listNotes=notes.filter(n=>n.parentId==='root');
-const shown=listNotes.filter(n=>!folderFilter||n.folderId===folderFilter);
+const shown=listNotes.filter(n=>(!folderFilter||n.folderId===folderFilter)&&n.title.toLowerCase().includes(librarySearch.toLowerCase())).sort((a,b)=>Number(pinned.includes(b.id))-Number(pinned.includes(a.id))||(librarySort==='title'?a.title.localeCompare(b.title):librarySort==='created'?Number(a.id.split('-')[0])-Number(b.id.split('-')[0]):b.updatedAt-a.updatedAt));
 
 const moveSelection=(folderId:string|null)=>{
   setNotes(ns=>ns.map(n=>selected.includes(n.id)?{
@@ -1195,6 +1199,7 @@ if(locked){
                 label="☰"
                 onPress={()=>setSidebar(v=>!v)}
               />
+              <TextInput accessibilityLabel="Search map titles" placeholder="Search maps" value={librarySearch} onChangeText={setLibrarySearch} style={{flex:1,marginHorizontal:8,paddingHorizontal:10,paddingVertical:7,backgroundColor:'#e2e8f0',borderRadius:9,fontSize:13}}/>
               <View style={{
                 flexDirection:'row',
                 alignItems:'center'
@@ -1212,7 +1217,7 @@ if(locked){
                       onPress={()=>setSelected([])}
                     />
                     <IconButton
-                      label="♧"
+                      label="🗑"
                       danger
                       onPress={deleteSelected}
                     />
@@ -1310,6 +1315,7 @@ if(locked){
                   padding:12,
                   gap:10
                 }}>
+                  <Button label={foldersExpanded?'Folders ▾':'Folders ▸'} onPress={()=>setFoldersExpanded(v=>!v)}/>
                   <Button
                     label="All maps"
                     onPress={()=>{
@@ -1318,7 +1324,7 @@ if(locked){
                       setSidebar(false);
                     }}
                   />
-                  {folders.map(f=>(
+                  {foldersExpanded&&folders.map(f=>(
                     <Button
                       key={f.id}
                       label={f.name}
@@ -1329,10 +1335,10 @@ if(locked){
                       }}
                     />
                   ))}
-                  <Button
+                  {foldersExpanded&&<Button
                     label="+ Create folder"
                     onPress={()=>setCreatingFolder(true)}
-                  />
+                  />}
                   <Button
                     label="Recently Deleted"
                     onPress={()=>{
@@ -1341,13 +1347,7 @@ if(locked){
                       setSelected([]);
                     }}
                   />
-                  <Button
-                    label="Back to maps"
-                    onPress={()=>{
-                      setShowTrash(false);
-                      setSidebar(false);
-                    }}
-                  />
+                  <Button label="Settings & app lock" onPress={()=>{setSettings(true);setSidebar(false);}}/>
                 </ScrollView>
               </View>
             )}
@@ -1395,6 +1395,7 @@ if(locked){
               </View>
             )}
 
+            {!showTrash&&<View style={{flexDirection:'row',justifyContent:'flex-end',paddingHorizontal:16}}><Button label={librarySort==='modified'?'Sort: Modified':librarySort==='title'?'Sort: Title':'Sort: Created'} onPress={()=>setLibrarySort(v=>v==='modified'?'title':v==='title'?'created':'modified')}/></View>}
             <ScrollView contentContainerStyle={{
               padding:16,
               gap:12
@@ -1485,10 +1486,11 @@ if(locked){
                           {n.title||'Untitled map'}
                         </Text>
                         <Text style={styles.muted}>
-                          Updated {stamp(n.updatedAt)}
+                          {new Date(n.updatedAt).toLocaleDateString('en-GB',{day:'2-digit',month:'2-digit',year:'2-digit'})} {new Date(n.updatedAt).toLocaleTimeString('en-IN',{hour:'2-digit',minute:'2-digit',hour12:true}).toLowerCase()}
                         </Text>
                       </View>
 
+                      {selected.length===0&&<IconButton label={pinned.includes(n.id)?'★':'☆'} onPress={()=>setPinned(p=>p.includes(n.id)?p.filter(x=>x!==n.id):[...p,n.id])}/>}
                       {selected.length>0&&(
                         <Text style={styles.checkbox}>
                           {selected.includes(n.id)?'☑':'☐'}
