@@ -801,50 +801,19 @@ if(locked){
               ]}
             >
               
-<Svg
-  width={1024}
-  height={1024}
-  style={{
-    position:'absolute',
-    left:-512,
-    top:-512
-  }}
->
-  {lines.map(l=>(
-    <Line
-      key={l.id}
-      x1={512+l.x1}
-      y1={512+l.y1}
-      x2={512+l.x2}
-      y2={512+l.y2}
-      stroke="#94a3b8"
-      strokeWidth="2"
-    />
-  ))}
 
-  {parentPoint&&(
-    <Line
-      x1={512}
-      y1={512}
-      x2={512+parentPoint.x}
-      y2={512+parentPoint.y}
-      stroke="#64748b"
-      strokeWidth="2"
-    />
-  )}
-
-  <Line
-    x1={512+(focusPoint?.x||0)}
-    y1={512+(focusPoint?.y||0)}
-    x2={512+addPoint.x}
-    y2={512+addPoint.y}
-    stroke="#64748b"
-    strokeWidth="2"
-    strokeDasharray="6 6"
-  />
-
-
-</Svg>
+              {lines.map(l=>{
+                const dx=l.x2-l.x1,dy=l.y2-l.y1;
+                const length=Math.hypot(dx,dy);
+                return <View key={l.id} pointerEvents="none" style={{position:'absolute',left:(l.x1+l.x2)/2-length/2,top:(l.y1+l.y2)/2-1,width:length,height:2,backgroundColor:'#94a3b8',transform:[{rotate:`${Math.atan2(dy,dx)}rad`}]}}/>;
+              })}
+              {(()=>{
+                const origin=visible.find(v=>v.note.id===focused)||visible[0];
+                if(!origin)return null;
+                const dx=addPoint.x-origin.x,dy=addPoint.y-origin.y;
+                const length=Math.hypot(dx,dy);
+                return <View pointerEvents="none" style={{position:'absolute',left:(origin.x+addPoint.x)/2-length/2,top:(origin.y+addPoint.y)/2-1,width:length,height:0,borderTopWidth:2,borderStyle:'dashed',borderColor:'#64748b',transform:[{rotate:`${Math.atan2(dy,dx)}rad`}]}}/>;
+              })()}
 
               {visible.map(({note,x,y,level})=>
                 node(note,x,y,level)
