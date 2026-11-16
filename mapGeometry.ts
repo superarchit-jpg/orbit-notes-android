@@ -87,9 +87,9 @@ export function radialTree<T extends MapNode>(
     // wedge within the parent's inherited sector, so they do not fan backward.
     const available=level===0?Math.PI*2:Math.min(sector,Math.PI*0.72);
     const base=direction-available/2+(offsets[note.id]||0);
-    const radius=(note.id===focusedId?255:level===0?205:170)+Math.min(70,Math.max(0,kids.length-2)*22);
+    const radius=(note.id===focusedId?160:level===0?155:132)+Math.min(42,Math.max(0,kids.length-4)*6);
     let cursor=0;
-    kids.forEach(child=>{
+    kids.forEach((child,index)=>{
       const portion=available*(weights.get(child.id)||1)/Math.max(1,total);
       const preferred=base+cursor+portion/2;
       cursor+=portion;
@@ -117,7 +117,8 @@ export function radialTree<T extends MapNode>(
       }
       // Reserve a modest buffer on either side of each subtree's sector.
       const childSector=Math.max(0.16,portion*0.88);
-      walk(child,x+Math.cos(angle)*radius,y+Math.sin(angle)*radius,
+      const childRadius=radius+(index%2===1?20:0);
+      walk(child,x+Math.cos(angle)*childRadius,y+Math.sin(angle)*childRadius,
         level+1,angle,childSector);
     });
   };
