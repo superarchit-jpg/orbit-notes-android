@@ -194,7 +194,7 @@ const beginEdit=(target:string)=>{
 
 const saveEdit=()=>{
   if(!reader)return;
-  setNotes(ns=>ns.map(n=>n.id===reader?{...n,title:title.trim()||'Untitled',body,updatedAt:Date.now()}:n));
+  setNotes(ns=>{const updated=Date.now();const target=ns.find(n=>n.id===reader);let parentId=target?.parentId;const ancestorIds=new Set<string>();while(parentId&&parentId!=='root'){ancestorIds.add(parentId);parentId=ns.find(n=>n.id===parentId)?.parentId;}return ns.map(n=>n.id===reader?{...n,title:title.trim()||'Untitled',body,updatedAt:updated}:ancestorIds.has(n.id)?{...n,updatedAt:updated}:n);});
   setEditing(false);
   setDraftChildId(null);
   setReader(null);
@@ -797,6 +797,7 @@ if(locked){
           <GestureDetector
             gesture={Gesture.Simultaneous(pan,pinch,rotate)}
           >
+            <View style={StyleSheet.absoluteFill} collapsable={false}>
             <Animated.View
               style={[
                 styles.world,
@@ -849,6 +850,7 @@ if(locked){
                 </Upright>
               </Pressable>
             </Animated.View>
+            </View>
           </GestureDetector>
         </View>
 
@@ -857,7 +859,7 @@ if(locked){
           <Button label="+" onPress={()=>{scale.value=withTiming(Math.min(4,scale.value*1.2));}}/>
           <Button label="Fit" onPress={fitCurrentMap}/>
           <Button label="Reset angle" onPress={()=>{rotation.value=withTiming(0);}}/>
-          <Button label={mapPrefs.collapsed[focused]?'Expand branch':'Collapse branch'} onPress={()=>setMapPrefs(p=>({...p,collapsed:{...p.collapsed,[focused]:!p.collapsed[focused]}}))}/>
+          <Button label={mapPrefs.collapsed[focused]?'Expand branch':'Collapse branch'} onPress={()=>setMapPrefs(p=>{const expand=!!p.collapsed[focused];const collapsed={...p.collapsed};if(expand){const stack=[focused];while(stack.length){const parentId=stack.pop()!;delete collapsed[parentId];notes.filter(n=>n.parentId===parentId).forEach(n=>stack.push(n.id));}}else collapsed[focused]=true;return {...p,collapsed};})}/>
           <Button label="Node color" onPress={()=>setMapPrefs(p=>{const palette=['#dbeafe','#dcfce7','#fef3c7','#fce7f3','#e9d5ff'];const current=p.colors[focused]||palette[0];return {...p,colors:{...p.colors,[focused]:palette[(palette.indexOf(current)+1)%palette.length]}};})}/>
           <Button label={showMiniMap?'Hide overview':'Mini-map'} onPress={()=>setShowMiniMap(v=>!v)}/>
         </View>}
@@ -1174,14 +1176,10 @@ if(locked){
                 <Pressable onPress={()=>{const now=Date.now();if(now-readerTapAt<360&&reader)beginEdit(reader);setReaderTapAt(now);}}>
                   <Text style={styles.readerTitle}>{activeReader?.title}</Text>
                 </Pressable>
-                <Text style={styles.muted}>
-                  Updated {activeReader
-                    ?stamp(activeReader.updatedAt)
-                    :''}
-                </Text>
                 <Pressable onPress={()=>{const now=Date.now();if(now-readerTapAt<360&&reader)beginEdit(reader);setReaderTapAt(now);}}>
                   <Text style={styles.readBody}>{activeReader?.body||'This note is empty.'}</Text>
                 </Pressable>
+                 <Text style={styles.muted}>Updated {activeReader?stamp(activeReader.updatedAt):''}</Text>
 
               </ScrollView>
             )}
@@ -1315,7 +1313,6 @@ if(locked){
                   padding:12,
                   gap:10
                 }}>
-                  <Button label={foldersExpanded?'Folders ▾':'Folders ▸'} onPress={()=>setFoldersExpanded(v=>!v)}/>
                   <Button
                     label="All maps"
                     onPress={()=>{
@@ -1324,6 +1321,7 @@ if(locked){
                       setSidebar(false);
                     }}
                   />
+                  <Button label={foldersExpanded?'Folders ▾':'Folders ▸'} onPress={()=>setFoldersExpanded(v=>!v)}/>
                   {foldersExpanded&&folders.map(f=>(
                     <Button
                       key={f.id}
