@@ -42,7 +42,6 @@ const [draftChildId,setDraftChildId]=useState<string|null>(null);
 const [readerTapAt,setReaderTapAt]=useState(0);
 const [librarySearch,setLibrarySearch]=useState('');
 const [librarySort,setLibrarySort]=useState<'modified'|'title'|'created'>('modified');
-const [pinned,setPinned]=useState<string[]>([]);
 const [foldersExpanded,setFoldersExpanded]=useState(true);
 const [mapMenu,setMapMenu]=useState(false),[libraryMenu,setLibraryMenu]=useState(false),[selectionMenu,setSelectionMenu]=useState(false),[sidebar,setSidebar]=useState(false),[moveFolderMenu,setMoveFolderMenu]=useState(false),[exportTarget,setExportTarget]=useState<string|null>(null);
 
@@ -326,7 +325,8 @@ const restore=(batch:TrashBatch)=>{
   }
 };
 
-const pan=Gesture.Pan().minPointers(2)
+const updateChildRotation=(delta:number)=>setMapPrefs(p=>({...p,offsets:{...p.offsets,[focused]:(p.offsets[focused]||0)+delta}}));
+ const pan=Gesture.Pan().minPointers(2)
   .onStart(()=>{
     startX.value=tx.value;
     startY.value=ty.value;
@@ -336,7 +336,10 @@ const pan=Gesture.Pan().minPointers(2)
     ty.value=startY.value+e.translationY;
   });
 
-const rotate=Gesture.Rotation()
+const rotateChildren=Gesture.Pan().minPointers(1).maxPointers(1).minDistance(18)
+   .onEnd(e=>{const end=Math.atan2(e.y-canvasH/2,e.x-canvasW/2);const start=Math.atan2(e.y-e.translationY-canvasH/2,e.x-e.translationX-canvasW/2);runOnJS(updateChildRotation)(end-start);});
+
+ const rotate=Gesture.Rotation()
   .onStart(()=>{startRotation.value=rotation.value;})
   .onUpdate(e=>{rotation.value=startRotation.value+e.rotation;});
 
@@ -498,7 +501,7 @@ const centerX=canvasW/2,centerY=canvasH/2;
 
 const activeReader=notes.find(n=>n.id===reader)||initial[0];
 const listNotes=notes.filter(n=>n.parentId==='root');
-const shown=listNotes.filter(n=>(!folderFilter||n.folderId===folderFilter)&&n.title.toLowerCase().includes(librarySearch.toLowerCase())).sort((a,b)=>Number(pinned.includes(b.id))-Number(pinned.includes(a.id))||(librarySort==='title'?a.title.localeCompare(b.title):librarySort==='created'?Number(a.id.split('-')[0])-Number(b.id.split('-')[0]):b.updatedAt-a.updatedAt));
+const shown=listNotes.filter(n=>(!folderFilter||n.folderId===folderFilter)&&n.title.toLowerCase().includes(librarySearch.toLowerCase())).sort((a,b)=>Number(mapPrefs.pinned.includes(b.id))-Number(mapPrefs.pinned.includes(a.id))||(librarySort==='title'?a.title.localeCompare(b.title):librarySort==='created'?Number(a.id.split('-')[0])-Number(b.id.split('-')[0]):b.updatedAt-a.updatedAt));
 
 const moveSelection=(folderId:string|null)=>{
   setNotes(ns=>ns.map(n=>selected.includes(n.id)?{
@@ -795,7 +798,7 @@ if(locked){
           }}
         >
           <GestureDetector
-            gesture={Gesture.Simultaneous(pan,pinch,rotate)}
+            gesture={Gesture.Simultaneous(pan,pinch,rotate,rotateChildren)}
           >
             <View style={StyleSheet.absoluteFill} collapsable={false}>
             <Animated.View
@@ -863,7 +866,7 @@ if(locked){
           <Button label="Node color" onPress={()=>setMapPrefs(p=>{const palette=['#dbeafe','#dcfce7','#fef3c7','#fce7f3','#e9d5ff'];const current=p.colors[focused]||palette[0];return {...p,colors:{...p.colors,[focused]:palette[(palette.indexOf(current)+1)%palette.length]}};})}/>
           <Button label={showMiniMap?'Hide overview':'Mini-map'} onPress={()=>setShowMiniMap(v=>!v)}/>
         </View>}
-        {!menu&&showMiniMap&&<View style={{height:105,marginHorizontal:14,marginBottom:6,backgroundColor:'#e2e8f0',borderRadius:12,overflow:'hidden',alignItems:'center',justifyContent:'center'}}><Text style={styles.muted}>{visible.length} visible notes · {current.title||'Untitled map'}</Text><Text style={styles.muted}>Map overview</Text></View>}
+        {!menu&&showMiniMap&&<View style={{height:140,marginHorizontal:14,marginBottom:6,backgroundColor:'#e2e8f0',borderRadius:12,overflow:'hidden',padding:6}}><Text style={styles.muted}>Map overview · {visible.length} notes</Text><Svg width="100%" height={108} viewBox="-350 -350 700 700" preserveAspectRatio="xMidYMid meet">{lines.map(l=><Line key={l.id} x1={l.x1} y1={l.y1} x2={l.x2} y2={l.y2} stroke="#94a3b8" strokeWidth={7}/>)}{visible.map(v=><Circle key={v.note.id} cx={v.x} cy={v.y} r={v.note.id===focused?23:14} fill={v.note.id===focused?'#2563eb':'#64748b'}/>)}</Svg></View>}
         {undoBatch&&(
           <View style={styles.toolbar}>
             <Button
@@ -1488,7 +1491,7 @@ if(locked){
                         </Text>
                       </View>
 
-                      {selected.length===0&&<IconButton label={pinned.includes(n.id)?'★':'☆'} onPress={()=>setPinned(p=>p.includes(n.id)?p.filter(x=>x!==n.id):[...p,n.id])}/>}
+                      {selected.length===0&&<IconButton label={mapPrefs.pinned.includes(n.id)?'★':'☆'} onPress={()=>setMapPrefs(p=>({...p,pinned:p.pinned.includes(n.id)?p.pinned.filter(x=>x!==n.id):[...p.pinned,n.id]}))}/>}
                       {selected.length>0&&(
                         <Text style={styles.checkbox}>
                           {selected.includes(n.id)?'☑':'☐'}
