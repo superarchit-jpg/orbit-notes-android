@@ -373,8 +373,8 @@ const visible=useMemo(()=>{
     return n;
   })();
 
-  return radialTree(mapRoot,notes,mapPrefs.offsets,mapPrefs.collapsed);
-},[notes,current.id,mapPrefs.offsets,mapPrefs.collapsed]);
+  return radialTree(mapRoot,notes,mapPrefs.offsets,mapPrefs.collapsed,focused);
+},[notes,current.id,focused,mapPrefs.offsets,mapPrefs.collapsed]);
 
 const focusPoint=visible.find(x=>x.note.id===focused)||visible[0];
 const fitCurrentMap=()=>{
@@ -459,7 +459,7 @@ const node=(n:Note,x:number,y:number,level:number)=>{
   return (
     <GestureDetector
       key={n.id}
-      gesture={n.parentId&&n.parentId!=='root'?Gesture.Simultaneous(Gesture.Exclusive(long,triple,double,single),Gesture.Pan().minPointers(1).maxPointers(1).minDistance(12).onChange(e=>{const parent=visible.find(v=>v.note.id===n.parentId);const child=visible.find(v=>v.note.id===n.id);if(!parent||!child)return;const angle=rotation.value,c=Math.cos(angle),si=Math.sin(angle);const dx=scale.value*((child.x-parent.x)*c-(child.y-parent.y)*si),dy=scale.value*((child.x-parent.x)*si+(child.y-parent.y)*c);const delta=(dx*e.changeY-dy*e.changeX)/Math.max(2500,dx*dx+dy*dy);if(Math.abs(delta)>0.00001)runOnJS(updateChildRotation)(n.parentId!,delta);})) : Gesture.Exclusive(long,triple,double,single)}
+      gesture={n.parentId&&n.parentId!=='root'?Gesture.Simultaneous(Gesture.Exclusive(long,triple,double,single),Gesture.Pan().minPointers(1).maxPointers(1).minDistance(12).onChange(e=>{const parent=visible.find(v=>v.note.id===n.parentId);const child=visible.find(v=>v.note.id===n.id);if(!parent||!child)return;const angle=rotation.value,c=Math.cos(angle),si=Math.sin(angle);const dx=scale.value*((child.x-parent.x)*c-(child.y-parent.y)*si),dy=scale.value*((child.x-parent.x)*si+(child.y-parent.y)*c);const delta=(dx*e.changeY-dy*e.changeX)/Math.max(2500,Math.min(dx*dx+dy*dy,160*160));if(Math.abs(delta)>0.00001)runOnJS(updateChildRotation)(n.parentId!,delta);})) : Gesture.Exclusive(long,triple,double,single)}
     >
       <View style={[
         styles.node,
@@ -750,6 +750,9 @@ if(locked){
                 rotation.value=withTiming(0);
               }}
             />
+            <IconButton label="Fit" onPress={fitCurrentMap}/>
+            <IconButton label="↻" onPress={()=>{rotation.value=withTiming(0);}}/>
+            <IconButton label="▣" onPress={()=>setShowMiniMap(v=>!v)}/>
             <IconButton
               label="⋮"
               onPress={()=>setMapMenu(v=>!v)}
@@ -865,11 +868,8 @@ if(locked){
           <Button label="+ Add child" onPress={()=>{setMapPrefs(p=>({...p,collapsed:{...p.collapsed,[focused]:false}}));addChild(focused);}}/>
            <Button label="−" onPress={()=>{scale.value=withTiming(Math.max(.35,scale.value/1.2));}}/>
           <Button label="+" onPress={()=>{scale.value=withTiming(Math.min(4,scale.value*1.2));}}/>
-          <Button label="Fit" onPress={fitCurrentMap}/>
-          <Button label="Reset angle" onPress={()=>{rotation.value=withTiming(0);}}/>
           <Button label={mapPrefs.collapsed[focused]?'Expand branch':'Collapse branch'} onPress={()=>setMapPrefs(p=>{const expand=!!p.collapsed[focused];const collapsed={...p.collapsed};if(expand){const stack=[focused];while(stack.length){const parentId=stack.pop()!;delete collapsed[parentId];notes.filter(n=>n.parentId===parentId).forEach(n=>stack.push(n.id));}}else collapsed[focused]=true;return {...p,collapsed};})}/>
           <Button label="Node color" onPress={()=>setMapPrefs(p=>{const palette=['#dbeafe','#dcfce7','#fef3c7','#fce7f3','#e9d5ff'];const current=p.colors[focused]||palette[0];return {...p,colors:{...p.colors,[focused]:palette[(palette.indexOf(current)+1)%palette.length]}};})}/>
-          <Button label={showMiniMap?'Hide overview':'Mini-map'} onPress={()=>setShowMiniMap(v=>!v)}/>
         </View>}
         {!menu&&showMiniMap&&<View style={{height:140,marginHorizontal:14,marginBottom:6,backgroundColor:'#e2e8f0',borderRadius:12,overflow:'hidden',padding:6}}><Text style={styles.muted}>Map overview · {visible.length} notes</Text><Svg width="100%" height={108} viewBox={`${Math.min(...visible.map(v=>v.x))-90} ${Math.min(...visible.map(v=>v.y))-90} ${Math.max(180,Math.max(...visible.map(v=>v.x))-Math.min(...visible.map(v=>v.x))+180)} ${Math.max(180,Math.max(...visible.map(v=>v.y))-Math.min(...visible.map(v=>v.y))+180)}`} preserveAspectRatio="xMidYMid meet">{lines.map(l=><Line key={l.id} x1={l.x1} y1={l.y1} x2={l.x2} y2={l.y2} stroke="#94a3b8" strokeWidth={7}/>)}{visible.map(v=><Circle key={v.note.id} cx={v.x} cy={v.y} r={v.note.id===focused?23:14} fill={v.note.id===focused?'#2563eb':'#64748b'}/>)}</Svg></View>}
         {undoBatch&&(
