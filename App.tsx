@@ -6,7 +6,7 @@ import {Gesture,GestureDetector,GestureHandlerRootView} from 'react-native-gestu
 import Animated,{runOnJS,useAnimatedStyle,useSharedValue,withTiming} from 'react-native-reanimated';
 import type {SharedValue} from 'react-native-reanimated';
 import {loadSnapshot,saveSnapshot,loadMapPreferences,saveMapPreferences,emptyMapPreferences} from './storage';
-import {radialTree,fitMap} from './mapGeometry';
+import {radialTree,fitMap,pointSegmentDistance} from './mapGeometry';
 import {hasPin,setPin,checkPin,removePin,biometricEnabled,setBiometricEnabled,biometricAvailable,authenticateBiometric,lockStatus,recordPinAttempt} from './appLock';
 import {exportPDF,Note} from './export';
 import {safeExportName,saveExportToAndroid,ExportFormat} from './localSave';
@@ -327,6 +327,63 @@ const restore=(batch:TrashBatch)=>{
 };
 
 const updateChildRotation=(parentId:string,delta:number)=>setMapPrefs(p=>({...p,offsets:{...p.offsets,[parentId]:(p.offsets[parentId]||0)+delta}}));
+ // Release-only settling: unrelated branches never move to make way.
+ // A modest flick coasts briefly; holding still yields near-zero velocity.
+ const finishChildRotation=(parentId:string,angularVelocity:number)=>{
+   const parent=visible.find(n=>n.note.id===parentId);
+   if(!parent)return;
+   const mapRoot=visible.find(n=>n.level===0)?.note;
+   if(!mapRoot)return;
+   const start=mapPrefs.offsets[parentId]||0;
+   const coast=Math.max(-0.24,Math.min(0.24,angularVelocity*0.085));
+   const children=visible.filter(n=>n.note.parentId===parentId);
+   const movingIds=new Set<string>();
+   const visit=(id:string)=>{
+     if(movingIds.has(id))return;
+     movingIds.add(id);
+     visible.filter(n=>n.note.parentId===id).forEach(n=>visit(n.note.id));
+   };
+   children.forEach(n=>visit(n.note.id));
+   const score=(offset:number)=>{
+     const layout=radialTree(mapRoot,notes,{...mapPrefs.offsets,[parentId]:offset},mapPrefs.collapsed,focused);
+     const byId=new Map(layout.map(n=>[n.note.id,n]));
+     let cost=0;
+     for(const node of layout){
+       if(!movingIds.has(node.note.id))continue;
+       for(const other of layout){
+         if(movingIds.has(other.note.id)||other.note.id===parentId)continue;
+         const distance=Math.hypot(node.x-other.x,node.y-other.y);
+         cost+=Math.max(0,112-distance)**2;
+       }
+       for(const other of layout){
+         if(movingIds.has(other.note.id))continue;
+         const p=byId.get(other.note.parentId||'');
+         if(!p||movingIds.has(p.note.id))continue;
+         cost+=Math.max(0,57-pointSegmentDistance(node,p,other))**2;
+       }
+     }
+     return cost;
+   };
+   const desired=start+coast;
+   let target=desired,best=score(desired);
+   // Seek the closest safe resting angle; allow crossings during the gesture.
+   for(const delta of [0.08,-0.08,0.16,-0.16,0.26,-0.26,0.38,-0.38,0.52,-0.52]){
+     const candidate=desired+delta;
+     const cost=score(candidate)+Math.abs(delta)*120;
+     if(cost<best){best=cost;target=candidate;}
+   }
+   const distance=target-start;
+   if(Math.abs(distance)<0.001)return;
+   const began=Date.now(),duration=210;
+   const animate=()=>{
+     const t=Math.min(1,(Date.now()-began)/duration);
+     const ease=1-Math.pow(1-t,3);
+     const value=start+distance*ease;
+     setMapPrefs(p=>({...p,offsets:{...p.offsets,[parentId]:value}}));
+     if(t<1)requestAnimationFrame(animate);
+   };
+   requestAnimationFrame(animate);
+ };
  const pan=Gesture.Pan().minPointers(2)
   .onStart(()=>{
     startX.value=tx.value;
@@ -447,7 +504,7 @@ const node=(n:Note,x:number,y:number,level:number)=>{
   return (
     <GestureDetector
       key={n.id}
-      gesture={n.parentId&&n.parentId!=='root'?Gesture.Simultaneous(Gesture.Exclusive(long,triple,double,single),Gesture.Pan().minPointers(1).maxPointers(1).minDistance(12).onChange(e=>{const parent=visible.find(v=>v.note.id===n.parentId);const child=visible.find(v=>v.note.id===n.id);if(!parent||!child)return;const angle=rotation.value,c=Math.cos(angle),si=Math.sin(angle);const dx=scale.value*((child.x-parent.x)*c-(child.y-parent.y)*si),dy=scale.value*((child.x-parent.x)*si+(child.y-parent.y)*c);const delta=(dx*e.changeY-dy*e.changeX)/Math.max(2500,Math.min(dx*dx+dy*dy,160*160));if(Math.abs(delta)>0.00001)runOnJS(updateChildRotation)(n.parentId!,delta);})) : Gesture.Exclusive(long,triple,double,single)}
+      gesture={n.parentId&&n.parentId!=='root'?Gesture.Simultaneous(Gesture.Exclusive(long,triple,double,single),Gesture.Pan().minPointers(1).maxPointers(1).minDistance(12).onChange(e=>{const parent=visible.find(v=>v.note.id===n.parentId);const child=visible.find(v=>v.note.id===n.id);if(!parent||!child)return;const angle=rotation.value,c=Math.cos(angle),si=Math.sin(angle);const dx=scale.value*((child.x-parent.x)*c-(child.y-parent.y)*si),dy=scale.value*((child.x-parent.x)*si+(child.y-parent.y)*c);const delta=(dx*e.changeY-dy*e.changeX)/Math.max(2500,Math.min(dx*dx+dy*dy,160*160));if(Math.abs(delta)>0.00001)runOnJS(updateChildRotation)(n.parentId!,delta);}).onEnd(e=>{const parent=visible.find(v=>v.note.id===n.parentId);const child=visible.find(v=>v.note.id===n.id);if(!parent||!child)return;const a=rotation.value,c=Math.cos(a),si=Math.sin(a);const dx=scale.value*((child.x-parent.x)*c-(child.y-parent.y)*si),dy=scale.value*((child.x-parent.x)*si+(child.y-parent.y)*c);const speed=(dx*e.velocityY-dy*e.velocityX)/Math.max(2500,Math.min(dx*dx+dy*dy,160*160));runOnJS(finishChildRotation)(n.parentId!,Math.max(-2,Math.min(2,speed)));})) : Gesture.Exclusive(long,triple,double,single)}
     >
       <View style={[
         styles.node,
