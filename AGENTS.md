@@ -23,6 +23,16 @@
 - Do not copy the upstream guidance repository into the app, run an automatic legacy rewrite, or install its package as an application dependency.
 - The external skill is **not automatically installed** by this file. A separate supported coding-agent environment must install it if desired.
 
+
+## Impeccable: native UI design guidance
+- Official source: https://github.com/pbakaus/impeccable ; documentation: https://impeccable.style/docs
+- Adopt Impeccable's **native Android / Material 3 design principles** for UI critique, audit, polish, layout, typography, accessibility, responsiveness, and interaction feedback in Orbit Notes.
+- This project is **React Native on Android**, not a browser. When running Impeccable in a compatible coding agent, set the project platform to `android` in `PRODUCT.md` (or use `adaptive` only if iOS is deliberately added later).
+- Use `impeccable critique`, `audit`, `adapt`, and `polish` as **review workflows**, not automatic rewrites. Review concrete app screens/components and translate suggestions to supported React Native/Expo APIs.
+- Impeccable's HTML/CSS detector, live browser mode, and web-only edit hooks **do not validate native Android UI**. Do not enable browser hooks or bypass approvals/sandboxing for this app.
+- Do not add Impeccable to app runtime dependencies, ship its binaries in the APK, or add network functionality. An optional development-time agent installation (`npx impeccable install`) is a **separate step** in a supported coding environment, not something this file performs.
+- Keep current v0.16 functional and regression work first; use Impeccable primarily for targeted design reviews and polish, and never let design suggestions silently change behavior.
+
 ## Change and regression discipline
 - First inspect affected code, existing tests, and unresolved v0.16 issues. Avoid unrelated refactoring.
 - Validate with `npm run test:logic`, `npm run test:behavior`, and `npm run typecheck`; then check the Android APK workflow if relevant.
