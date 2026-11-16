@@ -172,8 +172,9 @@ const moveTo=(target:string)=>{
   const point=visible.find(x=>x.note.id===target);
   if(!point)return;
   setFocused(target);
-  tx.value=withTiming(-point.x,{duration:560});
-  ty.value=withTiming(-point.y,{duration:560});
+  const angle=rotation.value;
+   tx.value=withTiming(-(point.x*Math.cos(angle)-point.y*Math.sin(angle)),{duration:560});
+  ty.value=withTiming(-(point.x*Math.sin(angle)+point.y*Math.cos(angle)),{duration:560});
   scale.value=withTiming(1,{duration:560});
 };
 
@@ -336,8 +337,8 @@ const updateChildRotation=(delta:number)=>setMapPrefs(p=>({...p,offsets:{...p.of
     ty.value=startY.value+e.translationY;
   });
 
-const rotateChildren=Gesture.Pan().minPointers(1).maxPointers(1).minDistance(18)
-   .onEnd(e=>{const end=Math.atan2(e.y-canvasH/2,e.x-canvasW/2);const start=Math.atan2(e.y-e.translationY-canvasH/2,e.x-e.translationX-canvasW/2);runOnJS(updateChildRotation)(end-start);});
+const rotateChildren=Gesture.Pan().minPointers(1).maxPointers(1).minDistance(12)
+   .onEnd(e=>{runOnJS(updateChildRotation)(e.translationX*0.009);});
 
  const rotate=Gesture.Rotation()
   .onStart(()=>{startRotation.value=rotation.value;})
@@ -456,7 +457,7 @@ const node=(n:Note,x:number,y:number,level:number)=>{
   return (
     <GestureDetector
       key={n.id}
-      gesture={Gesture.Exclusive(long,triple,double,single)}
+      gesture={n.parentId===focused?Gesture.Simultaneous(Gesture.Exclusive(long,triple,double,single),Gesture.Pan().minPointers(1).maxPointers(1).minDistance(12).onEnd(e=>{runOnJS(updateChildRotation)(e.translationX*0.009);})) : Gesture.Exclusive(long,triple,double,single)}
     >
       <View style={[
         styles.node,
@@ -829,7 +830,7 @@ if(locked){
 
               <Pressable
                 accessibilityLabel="Add child note"
-                onPress={()=>addChild(focused)}
+                onPress={()=>{setMapPrefs(p=>({...p,collapsed:{...p.collapsed,[focused]:false}}));addChild(focused);}}
                 style={[
                   styles.node,
                   {
@@ -1341,7 +1342,7 @@ if(locked){
                     onPress={()=>setCreatingFolder(true)}
                   />}
                   <Button
-                    label="Recently Deleted"
+                    label="🗑 Recently Deleted"
                     onPress={()=>{
                       setShowTrash(true);
                       setSidebar(false);
