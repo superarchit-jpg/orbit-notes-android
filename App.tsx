@@ -6,7 +6,7 @@ import {Gesture,GestureDetector,GestureHandlerRootView} from 'react-native-gestu
 import Animated,{runOnJS,useAnimatedStyle,useSharedValue,withTiming} from 'react-native-reanimated';
 import type {SharedValue} from 'react-native-reanimated';
 import {loadSnapshot,saveSnapshot,loadMapPreferences,saveMapPreferences,emptyMapPreferences} from './storage';
-import {radialTree,fitMap,pointSegmentDistance} from './mapGeometry';
+import {radialTree,fitMap} from './mapGeometry';
 import {hasPin,setPin,checkPin,removePin,biometricEnabled,setBiometricEnabled,biometricAvailable,authenticateBiometric,lockStatus,recordPinAttempt} from './appLock';
 import {exportPDF,Note} from './export';
 import {safeExportName,saveExportToAndroid,ExportFormat} from './localSave';
@@ -380,7 +380,7 @@ const visible=useMemo(()=>{
 // This avoids SVG viewport width/preserveAspectRatio mismatches that made
 // the overview appear pushed to the right on Android.
 const miniBounds=useMemo(()=>{
-  const width=1000,height=140,pad=18;
+  const width=1000,height=240,pad=12;
   if(!visible.length)return {width,height,scale:1,dx:width/2,dy:height/2};
   const xs=visible.map(v=>v.x),ys=visible.map(v=>v.y);
   const minX=Math.min(...xs),maxX=Math.max(...xs),minY=Math.min(...ys),maxY=Math.max(...ys);
@@ -400,33 +400,7 @@ const fitCurrentMap=()=>{
 };
 const parentPoint:{x:number;y:number}={x:0,y:0};
 
-const addPoint=useMemo(()=>{
-  const siblings=visible.filter(v=>v.note.parentId===focused);
-  const center=visible.find(v=>v.note.id===focused)||{x:0,y:0};
-  const byId=new Map(visible.map(v=>[v.note.id,v]));
-  const segments=visible.flatMap(v=>{
-    const p=byId.get(v.note.parentId||'');
-    return p?[{start:p,end:v}]:[];
-  });
-  let best={x:center.x,y:center.y+210},bestScore=-Infinity;
-  // Search multiple radii, checking nodes AND existing connector segments.
-  for(const radius of [170,215,270,325,390]){
-    for(let i=0;i<96;i++){
-      const a=2*Math.PI*i/96;
-      const candidate={x:center.x+radius*Math.cos(a),y:center.y+radius*Math.sin(a)};
-      const nodeClearance=Math.min(...visible.map(v=>Math.hypot(candidate.x-v.x,candidate.y-v.y)-88));
-      const lineClearance=segments.length?Math.min(...segments.map(seg=>pointSegmentDistance(candidate,seg.start,seg.end)-44)):999;
-      const score=Math.min(nodeClearance,lineClearance)-radius*0.08;
-      if(score>bestScore){bestScore=score;best=candidate;}
-    }
-    if(bestScore>65)break;
-  }
-  return best;
-},[visible,focused]);
-
-const addHitStyle=useAnimatedStyle(()=>{const a=rotation.value,c=Math.cos(a),si=Math.sin(a);return {left:canvasW/2+tx.value+scale.value*(addPoint.x*c-addPoint.y*si)-38,top:canvasH/2+ty.value+scale.value*(addPoint.x*si+addPoint.y*c)-38};});
-
- const lines=visible
+const lines=visible
   .filter(x=>x.note.parentId&&x.note.parentId!=='root')
   .map(x=>{
     const p=visible.find(y=>y.note.id===x.note.parentId);
@@ -835,47 +809,14 @@ if(locked){
                 const length=Math.hypot(dx,dy);
                 return <View key={l.id} pointerEvents="none" style={{position:'absolute',left:(l.x1+l.x2)/2-length/2,top:(l.y1+l.y2)/2-1,width:length,height:2,backgroundColor:'#94a3b8',transform:[{rotate:`${Math.atan2(dy,dx)}rad`}]}}/>;
               })}
-              {(()=>{
-                const origin=visible.find(v=>v.note.id===focused)||visible[0];
-                if(!origin)return null;
-                const dx=addPoint.x-origin.x,dy=addPoint.y-origin.y;
-                const length=Math.hypot(dx,dy);
-                return <View pointerEvents="none" style={{position:'absolute',left:(origin.x+addPoint.x)/2-length/2,top:(origin.y+addPoint.y)/2-1,width:length,height:0,borderTopWidth:2,borderStyle:'dashed',borderColor:'#64748b',transform:[{rotate:`${Math.atan2(dy,dx)}rad`}]}}/>;
-              })()}
-
               {visible.map(({note,x,y,level})=>
                 node(note,x,y,level)
               )}
 
-              <View pointerEvents="none"
-                style={[
-                  styles.node,
-                  {
-                    left:addPoint.x-29,
-                    top:addPoint.y-29,
-                    width:58,
-                    height:58,
-                    borderRadius:29,
-                    backgroundColor:'transparent',
-                    borderColor:'#64748b',
-                    borderStyle:'dashed',
-                    borderWidth:2
-                  }
-                ]}
-              >
-                <Upright angle={rotation}>
-                  <Text style={{
-                    fontSize:30,
-                    color:'#475569'
-                  }}>+</Text>
-                </Upright>
-              </View>
             </Animated.View>
             </View>
           </GestureDetector>
-          <Animated.View pointerEvents="box-none" style={[{position:'absolute',width:76,height:76,zIndex:15},addHitStyle]}>
-            <Pressable accessibilityRole="button" accessibilityLabel="Add child note" onPress={()=>{setMapPrefs(p=>({...p,collapsed:{...p.collapsed,[focused]:false}}));addChild(focused);}} style={{width:76,height:76,borderRadius:38}} />
-          </Animated.View>
+
         </View>
 
         {!menu&&<View style={{flexDirection:'row',justifyContent:'center',gap:6,paddingVertical:5,flexWrap:'wrap'}}>
@@ -885,7 +826,7 @@ if(locked){
           <Button label={mapPrefs.collapsed[focused]?'Expand branch':'Collapse branch'} onPress={()=>setMapPrefs(p=>{const expand=!!p.collapsed[focused];const collapsed={...p.collapsed};if(expand){const stack=[focused];while(stack.length){const parentId=stack.pop()!;delete collapsed[parentId];notes.filter(n=>n.parentId===parentId).forEach(n=>stack.push(n.id));}}else collapsed[focused]=true;return {...p,collapsed};})}/>
           <Button label="Node color" onPress={()=>setMapPrefs(p=>{const palette=['#dbeafe','#dcfce7','#fef3c7','#fce7f3','#e9d5ff'];const current=p.colors[focused]||palette[0];return {...p,colors:{...p.colors,[focused]:palette[(palette.indexOf(current)+1)%palette.length]}};})}/>
         </View>}
-        {!menu&&showMiniMap&&<View style={{height:140,marginHorizontal:14,marginBottom:6,backgroundColor:'#e2e8f0',borderRadius:12,overflow:'hidden',padding:6}}><Text style={styles.muted}>Map overview · {visible.length} notes</Text><Svg width="100%" height={108} viewBox="0 0 1000 140" preserveAspectRatio="xMidYMid meet">{lines.map(l=><Line key={l.id} x1={l.x1*miniBounds.scale+miniBounds.dx} y1={l.y1*miniBounds.scale+miniBounds.dy} x2={l.x2*miniBounds.scale+miniBounds.dx} y2={l.y2*miniBounds.scale+miniBounds.dy} stroke="#94a3b8" strokeWidth={2}/>)}{visible.map(v=><Circle key={v.note.id} cx={v.x*miniBounds.scale+miniBounds.dx} cy={v.y*miniBounds.scale+miniBounds.dy} r={v.note.id===focused?5:3.5} fill={v.note.id===focused?'#2563eb':'#64748b'}/>)}</Svg></View>}
+        {!menu&&showMiniMap&&<View style={{height:205,marginHorizontal:14,marginBottom:6,backgroundColor:'#e2e8f0',borderRadius:12,overflow:'hidden',padding:6}}><Text style={styles.muted}>Map overview · {visible.length} notes</Text><Svg width="100%" height={170} viewBox="0 0 1000 240" preserveAspectRatio="xMidYMid meet">{lines.map(l=><Line key={l.id} x1={l.x1*miniBounds.scale+miniBounds.dx} y1={l.y1*miniBounds.scale+miniBounds.dy} x2={l.x2*miniBounds.scale+miniBounds.dx} y2={l.y2*miniBounds.scale+miniBounds.dy} stroke="#94a3b8" strokeWidth={2}/>)}{visible.map(v=><Circle key={v.note.id} cx={v.x*miniBounds.scale+miniBounds.dx} cy={v.y*miniBounds.scale+miniBounds.dy} r={v.note.id===focused?5:3.5} fill={v.note.id===focused?'#2563eb':'#64748b'}/>)}</Svg></View>}
         {undoBatch&&(
           <View style={styles.toolbar}>
             <Button
