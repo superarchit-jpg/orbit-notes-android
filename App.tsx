@@ -497,8 +497,8 @@ const node=(n:Note,x:number,y:number,level:number)=>{
       gesture={n.parentId&&n.parentId!=='root'?Gesture.Simultaneous(Gesture.Exclusive(long,triple,double,single),Gesture.Pan().minPointers(1).maxPointers(1).minDistance(12).onChange(e=>{const parent=visible.find(v=>v.note.id===n.parentId);const child=visible.find(v=>v.note.id===n.id);if(!parent||!child)return;const angle=rotation.value,c=Math.cos(angle),si=Math.sin(angle);const dx=scale.value*((child.x-parent.x)*c-(child.y-parent.y)*si),dy=scale.value*((child.x-parent.x)*si+(child.y-parent.y)*c);const delta=(dx*e.changeY-dy*e.changeX)/Math.max(2500,Math.min(dx*dx+dy*dy,160*160));if(Math.abs(delta)>0.00001)runOnJS(updateChildRotation)(n.parentId!,delta);}).onEnd(e=>{const parent=visible.find(v=>v.note.id===n.parentId);const child=visible.find(v=>v.note.id===n.id);if(!parent||!child)return;const a=rotation.value,c=Math.cos(a),si=Math.sin(a);const dx=scale.value*((child.x-parent.x)*c-(child.y-parent.y)*si),dy=scale.value*((child.x-parent.x)*si+(child.y-parent.y)*c);const speed=(dx*e.velocityY-dy*e.velocityX)/Math.max(2500,Math.min(dx*dx+dy*dy,160*160));runOnJS(finishChildRotation)(n.parentId!,Math.max(-2,Math.min(2,speed)));})) : Gesture.Exclusive(long,triple,double,single)}
     >
       <View collapsable={false} style={{
-        position:'absolute',left:x-size/2-16,top:y-size/2-16,
-        width:size+32,height:size+32,alignItems:'center',justifyContent:'center'
+        position:'absolute',left:x-size/2-24,top:y-size/2-24,
+        width:size+48,height:size+48,alignItems:'center',justifyContent:'center'
       }}>
       <View style={[
         styles.node,
@@ -506,8 +506,8 @@ const node=(n:Note,x:number,y:number,level:number)=>{
           width:size,
           height:size,
           borderRadius:size/2,
-          left:16,
-          top:16,
+          left:24,
+          top:24,
           backgroundColor:mapPrefs.colors[n.id]|| (n.id===focused?'#315fd6':level<=1?'#dbeafe':'#eef2ff'),
           borderColor:n.id===focused?'#315fd6':'#93c5fd'
         }
