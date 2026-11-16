@@ -38,6 +38,8 @@ const [notes,setNotes]=useState<Note[]>(initial),[folders,setFolders]=useState<F
 const [mapPrefs,setMapPrefs]=useState(emptyMapPreferences);
 const [showMiniMap,setShowMiniMap]=useState(false);
 const [nodeActions,setNodeActions]=useState<string|null>(null);
+const [draftChildId,setDraftChildId]=useState<string|null>(null);
+const [readerTapAt,setReaderTapAt]=useState(0);
 const [mapMenu,setMapMenu]=useState(false),[libraryMenu,setLibraryMenu]=useState(false),[selectionMenu,setSelectionMenu]=useState(false),[sidebar,setSidebar]=useState(false),[moveFolderMenu,setMoveFolderMenu]=useState(false),[exportTarget,setExportTarget]=useState<string|null>(null);
 
 const [backupMode,setBackupMode]=useState<'save'|'restore'|null>(null),[backupPassword,setBackupPassword]=useState(''),[backupBusy,setBackupBusy]=useState(false);
@@ -190,13 +192,22 @@ const saveEdit=()=>{
   if(!reader)return;
   setNotes(ns=>ns.map(n=>n.id===reader?{...n,title:title.trim()||'Untitled',body,updatedAt:Date.now()}:n));
   setEditing(false);
+  setDraftChildId(null);
   setReader(null);
+};
+
+const cancelReader=()=>{
+  if(draftChildId)setNotes(ns=>ns.filter(n=>n.id!==draftChildId));
+  setDraftChildId(null);
+  setReader(null);
+  setEditing(false);
 };
 
 const addChild=(parentId:string)=>{
   const newId=id();
   setNotes(ns=>[...ns,{id:newId,parentId,title:'',body:'',updatedAt:Date.now(),folderId:null}]);
   setMenu(false);
+  setDraftChildId(newId);
   beginNew(newId);
 };
 
@@ -369,13 +380,13 @@ const fitCurrentMap=()=>{
 const parentPoint:{x:number;y:number}={x:0,y:0};
 
 const addPoint=useMemo(()=>{
-  const siblings=visible.filter(v=>v.note.parentId===current.id);
-  const center=visible.find(v=>v.note.id===current.id)||{x:0,y:0};
+  const siblings=visible.filter(v=>v.note.parentId===focused);
+  const center=visible.find(v=>v.note.id===focused)||{x:0,y:0};
   let best={x:center.x,y:center.y+210},clearance=-Infinity;
 
   for(let i=0;i<96;i++){
     const a=2*Math.PI*i/96;
-    const radius=Math.max(165,(siblings.length+1)*46);
+    const radius=Math.min(205,Math.max(135,(siblings.length+1)*38));
     const candidate={
       x:center.x+radius*Math.cos(a),
       y:center.y+radius*Math.sin(a)
@@ -389,7 +400,7 @@ const addPoint=useMemo(()=>{
     }
   }
   return best;
-},[visible,current.id]);
+},[visible,focused]);
 
 const lines=visible
   .filter(x=>x.note.parentId&&x.note.parentId!=='root')
@@ -448,7 +459,7 @@ const node=(n:Note,x:number,y:number,level:number)=>{
           borderRadius:size/2,
           left:x-size/2,
           top:y-size/2,
-          backgroundColor:n.id===focused?'#315fd6':mapPrefs.colors[n.id]|| (level<=1?'#dbeafe':'#eef2ff'),
+          backgroundColor:mapPrefs.colors[n.id]|| (n.id===focused?'#315fd6':level<=1?'#dbeafe':'#eef2ff'),
           borderColor:n.id===focused?'#315fd6':'#93c5fd'
         }
       ]}>
@@ -458,7 +469,7 @@ const node=(n:Note,x:number,y:number,level:number)=>{
             style={[
               styles.nodeTitle,
               {
-                color:n.id===focused?'white':'#1e40af',
+                color:n.id===focused&&!mapPrefs.colors[n.id]?'white':'#1e40af',
                 fontSize:level===2?11:13
               }
             ]}
@@ -467,7 +478,7 @@ const node=(n:Note,x:number,y:number,level:number)=>{
           </Text>
           {Boolean(n.body.trim())&&(
             <Text style={{
-              color:n.id===focused?'#dbeafe':'#2563eb',
+              color:n.id===focused&&!mapPrefs.colors[n.id]?'#dbeafe':'#2563eb',
               fontSize:15
             }}>≡</Text>
           )}
@@ -841,7 +852,7 @@ if(locked){
 
               <Pressable
                 accessibilityLabel="Add child note"
-                onPress={()=>addChild(current.id)}
+                onPress={()=>addChild(focused)}
                 style={[
                   styles.node,
                   {
@@ -1160,13 +1171,9 @@ if(locked){
                     onPress={saveEdit}
                   />
                 )}
-                <Button
-                  label="Close"
-                  onPress={()=>{
-                    setReader(null);
-                    setEditing(false);
-                  }}
-                />
+                {!editing&&<IconButton label="+" onPress={()=>reader&&addChild(reader)}/>}
+                {!editing&&<IconButton label="✎" onPress={()=>reader&&beginEdit(reader)}/>}
+                <IconButton label="×" onPress={cancelReader}/>
               </View>
             </View>
 
@@ -1191,26 +1198,18 @@ if(locked){
               </View>
             ):(
               <ScrollView contentContainerStyle={styles.editor}>
-                <Text style={styles.readerTitle}>
-                  {activeReader?.title}
-                </Text>
+                <Pressable onPress={()=>{const now=Date.now();if(now-readerTapAt<360&&reader)beginEdit(reader);setReaderTapAt(now);}}>
+                  <Text style={styles.readerTitle}>{activeReader?.title}</Text>
+                </Pressable>
                 <Text style={styles.muted}>
                   Updated {activeReader
                     ?stamp(activeReader.updatedAt)
                     :''}
                 </Text>
-                <Text style={styles.readBody}>
-                  {activeReader?.body||'This note is empty.'}
-                </Text>
-                <Button
-                  label="Edit note"
-                  primary
-                  onPress={()=>reader&&beginEdit(reader)}
-                />
-                <Button
-                  label="Add child"
-                  onPress={()=>reader&&addChild(reader)}
-                />
+                <Pressable onPress={()=>{const now=Date.now();if(now-readerTapAt<360&&reader)beginEdit(reader);setReaderTapAt(now);}}>
+                  <Text style={styles.readBody}>{activeReader?.body||'This note is empty.'}</Text>
+                </Pressable>
+
               </ScrollView>
             )}
           </SafeAreaView>
