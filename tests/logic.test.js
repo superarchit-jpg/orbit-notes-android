@@ -85,12 +85,12 @@ check(
 );
 
 check(
-  app.includes('withTiming(-point.x'),
+  app.includes('withTiming(-(point.x*Math.cos(angle)-point.y*Math.sin(angle))'),
   'Missing animated horizontal camera movement'
 );
 
 check(
-  app.includes('withTiming(-point.y'),
+  app.includes('withTiming(-(point.x*Math.sin(angle)+point.y*Math.cos(angle))'),
   'Missing animated vertical camera movement'
 );
 
