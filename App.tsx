@@ -366,11 +366,15 @@ const updateChildRotation=(parentId:string,delta:number)=>setMapPrefs(p=>({...p,
    };
    const desired=start+coast;
    let target=desired,best=score(desired);
-   // Seek the closest safe resting angle; allow crossings during the gesture.
-   for(const delta of [0.08,-0.08,0.16,-0.16,0.26,-0.26,0.38,-0.38,0.52,-0.52]){
-     const candidate=desired+delta;
-     const cost=score(candidate)+Math.abs(delta)*120;
-     if(cost<best){best=cost;target=candidate;}
+   // Keep a flick moving in its original direction: never snap backward.
+   // Stationary release does not introduce extra motion.
+   if(Math.abs(coast)>0.015){
+     const sign=Math.sign(coast);
+     for(const amount of [0.06,0.12,0.2,0.3]){
+       const candidate=desired+sign*amount;
+       const cost=score(candidate)+amount*150;
+       if(cost<best){best=cost;target=candidate;}
+     }
    }
    const distance=target-start;
    if(Math.abs(distance)<0.001)return;
@@ -384,7 +388,7 @@ const updateChildRotation=(parentId:string,delta:number)=>setMapPrefs(p=>({...p,
    };
    requestAnimationFrame(animate);
  };
- const pan=Gesture.Pan().minPointers(2)
+ const pan=Gesture.Pan().minPointers(1)
   .onStart(()=>{
     startX.value=tx.value;
     startY.value=ty.value;
@@ -442,7 +446,7 @@ const visible=useMemo(()=>{
     id=notes.find(n=>n.id===id)?.parentId||'';
   }
   return fullMap.filter(n=>n.level<=1||ancestors.has(n.note.id)||
-    (n.note.parentId===focused&&n.level===depth+1));
+    (ancestors.has(n.note.parentId||'')&&n.level<=depth+1));
 },[fullMap,focused,notes]);
 
 // Use a fixed local drawing space and transform every point into it.
