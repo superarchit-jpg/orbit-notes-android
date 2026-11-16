@@ -19,6 +19,29 @@ export function circularDragAngle(start:MapPoint,end:MapPoint,center:MapPoint):n
   return normalizeAngle(b-a);
 }
 
+/** Minimum distance from a point to a finite connector segment. */
+export function pointSegmentDistance(p:MapPoint,a:MapPoint,b:MapPoint):number{
+  const dx=b.x-a.x,dy=b.y-a.y,denom=dx*dx+dy*dy;
+  if(denom<0.0001)return Math.hypot(p.x-a.x,p.y-a.y);
+  const t=clamp(((p.x-a.x)*dx+(p.y-a.y)*dy)/denom,0,1);
+  return Math.hypot(p.x-a.x-t*dx,p.y-a.y-t*dy);
+}
+
+/** A branch's connector must not pass through an unrelated node. */
+export function layoutCollisions<T extends MapNode>(nodes:readonly PositionedNode<T>[],clearance=52){
+  const byId=new Map(nodes.map(n=>[n.note.id,n]));
+  const result:{nodeId:string;connectorId:string;distance:number}[]=[];
+  for(const node of nodes){
+    for(const end of nodes){
+      const parent=byId.get(end.note.parentId||'');
+      if(!parent||node.note.id===end.note.id||node.note.id===parent.note.id)continue;
+      const distance=pointSegmentDistance(node,parent,end);
+      if(distance<clearance)result.push({nodeId:node.note.id,connectorId:end.note.id,distance});
+    }
+  }
+  return result;
+}
+
 /** Build one consistent hierarchy. Each parent's angle is independent and persistent. */
 export function radialTree<T extends MapNode>(
   root:T,
@@ -77,6 +100,52 @@ export function radialTree<T extends MapNode>(
     });
   };
   walk(root,0,0,0);
+
+  // Resolve collisions by shifting complete first-level subtrees outward.
+  // Descendants and their connectors move together, preserving the user's
+  // manual branch rotations and relative positions.
+  const rootChildren=children.get(root.id)||[];
+  const firstAncestor=(id:string):string=>{
+    let n=notes.find(item=>item.id===id);
+    const seen=new Set<string>();
+    while(n&&n.parentId&&n.parentId!==root.id&&!seen.has(n.id)){
+      seen.add(n.id);
+      n=notes.find(item=>item.id===n!.parentId);
+    }
+    return n?.parentId===root.id?n.id:'';
+  };
+  const subtreeOf=(id:string)=>placed.filter(n=>firstAncestor(n.note.id)===id);
+  const rootPoint=placed.find(n=>n.note.id===root.id);
+  if(rootPoint&&rootChildren.length>1){
+    for(let iteration=0;iteration<12;iteration++){
+      let moved=false;
+      const conflicts=layoutCollisions(placed,56);
+      const overlaps:{a:string;b:string}[]=[];
+      for(let i=0;i<placed.length;i++)for(let j=i+1;j<placed.length;j++){
+        if(Math.hypot(placed[i].x-placed[j].x,placed[i].y-placed[j].y)<110)
+          overlaps.push({a:placed[i].note.id,b:placed[j].note.id});
+      }
+      const moveIds=new Set<string>();
+      for(const c of conflicts){
+        const a=firstAncestor(c.nodeId),b=firstAncestor(c.connectorId);
+        if(a&&b&&a!==b)moveIds.add(a);
+      }
+      for(const c of overlaps){
+        const a=firstAncestor(c.a),b=firstAncestor(c.b);
+        if(a&&b&&a!==b)moveIds.add(a);
+      }
+      for(const id of moveIds){
+        const anchor=placed.find(n=>n.note.id===id);
+        if(!anchor)continue;
+        const dx=anchor.x-rootPoint.x,dy=anchor.y-rootPoint.y;
+        const len=Math.max(1,Math.hypot(dx,dy));
+        const shift=65;
+        for(const n of subtreeOf(id)){n.x+=shift*dx/len;n.y+=shift*dy/len;}
+        moved=true;
+      }
+      if(!moved)break;
+    }
+  }
   return placed;
 }
 
