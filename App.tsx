@@ -1403,9 +1403,9 @@ if(locked){
               gap:12
             }}>
               {showTrash?(
-                <View style={{gap:12}}>
-                  <Text style={styles.section}>
-                    Recently Deleted
+                <View style={{gap:12,backgroundColor:'#fff1f2',borderColor:'#fecdd3',borderWidth:1,borderRadius:16,padding:12}}>
+                  <Text style={[styles.section,{color:'#9f1239'}]}>
+                    🗑 Recently Deleted
                   </Text>
 
                   {trash.length===0&&(
