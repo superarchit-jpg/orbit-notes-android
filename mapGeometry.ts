@@ -57,50 +57,36 @@ export function radialTree<T extends MapNode>(
     siblings.push(note);
     children.set(note.parentId,siblings);
   }
-  // Allocate angular room to complete subtrees, not just immediate siblings.
-  // This keeps deep branches outward-facing rather than folding them across
-  // connectors from the map's heading to other first-level branches.
-  const weights=new Map<string,number>();
-  const weighing=new Set<string>();
-  const weight=(note:T):number=>{
-    if(weights.has(note.id))return weights.get(note.id)!;
-    if(weighing.has(note.id))return 1;
-    weighing.add(note.id);
-    const kids=collapsed[note.id]?[]:(children.get(note.id)||[]);
-    const result=kids.length?Math.max(1,kids.reduce((sum,k)=>sum+weight(k),0)):1;
-    weighing.delete(note.id);
-    weights.set(note.id,result);
-    return result;
-  };
-  weight(root);
   const placed:PositionedNode<T>[]=[];
   const visited=new Set<string>();
-  const walk=(note:T,x:number,y:number,level:number,direction=-Math.PI/2,sector=Math.PI*2)=>{
+  const walk=(note:T,x:number,y:number,level:number,incoming=-Math.PI/2)=>{
     if(visited.has(note.id))return;
     visited.add(note.id);
     placed.push({note,x,y,level});
     if(collapsed[note.id])return;
     const kids=children.get(note.id)||[];
-    if(!kids.length)return;
-    const total=kids.reduce((sum,k)=>sum+(weights.get(k.id)||1),0);
-    // Root children occupy a complete ring. Descendants stay in a forward
-    // wedge within the parent's inherited sector, so they do not fan backward.
-    const available=level===0?Math.PI*2:Math.min(sector,Math.PI*0.72);
-    const base=direction-available/2+(offsets[note.id]||0);
-    const radius=(note.id===focusedId?160:level===0?155:132)+Math.min(42,Math.max(0,kids.length-4)*6);
-    let cursor=0;
+    const count=kids.length;
+    if(!count)return;
+    const offset=offsets[note.id]||0;
+    const radius=(note.id===focusedId?168:level===0?158:142)+Math.min(32,Math.max(0,count-5)*7);
     kids.forEach((child,index)=>{
-      const portion=available*(weights.get(child.id)||1)/Math.max(1,total);
-      const preferred=base+cursor+portion/2;
-      cursor+=portion;
-      // During a drag, positions follow the finger exactly. No automatic
-      // angle changes or repositioning of unrelated branches here.
-      const angle=base+cursor+portion/2;
-      cursor+=portion;
-      const childSector=Math.max(0.16,portion*0.88);
-      const childRadius=radius+(index%2===1?20:0);
-      walk(child,x+Math.cos(angle)*childRadius,y+Math.sin(angle)*childRadius,
-        level+1,angle,childSector);
+      let angle:number;
+      if(level===0){
+        // A map opens with a single child at 12 o'clock, two at
+        // 3 and 6 o'clock, and larger groups at polygon vertices.
+        angle=count===1?-Math.PI/2:count===2?index*Math.PI/2:
+          -Math.PI/2+index*2*Math.PI/count;
+      }else{
+        // One child continues directly outward; two are opposite
+        // one another on an axis perpendicular to the incoming edge.
+        angle=count===1?incoming:count===2?
+          incoming-Math.PI/2+index*Math.PI:
+          incoming-Math.PI/2+index*2*Math.PI/count;
+      }
+      angle+=offset;
+      const stagger=count>1&&index%2===1?14:0;
+      walk(child,x+Math.cos(angle)*(radius+stagger),
+        y+Math.sin(angle)*(radius+stagger),level+1,angle);
     });
   };
   walk(root,0,0,0);
