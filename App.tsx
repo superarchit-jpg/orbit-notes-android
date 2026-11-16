@@ -336,49 +336,12 @@ const updateChildRotation=(parentId:string,delta:number)=>setMapPrefs(p=>({...p,
    if(!mapRoot)return;
    const start=mapPrefs.offsets[parentId]||0;
    const coast=Math.max(-0.34,Math.min(0.34,angularVelocity*0.12));
-   const children=visible.filter(n=>n.note.parentId===parentId);
-   const movingIds=new Set<string>();
-   const visit=(id:string)=>{
-     if(movingIds.has(id))return;
-     movingIds.add(id);
-     visible.filter(n=>n.note.parentId===id).forEach(n=>visit(n.note.id));
-   };
-   children.forEach(n=>visit(n.note.id));
-   const score=(offset:number)=>{
-     const layout=radialTree(mapRoot,notes,{...mapPrefs.offsets,[parentId]:offset},mapPrefs.collapsed,focused);
-     const byId=new Map(layout.map(n=>[n.note.id,n]));
-     let cost=0;
-     for(const node of layout){
-       if(!movingIds.has(node.note.id))continue;
-       for(const other of layout){
-         if(movingIds.has(other.note.id)||other.note.id===parentId)continue;
-         const distance=Math.hypot(node.x-other.x,node.y-other.y);
-         cost+=Math.max(0,112-distance)**2;
-       }
-       for(const other of layout){
-         if(movingIds.has(other.note.id))continue;
-         const p=byId.get(other.note.parentId||'');
-         if(!p||movingIds.has(p.note.id))continue;
-         cost+=Math.max(0,57-pointSegmentDistance(node,p,other))**2;
-       }
-     }
-     return cost;
-   };
-   const desired=start+coast;
-   let target=desired,best=score(desired);
-   // Keep a flick moving in its original direction: never snap backward.
-   // Stationary release does not introduce extra motion.
-   if(Math.abs(coast)>0.015){
-     const sign=Math.sign(coast);
-     for(const amount of [0.06,0.12,0.2,0.3]){
-       const candidate=desired+sign*amount;
-       const cost=score(candidate)+amount*150;
-       if(cost<best){best=cost;target=candidate;}
-     }
-   }
-   const distance=target-start;
-   if(Math.abs(distance)<0.001)return;
-   const began=Date.now(),duration=210;
+   // A flick coasts only in its original direction. Avoid searching for
+   // nearby angles during momentum, which produced visual reversals.
+   // A stationary release must not introduce any extra movement.
+   if(Math.abs(coast)<0.015)return;
+   const distance=coast;
+   const began=Date.now(),duration=280;
    const animate=()=>{
      const t=Math.min(1,(Date.now()-began)/duration);
      const ease=1-Math.pow(1-t,3);
@@ -533,14 +496,18 @@ const node=(n:Note,x:number,y:number,level:number)=>{
       key={n.id}
       gesture={n.parentId&&n.parentId!=='root'?Gesture.Simultaneous(Gesture.Exclusive(long,triple,double,single),Gesture.Pan().minPointers(1).maxPointers(1).minDistance(12).onChange(e=>{const parent=visible.find(v=>v.note.id===n.parentId);const child=visible.find(v=>v.note.id===n.id);if(!parent||!child)return;const angle=rotation.value,c=Math.cos(angle),si=Math.sin(angle);const dx=scale.value*((child.x-parent.x)*c-(child.y-parent.y)*si),dy=scale.value*((child.x-parent.x)*si+(child.y-parent.y)*c);const delta=(dx*e.changeY-dy*e.changeX)/Math.max(2500,Math.min(dx*dx+dy*dy,160*160));if(Math.abs(delta)>0.00001)runOnJS(updateChildRotation)(n.parentId!,delta);}).onEnd(e=>{const parent=visible.find(v=>v.note.id===n.parentId);const child=visible.find(v=>v.note.id===n.id);if(!parent||!child)return;const a=rotation.value,c=Math.cos(a),si=Math.sin(a);const dx=scale.value*((child.x-parent.x)*c-(child.y-parent.y)*si),dy=scale.value*((child.x-parent.x)*si+(child.y-parent.y)*c);const speed=(dx*e.velocityY-dy*e.velocityX)/Math.max(2500,Math.min(dx*dx+dy*dy,160*160));runOnJS(finishChildRotation)(n.parentId!,Math.max(-2,Math.min(2,speed)));})) : Gesture.Exclusive(long,triple,double,single)}
     >
+      <View collapsable={false} style={{
+        position:'absolute',left:x-size/2-16,top:y-size/2-16,
+        width:size+32,height:size+32,alignItems:'center',justifyContent:'center'
+      }}>
       <View style={[
         styles.node,
         {
           width:size,
           height:size,
           borderRadius:size/2,
-          left:x-size/2,
-          top:y-size/2,
+          left:16,
+          top:16,
           backgroundColor:mapPrefs.colors[n.id]|| (n.id===focused?'#315fd6':level<=1?'#dbeafe':'#eef2ff'),
           borderColor:n.id===focused?'#315fd6':'#93c5fd'
         }
@@ -564,9 +531,7 @@ const node=(n:Note,x:number,y:number,level:number)=>{
               fontSize:15
             }}>≡</Text>
           )}
-        </Upright>
-      </View>
-    </GestureDetector>
+        </Upright>\n      </View>\n      </View>\n    </GestureDetector>
   );
 };
 
