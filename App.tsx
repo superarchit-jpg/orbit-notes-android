@@ -335,7 +335,7 @@ const updateChildRotation=(parentId:string,delta:number)=>setMapPrefs(p=>({...p,
    const mapRoot=visible.find(n=>n.level===0)?.note;
    if(!mapRoot)return;
    const start=mapPrefs.offsets[parentId]||0;
-   const coast=Math.max(-0.24,Math.min(0.24,angularVelocity*0.085));
+   const coast=Math.max(-0.34,Math.min(0.34,angularVelocity*0.12));
    const children=visible.filter(n=>n.note.parentId===parentId);
    const movingIds=new Set<string>();
    const visit=(id:string)=>{
@@ -417,29 +417,41 @@ const animated=useAnimatedStyle(()=>({
 
 // All nodes in the active map remain mounted at stable world coordinates.
 // Moving between levels animates the camera, rather than rebuilding the diagram.
+const mapRoot=useMemo(()=>{
+  let n=current;
+  const seen=new Set<string>();
+  while(n.parentId&&n.parentId!=='root'&&!seen.has(n.id)){
+    seen.add(n.id);
+    const p=notes.find(x=>x.id===n.parentId);
+    if(!p)break;
+    n=p;
+  }
+  return n;
+},[current,notes]);
+const completeMap=useMemo(()=>radialTree(mapRoot,notes,mapPrefs.offsets,{},focused),
+  [mapRoot,notes,mapPrefs.offsets,focused]);
+const fullMap=useMemo(()=>radialTree(mapRoot,notes,mapPrefs.offsets,mapPrefs.collapsed,focused),
+  [mapRoot,notes,mapPrefs.offsets,mapPrefs.collapsed,focused]);
 const visible=useMemo(()=>{
-  const mapRoot=(()=>{
-    let n=current;
-    const seen=new Set<string>();
-    while(n.parentId&&n.parentId!=='root'&&!seen.has(n.id)){
-      seen.add(n.id);
-      const p=notes.find(x=>x.id===n.parentId);
-      if(!p)break;
-      n=p;
-    }
-    return n;
-  })();
-
-  return radialTree(mapRoot,notes,mapPrefs.offsets,mapPrefs.collapsed,focused);
-},[notes,current.id,focused,mapPrefs.offsets,mapPrefs.collapsed]);
+  const focus=fullMap.find(n=>n.note.id===focused);
+  const depth=focus?.level||0;
+  const ancestors=new Set<string>();
+  let id=focused;
+  while(id&&!ancestors.has(id)){
+    ancestors.add(id);
+    id=notes.find(n=>n.id===id)?.parentId||'';
+  }
+  return fullMap.filter(n=>n.level<=1||ancestors.has(n.note.id)||
+    (n.note.parentId===focused&&n.level===depth+1));
+},[fullMap,focused,notes]);
 
 // Use a fixed local drawing space and transform every point into it.
 // This avoids SVG viewport width/preserveAspectRatio mismatches that made
 // the overview appear pushed to the right on Android.
 const miniBounds=useMemo(()=>{
   const width=1000,height=240,pad=12;
-  if(!visible.length)return {width,height,scale:1,dx:width/2,dy:height/2};
-  const xs=visible.map(v=>v.x),ys=visible.map(v=>v.y);
+  if(!completeMap.length)return {width,height,scale:1,dx:width/2,dy:height/2};
+  const xs=completeMap.map(v=>v.x),ys=completeMap.map(v=>v.y);
   const minX=Math.min(...xs),maxX=Math.max(...xs),minY=Math.min(...ys),maxY=Math.max(...ys);
   const spanX=Math.max(1,maxX-minX),spanY=Math.max(1,maxY-minY);
   const scale=Math.min((width-2*pad)/spanX,(height-2*pad)/spanY);
@@ -457,6 +469,17 @@ const fitCurrentMap=()=>{
 };
 const parentPoint:{x:number;y:number}={x:0,y:0};
 
+const miniLines=completeMap.filter(n=>n.note.parentId&&n.note.parentId!=='root').flatMap(n=>{
+  const p=completeMap.find(x=>x.note.id===n.note.parentId);
+  return p?[{id:n.note.id,x1:p.x,y1:p.y,x2:n.x,y2:n.y}]:[];
+});
+const hiddenIndicators=fullMap.filter(n=>!visible.some(v=>v.note.id===n.note.id)&&
+  visible.some(v=>v.note.id===n.note.parentId)).map(n=>{
+  const p=fullMap.find(v=>v.note.id===n.note.parentId)!;
+  const radius=p.level===0?56:p.level===1?44:35;
+  const angle=Math.atan2(n.y-p.y,n.x-p.x);
+  return {note:n.note,x:p.x+radius*Math.cos(angle),y:p.y+radius*Math.sin(angle)};
+});
 const lines=visible
   .filter(x=>x.note.parentId&&x.note.parentId!=='root')
   .map(x=>{
