@@ -458,7 +458,7 @@ const node=(n:Note,x:number,y:number,level:number)=>{
   return (
     <GestureDetector
       key={n.id}
-      gesture={n.parentId&&n.parentId!=='root'?Gesture.Simultaneous(Gesture.Exclusive(long,triple,double,single),Gesture.Pan().minPointers(1).maxPointers(1).minDistance(12).onChange(e=>{if(Math.abs(e.changeX)>0.01)runOnJS(updateChildRotation)(n.parentId!,e.changeX*0.009);})) : Gesture.Exclusive(long,triple,double,single)}
+      gesture={n.parentId&&n.parentId!=='root'?Gesture.Simultaneous(Gesture.Exclusive(long,triple,double,single),Gesture.Pan().minPointers(1).maxPointers(1).minDistance(12).onChange(e=>{const parent=visible.find(v=>v.note.id===n.parentId);const child=visible.find(v=>v.note.id===n.id);if(!parent||!child)return;const angle=rotation.value,c=Math.cos(angle),si=Math.sin(angle);const dx=scale.value*((child.x-parent.x)*c-(child.y-parent.y)*si),dy=scale.value*((child.x-parent.x)*si+(child.y-parent.y)*c);const delta=(dx*e.changeY-dy*e.changeX)/Math.max(2500,dx*dx+dy*dy);if(Math.abs(delta)>0.00001)runOnJS(updateChildRotation)(n.parentId!,delta);})) : Gesture.Exclusive(long,triple,double,single)}
     >
       <View style={[
         styles.node,
@@ -855,13 +855,14 @@ if(locked){
             </Animated.View>
             </View>
           </GestureDetector>
-          <Animated.View style={[{position:'absolute',width:76,height:76,zIndex:15},addHitStyle]}>
+          <Animated.View pointerEvents="box-none" style={[{position:'absolute',width:76,height:76,zIndex:15},addHitStyle]}>
             <Pressable accessibilityRole="button" accessibilityLabel="Add child note" onPress={()=>{setMapPrefs(p=>({...p,collapsed:{...p.collapsed,[focused]:false}}));addChild(focused);}} style={{width:76,height:76,borderRadius:38}} />
           </Animated.View>
         </View>
 
         {!menu&&<View style={{flexDirection:'row',justifyContent:'center',gap:6,paddingVertical:5,flexWrap:'wrap'}}>
-          <Button label="−" onPress={()=>{scale.value=withTiming(Math.max(.35,scale.value/1.2));}}/>
+          <Button label="+ Add child" onPress={()=>{setMapPrefs(p=>({...p,collapsed:{...p.collapsed,[focused]:false}}));addChild(focused);}}/>
+           <Button label="−" onPress={()=>{scale.value=withTiming(Math.max(.35,scale.value/1.2));}}/>
           <Button label="+" onPress={()=>{scale.value=withTiming(Math.min(4,scale.value*1.2));}}/>
           <Button label="Fit" onPress={fitCurrentMap}/>
           <Button label="Reset angle" onPress={()=>{rotation.value=withTiming(0);}}/>
