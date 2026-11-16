@@ -47,7 +47,8 @@ export function radialTree<T extends MapNode>(
   root:T,
   notes:readonly T[],
   offsets:Readonly<Record<string,number>>={},
-  collapsed:Readonly<Record<string,boolean>>={}
+  collapsed:Readonly<Record<string,boolean>>={},
+  focusedId?:string
 ):PositionedNode<T>[]{
   const children=new Map<string,T[]>();
   for(const note of notes){
@@ -86,13 +87,34 @@ export function radialTree<T extends MapNode>(
     // wedge within the parent's inherited sector, so they do not fan backward.
     const available=level===0?Math.PI*2:Math.min(sector,Math.PI*0.72);
     const base=direction-available/2+(offsets[note.id]||0);
-    const radius=Math.max(215,155+kids.length*48)+level*115+
-      (level===0?Math.min(260,Math.sqrt(total)*40):0);
+    const radius=(note.id===focusedId?255:level===0?205:170)+Math.min(70,Math.max(0,kids.length-2)*22);
     let cursor=0;
     kids.forEach(child=>{
       const portion=available*(weights.get(child.id)||1)/Math.max(1,total);
-      const angle=base+cursor+portion/2;
+      const preferred=base+cursor+portion/2;
       cursor+=portion;
+      // Search nearby angles for node/connector clearance without
+      // making every generation's connectors longer.
+      const score=(angle:number)=>{
+        const p={x:x+Math.cos(angle)*radius,y:y+Math.sin(angle)*radius};
+        let penalty=Math.abs(normalizeAngle(angle-preferred))*95;
+        for(const n of placed){
+          if(n.note.id===note.id)continue;
+          penalty+=Math.max(0,125-Math.hypot(p.x-n.x,p.y-n.y))*5;
+          penalty+=Math.max(0,55-pointSegmentDistance(n,{x,y},p))*3;
+        }
+        for(const end of placed){
+          const parent=placed.find(n=>n.note.id===end.note.parentId);
+          if(!parent||parent.note.id===note.id)continue;
+          penalty+=Math.max(0,65-pointSegmentDistance(p,parent,end))*4;
+        }
+        return penalty;
+      };
+      let angle=preferred,best=score(preferred);
+      for(const deviation of [-0.4,0.4,-0.8,0.8,-1.2,1.2]){
+        const candidate=preferred+deviation,cost=score(candidate);
+        if(cost<best){best=cost;angle=candidate;}
+      }
       // Reserve a modest buffer on either side of each subtree's sector.
       const childSector=Math.max(0.16,portion*0.88);
       walk(child,x+Math.cos(angle)*radius,y+Math.sin(angle)*radius,
@@ -101,51 +123,6 @@ export function radialTree<T extends MapNode>(
   };
   walk(root,0,0,0);
 
-  // Resolve collisions by shifting complete first-level subtrees outward.
-  // Descendants and their connectors move together, preserving the user's
-  // manual branch rotations and relative positions.
-  const rootChildren=children.get(root.id)||[];
-  const firstAncestor=(id:string):string=>{
-    let n=notes.find(item=>item.id===id);
-    const seen=new Set<string>();
-    while(n&&n.parentId&&n.parentId!==root.id&&!seen.has(n.id)){
-      seen.add(n.id);
-      n=notes.find(item=>item.id===n!.parentId);
-    }
-    return n?.parentId===root.id?n.id:'';
-  };
-  const subtreeOf=(id:string)=>placed.filter(n=>firstAncestor(n.note.id)===id);
-  const rootPoint=placed.find(n=>n.note.id===root.id);
-  if(rootPoint&&rootChildren.length>1){
-    for(let iteration=0;iteration<12;iteration++){
-      let moved=false;
-      const conflicts=layoutCollisions(placed,56);
-      const overlaps:{a:string;b:string}[]=[];
-      for(let i=0;i<placed.length;i++)for(let j=i+1;j<placed.length;j++){
-        if(Math.hypot(placed[i].x-placed[j].x,placed[i].y-placed[j].y)<110)
-          overlaps.push({a:placed[i].note.id,b:placed[j].note.id});
-      }
-      const moveIds=new Set<string>();
-      for(const c of conflicts){
-        const a=firstAncestor(c.nodeId),b=firstAncestor(c.connectorId);
-        if(a&&b&&a!==b)moveIds.add(a);
-      }
-      for(const c of overlaps){
-        const a=firstAncestor(c.a),b=firstAncestor(c.b);
-        if(a&&b&&a!==b)moveIds.add(a);
-      }
-      for(const id of moveIds){
-        const anchor=placed.find(n=>n.note.id===id);
-        if(!anchor)continue;
-        const dx=anchor.x-rootPoint.x,dy=anchor.y-rootPoint.y;
-        const len=Math.max(1,Math.hypot(dx,dy));
-        const shift=65;
-        for(const n of subtreeOf(id)){n.x+=shift*dx/len;n.y+=shift*dy/len;}
-        moved=true;
-      }
-      if(!moved)break;
-    }
-  }
   return placed;
 }
 
