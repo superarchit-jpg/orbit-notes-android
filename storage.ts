@@ -77,8 +77,9 @@ export type MapPreferences={
   offsets:Record<string,number>;
   collapsed:Record<string,boolean>;
   colors:Record<string,string>;
+  pinned:string[];
 };
-export const emptyMapPreferences=():MapPreferences=>({offsets:{},collapsed:{},colors:{}});
+export const emptyMapPreferences=():MapPreferences=>({offsets:{},collapsed:{},colors:{},pinned:[]});
 export async function loadMapPreferences():Promise<MapPreferences>{
   await writeQueue;
   const db=await getDatabase();
@@ -89,7 +90,8 @@ export async function loadMapPreferences():Promise<MapPreferences>{
     return {
       offsets:parsed.offsets&&typeof parsed.offsets==='object'?parsed.offsets:{},
       collapsed:parsed.collapsed&&typeof parsed.collapsed==='object'?parsed.collapsed:{},
-      colors:parsed.colors&&typeof parsed.colors==='object'?parsed.colors:{}
+      colors:parsed.colors&&typeof parsed.colors==='object'?parsed.colors:{},
+      pinned:Array.isArray(parsed.pinned)?parsed.pinned.filter((x):x is string=>typeof x==='string'):[]
     };
   }catch{return emptyMapPreferences();}
 }
