@@ -33,21 +33,47 @@ export function radialTree<T extends MapNode>(
     siblings.push(note);
     children.set(note.parentId,siblings);
   }
+  // Allocate angular room to complete subtrees, not just immediate siblings.
+  // This keeps deep branches outward-facing rather than folding them across
+  // connectors from the map's heading to other first-level branches.
+  const weights=new Map<string,number>();
+  const weighing=new Set<string>();
+  const weight=(note:T):number=>{
+    if(weights.has(note.id))return weights.get(note.id)!;
+    if(weighing.has(note.id))return 1;
+    weighing.add(note.id);
+    const kids=collapsed[note.id]?[]:(children.get(note.id)||[]);
+    const result=kids.length?Math.max(1,kids.reduce((sum,k)=>sum+weight(k),0)):1;
+    weighing.delete(note.id);
+    weights.set(note.id,result);
+    return result;
+  };
+  weight(root);
   const placed:PositionedNode<T>[]=[];
   const visited=new Set<string>();
-  const walk=(note:T,x:number,y:number,level:number,bearing=0)=>{
+  const walk=(note:T,x:number,y:number,level:number,direction=-Math.PI/2,sector=Math.PI*2)=>{
     if(visited.has(note.id))return;
     visited.add(note.id);
     placed.push({note,x,y,level});
     if(collapsed[note.id])return;
     const kids=children.get(note.id)||[];
-    const radius=Math.max(190,kids.length*58)+Math.max(0,level-1)*65;
-    const offset=offsets[note.id]||0;
-    kids.forEach((child,index)=>{
-      const spread=level===0?Math.PI*2:Math.PI*0.85;
-      const step=level===0?spread/kids.length:kids.length===1?0:spread/(kids.length-1);
-      const angle=level===0?bearing-Math.PI/2+index*step+offset:bearing-Math.PI/2+(index-(kids.length-1)/2)*step+offset;
-      walk(child,x+Math.cos(angle)*radius,y+Math.sin(angle)*radius,level+1,angle+Math.PI/2);
+    if(!kids.length)return;
+    const total=kids.reduce((sum,k)=>sum+(weights.get(k.id)||1),0);
+    // Root children occupy a complete ring. Descendants stay in a forward
+    // wedge within the parent's inherited sector, so they do not fan backward.
+    const available=level===0?Math.PI*2:Math.min(sector,Math.PI*0.72);
+    const base=direction-available/2+(offsets[note.id]||0);
+    const radius=Math.max(215,155+kids.length*48)+level*115+
+      (level===0?Math.min(260,Math.sqrt(total)*40):0);
+    let cursor=0;
+    kids.forEach(child=>{
+      const portion=available*(weights.get(child.id)||1)/Math.max(1,total);
+      const angle=base+cursor+portion/2;
+      cursor+=portion;
+      // Reserve a modest buffer on either side of each subtree's sector.
+      const childSector=Math.max(0.16,portion*0.88);
+      walk(child,x+Math.cos(angle)*radius,y+Math.sin(angle)*radius,
+        level+1,angle,childSector);
     });
   };
   walk(root,0,0,0);
