@@ -35,7 +35,7 @@ export function radialTree<T extends MapNode>(
   }
   const placed:PositionedNode<T>[]=[];
   const visited=new Set<string>();
-  const walk=(note:T,x:number,y:number,level:number)=>{
+  const walk=(note:T,x:number,y:number,level:number,bearing=0)=>{
     if(visited.has(note.id))return;
     visited.add(note.id);
     placed.push({note,x,y,level});
@@ -44,8 +44,8 @@ export function radialTree<T extends MapNode>(
     const radius=Math.max(165,kids.length*46)+Math.max(0,level-1)*48;
     const offset=offsets[note.id]||0;
     kids.forEach((child,index)=>{
-      const angle=-Math.PI/2+index*2*Math.PI/kids.length+offset;
-      walk(child,x+Math.cos(angle)*radius,y+Math.sin(angle)*radius,level+1);
+      const angle=bearing-Math.PI/2+index*2*Math.PI/kids.length+offset;
+      walk(child,x+Math.cos(angle)*radius,y+Math.sin(angle)*radius,level+1,angle+Math.PI/2);
     });
   };
   walk(root,0,0,0);
