@@ -41,10 +41,12 @@ export function radialTree<T extends MapNode>(
     placed.push({note,x,y,level});
     if(collapsed[note.id])return;
     const kids=children.get(note.id)||[];
-    const radius=Math.max(165,kids.length*46)+Math.max(0,level-1)*48;
+    const radius=Math.max(190,kids.length*58)+Math.max(0,level-1)*65;
     const offset=offsets[note.id]||0;
     kids.forEach((child,index)=>{
-      const angle=bearing-Math.PI/2+index*2*Math.PI/kids.length+offset;
+      const spread=level===0?Math.PI*2:Math.PI*0.85;
+      const step=level===0?spread/kids.length:kids.length===1?0:spread/(kids.length-1);
+      const angle=level===0?bearing-Math.PI/2+index*step+offset:bearing-Math.PI/2+(index-(kids.length-1)/2)*step+offset;
       walk(child,x+Math.cos(angle)*radius,y+Math.sin(angle)*radius,level+1,angle+Math.PI/2);
     });
   };
