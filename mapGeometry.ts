@@ -68,13 +68,13 @@ export function radialTree<T extends MapNode>(
     const count=kids.length;
     if(!count)return;
     const offset=offsets[note.id]||0;
-    const radius=(note.id===focusedId?168:level===0?158:142)+Math.min(32,Math.max(0,count-5)*7);
+    const radius=(level===0?198:level===1?116:Math.max(84,116-(level-1)*12))+(note.id===focusedId?8:0)+Math.min(28,Math.max(0,count-5)*7);
     kids.forEach((child,index)=>{
       let angle:number;
       if(level===0){
         // A map opens with a single child at 12 o'clock, two at
-        // 3 and 6 o'clock, and larger groups at polygon vertices.
-        angle=count===1?-Math.PI/2:count===2?index*Math.PI/2:
+        // 3 and 9 o'clock, and larger groups at polygon vertices.
+        angle=count===1?-Math.PI/2:count===2?index*Math.PI:
           -Math.PI/2+index*2*Math.PI/count;
       }else{
         // One child continues directly outward; two are opposite
