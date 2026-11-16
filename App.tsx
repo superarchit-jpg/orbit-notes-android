@@ -531,7 +531,10 @@ const node=(n:Note,x:number,y:number,level:number)=>{
               fontSize:15
             }}>≡</Text>
           )}
-        </Upright>\n      </View>\n      </View>\n    </GestureDetector>
+        </Upright>
+      </View>
+      </View>
+    </GestureDetector>
   );
 };
 
