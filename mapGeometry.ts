@@ -93,29 +93,10 @@ export function radialTree<T extends MapNode>(
       const portion=available*(weights.get(child.id)||1)/Math.max(1,total);
       const preferred=base+cursor+portion/2;
       cursor+=portion;
-      // Search nearby angles for node/connector clearance without
-      // making every generation's connectors longer.
-      const score=(angle:number)=>{
-        const p={x:x+Math.cos(angle)*radius,y:y+Math.sin(angle)*radius};
-        let penalty=Math.abs(normalizeAngle(angle-preferred))*95;
-        for(const n of placed){
-          if(n.note.id===note.id)continue;
-          penalty+=Math.max(0,125-Math.hypot(p.x-n.x,p.y-n.y))*5;
-          penalty+=Math.max(0,55-pointSegmentDistance(n,{x,y},p))*3;
-        }
-        for(const end of placed){
-          const parent=placed.find(n=>n.note.id===end.note.parentId);
-          if(!parent||parent.note.id===note.id)continue;
-          penalty+=Math.max(0,65-pointSegmentDistance(p,parent,end))*4;
-        }
-        return penalty;
-      };
-      let angle=preferred,best=score(preferred);
-      for(const deviation of [-0.4,0.4,-0.8,0.8,-1.2,1.2]){
-        const candidate=preferred+deviation,cost=score(candidate);
-        if(cost<best){best=cost;angle=candidate;}
-      }
-      // Reserve a modest buffer on either side of each subtree's sector.
+      // During a drag, positions follow the finger exactly. No automatic
+      // angle changes or repositioning of unrelated branches here.
+      const angle=base+cursor+portion/2;
+      cursor+=portion;
       const childSector=Math.max(0.16,portion*0.88);
       const childRadius=radius+(index%2===1?20:0);
       walk(child,x+Math.cos(angle)*childRadius,y+Math.sin(angle)*childRadius,
