@@ -42,7 +42,7 @@ const [draftChildId,setDraftChildId]=useState<string|null>(null);
 const [readerTapAt,setReaderTapAt]=useState(0);
 const [librarySearch,setLibrarySearch]=useState('');
 const [librarySort,setLibrarySort]=useState<'modified'|'title'|'created'>('modified');
-const [foldersExpanded,setFoldersExpanded]=useState(true);
+const [foldersExpanded,setFoldersExpanded]=useState(false);
 const [mapMenu,setMapMenu]=useState(false),[libraryMenu,setLibraryMenu]=useState(false),[selectionMenu,setSelectionMenu]=useState(false),[sidebar,setSidebar]=useState(false),[moveFolderMenu,setMoveFolderMenu]=useState(false),[exportTarget,setExportTarget]=useState<string|null>(null);
 
 const [backupMode,setBackupMode]=useState<'save'|'restore'|null>(null),[backupPassword,setBackupPassword]=useState(''),[backupBusy,setBackupBusy]=useState(false);
@@ -326,7 +326,7 @@ const restore=(batch:TrashBatch)=>{
   }
 };
 
-const updateChildRotation=(delta:number)=>setMapPrefs(p=>({...p,offsets:{...p.offsets,[focused]:(p.offsets[focused]||0)+delta}}));
+const updateChildRotation=(parentId:string,delta:number)=>setMapPrefs(p=>({...p,offsets:{...p.offsets,[parentId]:(p.offsets[parentId]||0)+delta}}));
  const pan=Gesture.Pan().minPointers(2)
   .onStart(()=>{
     startX.value=tx.value;
@@ -337,8 +337,7 @@ const updateChildRotation=(delta:number)=>setMapPrefs(p=>({...p,offsets:{...p.of
     ty.value=startY.value+e.translationY;
   });
 
-const rotateChildren=Gesture.Pan().minPointers(1).maxPointers(1).minDistance(12)
-   .onEnd(e=>{runOnJS(updateChildRotation)(e.translationX*0.009);});
+const rotateChildren=Gesture.Pan().minPointers(1).maxPointers(1).minDistance(12).enabled(false);
 
  const rotate=Gesture.Rotation()
   .onStart(()=>{startRotation.value=rotation.value;})
@@ -410,7 +409,9 @@ const addPoint=useMemo(()=>{
   return best;
 },[visible,focused]);
 
-const lines=visible
+const addHitStyle=useAnimatedStyle(()=>{const a=rotation.value,c=Math.cos(a),si=Math.sin(a);return {left:canvasW/2+tx.value+scale.value*(addPoint.x*c-addPoint.y*si)-38,top:canvasH/2+ty.value+scale.value*(addPoint.x*si+addPoint.y*c)-38};});
+
+ const lines=visible
   .filter(x=>x.note.parentId&&x.note.parentId!=='root')
   .map(x=>{
     const p=visible.find(y=>y.note.id===x.note.parentId);
@@ -457,7 +458,7 @@ const node=(n:Note,x:number,y:number,level:number)=>{
   return (
     <GestureDetector
       key={n.id}
-      gesture={n.parentId===focused?Gesture.Simultaneous(Gesture.Exclusive(long,triple,double,single),Gesture.Pan().minPointers(1).maxPointers(1).minDistance(12).onEnd(e=>{runOnJS(updateChildRotation)(e.translationX*0.009);})) : Gesture.Exclusive(long,triple,double,single)}
+      gesture={n.parentId&&n.parentId!=='root'?Gesture.Simultaneous(Gesture.Exclusive(long,triple,double,single),Gesture.Pan().minPointers(1).maxPointers(1).minDistance(12).onUpdate(e=>{if(Math.abs(e.changeX)>0.01)runOnJS(updateChildRotation)(n.parentId!,e.changeX*0.009);})) : Gesture.Exclusive(long,triple,double,single)}
     >
       <View style={[
         styles.node,
@@ -828,9 +829,7 @@ if(locked){
                 node(note,x,y,level)
               )}
 
-              <Pressable
-                accessibilityLabel="Add child note"
-                onPress={()=>{setMapPrefs(p=>({...p,collapsed:{...p.collapsed,[focused]:false}}));addChild(focused);}}
+              <View pointerEvents="none"
                 style={[
                   styles.node,
                   {
@@ -852,10 +851,13 @@ if(locked){
                     color:'#475569'
                   }}>+</Text>
                 </Upright>
-              </Pressable>
+              </View>
             </Animated.View>
             </View>
           </GestureDetector>
+          <Animated.View style={[{position:'absolute',width:76,height:76,zIndex:15},addHitStyle]}>
+            <Pressable accessibilityRole="button" accessibilityLabel="Add child note" onPress={()=>{setMapPrefs(p=>({...p,collapsed:{...p.collapsed,[focused]:false}}));addChild(focused);}} style={{width:76,height:76,borderRadius:38}} />
+          </Animated.View>
         </View>
 
         {!menu&&<View style={{flexDirection:'row',justifyContent:'center',gap:6,paddingVertical:5,flexWrap:'wrap'}}>
@@ -1322,7 +1324,7 @@ if(locked){
                     onPress={()=>{
                       setFolderFilter(null);
                       setShowTrash(false);
-                      setSidebar(false);
+                      setSidebar(false);setFoldersExpanded(false);
                     }}
                   />
                   <Button label={foldersExpanded?'Folders ▾':'Folders ▸'} onPress={()=>setFoldersExpanded(v=>!v)}/>
@@ -1333,7 +1335,7 @@ if(locked){
                       onPress={()=>{
                         setFolderFilter(f.id);
                         setShowTrash(false);
-                        setSidebar(false);
+                        setSidebar(false);setFoldersExpanded(false);
                       }}
                     />
                   ))}
@@ -1342,14 +1344,14 @@ if(locked){
                     onPress={()=>setCreatingFolder(true)}
                   />}
                   <Button
-                    label="🗑 Recently Deleted"
+                    label="Recently Deleted"
                     onPress={()=>{
                       setShowTrash(true);
-                      setSidebar(false);
+                      setSidebar(false);setFoldersExpanded(false);
                       setSelected([]);
                     }}
                   />
-                  <Button label="Settings & app lock" onPress={()=>{setSettings(true);setSidebar(false);}}/>
+                  <Button label="Settings & app lock" onPress={()=>{setSettings(true);setSidebar(false);setFoldersExpanded(false);}}/>
                 </ScrollView>
               </View>
             )}
@@ -1405,7 +1407,7 @@ if(locked){
               {showTrash?(
                 <View style={{gap:12,backgroundColor:'#fff1f2',borderColor:'#fecdd3',borderWidth:1,borderRadius:16,padding:12}}>
                   <Text style={[styles.section,{color:'#9f1239'}]}>
-                    🗑 Recently Deleted
+                    Recently Deleted
                   </Text>
 
                   {trash.length===0&&(
@@ -1472,7 +1474,7 @@ if(locked){
                           ty.value=withTiming(0);
                           scale.value=withTiming(1);
                           setMenu(false);
-                          setSidebar(false);
+                          setSidebar(false);setFoldersExpanded(false);
                         }
                       }}
                       onLongPress={()=>
