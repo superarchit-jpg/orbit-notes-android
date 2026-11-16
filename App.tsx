@@ -169,7 +169,7 @@ const ancestors=useMemo(()=>{
 },[current,notes]);
 
 const moveTo=(target:string)=>{
-  const point=visible.find(x=>x.note.id===target);
+  const point=completeMap.find(x=>x.note.id===target);
   if(!point)return;
   setFocused(target);
   const angle=rotation.value;
@@ -449,7 +449,7 @@ const visible=useMemo(()=>{
 // This avoids SVG viewport width/preserveAspectRatio mismatches that made
 // the overview appear pushed to the right on Android.
 const miniBounds=useMemo(()=>{
-  const width=1000,height=240,pad=5;
+  const width=1000,height=540,pad=16;
   if(!completeMap.length)return {width,height,scale:1,dx:width/2,dy:height/2};
   const xs=completeMap.map(v=>v.x),ys=completeMap.map(v=>v.y);
   const minX=Math.min(...xs),maxX=Math.max(...xs),minY=Math.min(...ys),maxY=Math.max(...ys);
@@ -913,7 +913,7 @@ if(locked){
           <Button label={mapPrefs.collapsed[focused]?'Expand branch':'Collapse branch'} onPress={()=>setMapPrefs(p=>({...p,collapsed:{...p.collapsed,[focused]:!p.collapsed[focused]}}))}/>
           <Button label="Node color" onPress={()=>setMapPrefs(p=>{const palette=['#dbeafe','#dcfce7','#fef3c7','#fce7f3','#e9d5ff'];const current=p.colors[focused]||palette[0];return {...p,colors:{...p.colors,[focused]:palette[(palette.indexOf(current)+1)%palette.length]}};})}/>
         </View>}
-        {!menu&&showMiniMap&&<View style={{height:205,marginHorizontal:14,marginBottom:6,backgroundColor:'#e2e8f0',borderRadius:12,overflow:'hidden',padding:6}}><Text style={styles.muted}>Map overview · {completeMap.length} notes</Text><Svg width="100%" height={170} viewBox="0 0 1000 240" preserveAspectRatio="xMidYMid meet">{miniLines.map(l=><Line key={l.id} x1={l.x1*miniBounds.scale+miniBounds.dx} y1={l.y1*miniBounds.scale+miniBounds.dy} x2={l.x2*miniBounds.scale+miniBounds.dx} y2={l.y2*miniBounds.scale+miniBounds.dy} stroke="#94a3b8" strokeWidth={2}/>)}{completeMap.map(v=><Circle key={v.note.id} cx={v.x*miniBounds.scale+miniBounds.dx} cy={v.y*miniBounds.scale+miniBounds.dy} r={v.note.id===focused?5:3.5} fill={v.note.id===focused?'#2563eb':'#64748b'}/>)}</Svg></View>}
+        {!menu&&showMiniMap&&<View style={{height:310,marginHorizontal:14,marginBottom:6,backgroundColor:'#e2e8f0',borderRadius:12,overflow:'hidden',padding:6}}><Text style={styles.muted}>Map overview · {completeMap.length} notes</Text><Svg width="100%" height={270} viewBox="0 0 1000 540" preserveAspectRatio="xMidYMid meet">{miniLines.map(l=><Line key={l.id} x1={l.x1*miniBounds.scale+miniBounds.dx} y1={l.y1*miniBounds.scale+miniBounds.dy} x2={l.x2*miniBounds.scale+miniBounds.dx} y2={l.y2*miniBounds.scale+miniBounds.dy} stroke="#94a3b8" strokeWidth={2}/>)}{completeMap.map(v=><Circle key={v.note.id} cx={v.x*miniBounds.scale+miniBounds.dx} cy={v.y*miniBounds.scale+miniBounds.dy} r={v.note.id===focused?5:3.5} fill={v.note.id===focused?'#2563eb':'#64748b'}/>)}</Svg></View>}
         {undoBatch&&(
           <View style={styles.toolbar}>
             <Button
