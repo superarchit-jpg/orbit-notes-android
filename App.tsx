@@ -23,7 +23,7 @@ type Folder={id:string;name:string};
 const stamp=(t:number)=>new Date(t).toLocaleString();
 const id=()=>`${Date.now()}-${Math.random().toString(36).slice(2,8)}`;
 
-const Button=({label,onPress,primary=false,danger=false}:{label:string;onPress:()=>void;primary?:boolean;danger?:boolean})=><Pressable onPress={onPress} style={[styles.button,primary&&styles.primary,danger&&styles.danger]}><Text style={[styles.buttonText,(primary||danger)&&{color:'white'}]}>{label==='🗑'?<Svg width={23} height={23} viewBox="0 0 24 24"><Line x1={4} y1={7} x2={20} y2={7} stroke="#dc2626" strokeWidth={1.8}/><Line x1={9} y1={4} x2={15} y2={4} stroke="#dc2626" strokeWidth={1.8}/><Rect x={6} y={7} width={12} height={14} rx={2} stroke="#dc2626" strokeWidth={1.8} fill="none"/><Line x1={10} y1={11} x2={10} y2={17} stroke="#dc2626" strokeWidth={1.5}/><Line x1={14} y1={11} x2={14} y2={17} stroke="#dc2626" strokeWidth={1.5}/></Svg>:label}</Text></Pressable>;
+const Button=({label,onPress,primary=false,danger=false}:{label:string;onPress:()=>void;primary?:boolean;danger?:boolean})=><Pressable accessibilityRole="button" accessibilityLabel={label} onPress={onPress} style={[styles.button,primary&&styles.primary,danger&&styles.danger]}><Text style={[styles.buttonText,(primary||danger)&&{color:'white'}]}>{label==='🗑'?<Svg width={23} height={23} viewBox="0 0 24 24"><Line x1={4} y1={7} x2={20} y2={7} stroke="#dc2626" strokeWidth={1.8}/><Line x1={9} y1={4} x2={15} y2={4} stroke="#dc2626" strokeWidth={1.8}/><Rect x={6} y={7} width={12} height={14} rx={2} stroke="#dc2626" strokeWidth={1.8} fill="none"/><Line x1={10} y1={11} x2={10} y2={17} stroke="#dc2626" strokeWidth={1.5}/><Line x1={14} y1={11} x2={14} y2={17} stroke="#dc2626" strokeWidth={1.5}/></Svg>:label}</Text></Pressable>;
 
 const Upright=({angle,children}:{angle:SharedValue<number>;children:React.ReactNode})=>{
   const style=useAnimatedStyle(()=>({transform:[{rotateZ:`${-angle.value}rad`}]}));
@@ -42,6 +42,7 @@ const [draftChildId,setDraftChildId]=useState<string|null>(null);
 const [readerTapAt,setReaderTapAt]=useState(0);
 const [librarySearch,setLibrarySearch]=useState('');
 const [librarySort,setLibrarySort]=useState<'modified'|'title'|'created'>('modified');
+const [sortMenu,setSortMenu]=useState(false);
 const [foldersExpanded,setFoldersExpanded]=useState(false);
 const [mapMenu,setMapMenu]=useState(false),[libraryMenu,setLibraryMenu]=useState(false),[selectionMenu,setSelectionMenu]=useState(false),[sidebar,setSidebar]=useState(false),[moveFolderMenu,setMoveFolderMenu]=useState(false),[exportTarget,setExportTarget]=useState<string|null>(null);
 
@@ -1415,7 +1416,17 @@ if(locked){
               </View>
             )}
 
-            {!showTrash&&<View style={{flexDirection:'row',justifyContent:'flex-end',paddingHorizontal:16}}><Button label={librarySort==='modified'?'Sort: Modified':librarySort==='title'?'Sort: Title':'Sort: Created'} onPress={()=>setLibrarySort(v=>v==='modified'?'title':v==='title'?'created':'modified')}/></View>}
+            {!showTrash&&<View style={{paddingHorizontal:16,paddingVertical:6,gap:6}}>
+              <View style={{flexDirection:'row',justifyContent:'space-between',alignItems:'center'}}>
+                <Text style={styles.muted}>{shown.length} {shown.length===1?'map':'maps'}{selected.length>0?` · ${selected.length} selected`:''}</Text>
+                <Button label={librarySort==='modified'?'Sort: Modified ▾':librarySort==='title'?'Sort: Title ▾':'Sort: Created ▾'} onPress={()=>setSortMenu(v=>!v)}/>
+              </View>
+              {sortMenu&&<View style={{flexDirection:'row',flexWrap:'wrap',gap:6}}>
+                {(['modified','title','created'] as const).map(option=>(
+                  <Button key={option} label={`${librarySort===option?'✓ ':''}${option==='modified'?'Last modified':option==='title'?'Title A–Z':'Date created'}`} onPress={()=>{setLibrarySort(option);setSortMenu(false);}}/>
+                ))}
+              </View>}
+            </View>}
             <ScrollView contentContainerStyle={{
               padding:16,
               gap:12
@@ -1476,6 +1487,9 @@ if(locked){
                   {shown.map(n=>(
                     <Pressable
                       key={n.id}
+                      accessibilityRole="button"
+                      accessibilityLabel={`${n.title||'Untitled map'}${mapPrefs.pinned.includes(n.id)?', pinned':''}${selected.includes(n.id)?', selected':''}`}
+                      accessibilityHint="Tap to open; long press to select"
                       style={styles.listRow}
                       onPress={()=>{
                         if(selected.length){
@@ -1510,7 +1524,7 @@ if(locked){
                         </Text>
                       </View>
 
-                      {selected.length===0&&<IconButton label={mapPrefs.pinned.includes(n.id)?'★':'☆'} onPress={()=>setMapPrefs(p=>({...p,pinned:p.pinned.includes(n.id)?p.pinned.filter(x=>x!==n.id):[...p.pinned,n.id]}))}/>}
+                      {selected.length===0&&<IconButton label={mapPrefs.pinned.includes(n.id)?'Unpin map':'Pin map'} onPress={()=>setMapPrefs(p=>({...p,pinned:p.pinned.includes(n.id)?p.pinned.filter(x=>x!==n.id):[...p.pinned,n.id]}))}/>}
                       {selected.length>0&&(
                         <Text style={styles.checkbox}>
                           {selected.includes(n.id)?'☑':'☐'}
@@ -1520,9 +1534,12 @@ if(locked){
                   ))}
 
                   {shown.length===0&&(
-                    <Text style={styles.muted}>
-                      No maps here. Tap + to create one.
-                    </Text>
+                    <View style={{alignItems:'center',paddingVertical:48,paddingHorizontal:20,gap:12}}>
+                      <Text style={{fontSize:34,color:'#64748b'}}>◎</Text>
+                      <Text style={[styles.listTitle,{textAlign:'center'}]}>{librarySearch.trim()?'No matching maps':folderFilter?'This folder is empty':'Your library is ready'}</Text>
+                      <Text style={[styles.muted,{textAlign:'center'}]}>{librarySearch.trim()?'Try a different search term.':folderFilter?'Create a map or move an existing map into this folder.':'Create your first map to start building your notes.'}</Text>
+                      {librarySearch.trim()?<Button label="Clear search" onPress={()=>setLibrarySearch('')}/>:<Button label="Create map" primary onPress={newMap}/>}
+                    </View>
                   )}
                 </>
               )}
