@@ -1308,13 +1308,6 @@ if(locked){
 
             {moveFolderMenu&&(
               <View style={styles.popup}>
-                <Button
-                  label="Unfiled"
-                  onPress={()=>{
-                    moveSelection(null);
-                    setMoveFolderMenu(false);
-                  }}
-                />
                 {folders.map(f=>(
                   <Button
                     key={f.id}
@@ -1325,6 +1318,27 @@ if(locked){
                     }}
                   />
                 ))}
+                {selected.some(id=>notes.some(n=>n.id===id&&n.folderId!==null))&&(
+                  <Button
+                    label="Remove from folder"
+                    danger
+                    onPress={()=>{
+                      const count=selected.filter(id=>notes.some(n=>n.id===id&&n.folderId!==null)).length;
+                      Alert.alert(
+                        'Remove from folder?',
+                        `${count} ${count===1?'map':'maps'} will remain in All maps. No notes will be deleted.`,
+                        [
+                          {text:'Cancel',style:'cancel'},
+                          {text:'Remove',style:'destructive',onPress:()=>{
+                            setNotes(ns=>ns.map(n=>selected.includes(n.id)&&n.folderId!==null?{...n,folderId:null,updatedAt:Date.now()}:n));
+                            setSelected([]);
+                            setMoveFolderMenu(false);
+                          }}
+                        ]
+                      );
+                    }}
+                  />
+                )}
                 <Button
                   label="Cancel"
                   onPress={()=>setMoveFolderMenu(false)}
