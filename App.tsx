@@ -177,7 +177,7 @@ const moveTo=(target:string)=>{
   const angle=rotation.value;
    tx.value=withTiming(-(point.x*Math.cos(angle)-point.y*Math.sin(angle)),{duration:560});
   ty.value=withTiming(-(point.x*Math.sin(angle)+point.y*Math.cos(angle)),{duration:560});
-  scale.value=withTiming(1,{duration:560});
+  scale.value=withTiming(preferredFit,{duration:560});
 };
 
 const openReader=(target:string)=>{
@@ -372,7 +372,8 @@ const rotateChildren=Gesture.Pan().minPointers(1).maxPointers(1).minDistance(12)
 const pinch=Gesture.Pinch()
   .onStart(()=>{startScale.value=scale.value;})
   .onUpdate(e=>{
-    scale.value=Math.min(preferredFit*2,Math.max(preferredFit*0.1,startScale.value*e.scale));
+    const next=startScale.value*e.scale;
+    if(Number.isFinite(next)&&next>0&&Number.isFinite(preferredFit)&&preferredFit>0)scale.value=Math.min(preferredFit*2,Math.max(preferredFit*0.1,next));
   });
 
 const animated=useAnimatedStyle(()=>({
@@ -419,9 +420,10 @@ const [canvasH,setCanvasH]=useState(H-180);
 
 // The user-preferred fit is one zoom-out step (1/1.2) from the
 // previous fitted view. 100% denotes this baseline, not raw scale 1.
-const preferredFit=useMemo(()=>fitMap(visible,canvasW,canvasH).scale/1.2,[visible,canvasW,canvasH]);
+const preferredFit=useMemo(()=>{const fit=fitMap(visible,Math.max(1,canvasW),Math.max(1,canvasH)).scale;return Number.isFinite(fit)&&fit>0?fit*(1.75/1.2):1;},[visible,canvasW,canvasH]);
+useEffect(()=>{if(!menu&&Number.isFinite(preferredFit))scale.value=withTiming(preferredFit,{duration:300});},[menu,focused,preferredFit]);
 useAnimatedReaction(
-  ()=>Math.round(Math.max(0,Math.min(200,scale.value/Math.max(.001,preferredFit)*100))),
+  ()=>Number.isFinite(scale.value)&&Number.isFinite(preferredFit)&&preferredFit>0?Math.round(Math.max(10,Math.min(200,scale.value/preferredFit*100))):100,
   (value,previous)=>{if(value!==previous)runOnJS(setZoomPercent)(value);}
 );
 
@@ -444,7 +446,7 @@ const fitCurrentMap=()=>{
   const fit=fitMap(visible,canvasW,canvasH);
   tx.value=withTiming(fit.x);
   ty.value=withTiming(fit.y);
-  scale.value=withTiming(fit.scale/1.2);
+  scale.value=withTiming(preferredFit);
   rotation.value=withTiming(0);
 };
 const parentPoint:{x:number;y:number}={x:0,y:0};
@@ -476,7 +478,7 @@ const nodePress=(n:Note)=>{
 
 const node=(n:Note,x:number,y:number,level:number)=>{
   const size=level===0?112:level===1?88:70;
-  const touchMargin=level>=2?42:24;
+  const touchMargin=level>=2?42:30;
 
   const long=Gesture.LongPress()
     .minDuration(550)
@@ -508,7 +510,7 @@ const node=(n:Note,x:number,y:number,level:number)=>{
   return (
     <GestureDetector
       key={n.id}
-      gesture={n.parentId&&n.parentId!=='root'?Gesture.Simultaneous(Gesture.Exclusive(long,triple,double,single),Gesture.Pan().minPointers(1).maxPointers(1).minDistance(12).onChange(e=>{const parent=visible.find(v=>v.note.id===n.parentId);const child=visible.find(v=>v.note.id===n.id);if(!parent||!child)return;const angle=rotation.value,c=Math.cos(angle),si=Math.sin(angle);const dx=scale.value*((child.x-parent.x)*c-(child.y-parent.y)*si),dy=scale.value*((child.x-parent.x)*si+(child.y-parent.y)*c);const delta=(dx*e.changeY-dy*e.changeX)/Math.max(2500,Math.min(dx*dx+dy*dy,160*160));if(Math.abs(delta)>0.00001)runOnJS(updateChildRotation)(n.parentId!,delta);}).onEnd(e=>{const parent=visible.find(v=>v.note.id===n.parentId);const child=visible.find(v=>v.note.id===n.id);if(!parent||!child)return;const a=rotation.value,c=Math.cos(a),si=Math.sin(a);const dx=scale.value*((child.x-parent.x)*c-(child.y-parent.y)*si),dy=scale.value*((child.x-parent.x)*si+(child.y-parent.y)*c);const speed=(dx*e.velocityY-dy*e.velocityX)/Math.max(2500,Math.min(dx*dx+dy*dy,160*160));runOnJS(finishChildRotation)(n.parentId!,Math.max(-2,Math.min(2,speed)));})) : Gesture.Exclusive(long,triple,double,single)}
+      gesture={n.parentId&&n.parentId!=='root'?Gesture.Simultaneous(Gesture.Exclusive(long,triple,double,single),Gesture.Pan().minPointers(1).maxPointers(1).minDistance(4).onChange(e=>{const parent=visible.find(v=>v.note.id===n.parentId);const child=visible.find(v=>v.note.id===n.id);if(!parent||!child)return;const angle=rotation.value,c=Math.cos(angle),si=Math.sin(angle);const dx=scale.value*((child.x-parent.x)*c-(child.y-parent.y)*si),dy=scale.value*((child.x-parent.x)*si+(child.y-parent.y)*c);const delta=(dx*e.changeY-dy*e.changeX)/Math.max(2500,Math.min(dx*dx+dy*dy,160*160));if(Math.abs(delta)>0.00001)runOnJS(updateChildRotation)(n.parentId!,delta);}).onEnd(e=>{const parent=visible.find(v=>v.note.id===n.parentId);const child=visible.find(v=>v.note.id===n.id);if(!parent||!child)return;const a=rotation.value,c=Math.cos(a),si=Math.sin(a);const dx=scale.value*((child.x-parent.x)*c-(child.y-parent.y)*si),dy=scale.value*((child.x-parent.x)*si+(child.y-parent.y)*c);const speed=(dx*e.velocityY-dy*e.velocityX)/Math.max(2500,Math.min(dx*dx+dy*dy,160*160));runOnJS(finishChildRotation)(n.parentId!,Math.max(-2,Math.min(2,speed)));})) : Gesture.Exclusive(long,triple,double,single)}
     >
       <View collapsable={false} style={{
         position:'absolute',left:x-size/2-touchMargin,top:y-size/2-touchMargin,
@@ -798,7 +800,7 @@ if(locked){
               onPress={()=>{
                 tx.value=withTiming(-(focusPoint?.x||0));
                 ty.value=withTiming(-(focusPoint?.y||0));
-                scale.value=withTiming(1);
+                scale.value=withTiming(preferredFit);
                 rotation.value=withTiming(0);
               }}
             />
@@ -892,9 +894,9 @@ if(locked){
 
         {!menu&&<View style={{flexDirection:'row',justifyContent:'center',gap:6,paddingVertical:5,flexWrap:'wrap'}}>
           <Button label="+ Add child" onPress={()=>{setMapPrefs(p=>({...p,collapsed:{...p.collapsed,[focused]:false}}));addChild(focused);}}/>
-           <Button label="−" onPress={()=>{scale.value=withTiming(Math.max(preferredFit*0.1,scale.value/1.2));}}/>
-          <Button label="+" onPress={()=>{scale.value=withTiming(Math.min(preferredFit*2,scale.value*1.2));}}/>
-          <Text accessibilityLabel={`Zoom ${zoomPercent} percent`} style={{fontSize:12,fontWeight:"700",color:"#334155",minWidth:46,textAlign:"center"}}>{zoomPercent}%</Text>
+           <Button label="−" onPress={()=>{scale.value=withTiming(Math.max(preferredFit*0.1,preferredFit*(Math.round(scale.value/preferredFit*10)-1)/10));}}/>
+          <Button label="+" onPress={()=>{scale.value=withTiming(Math.min(preferredFit*2,preferredFit*(Math.round(scale.value/preferredFit*10)+1)/10));}}/>
+          <Text accessibilityLabel={`Zoom ${zoomPercent} percent`} style={{fontSize:12,fontWeight:"700",color:"#334155",minWidth:46,textAlign:"center",textAlignVertical:"center",alignSelf:"center",includeFontPadding:false}}>{zoomPercent}%</Text>
           <Button label={mapPrefs.collapsed[focused]?'Expand branch':'Collapse branch'} onPress={()=>setMapPrefs(p=>({...p,collapsed:{...p.collapsed,[focused]:!p.collapsed[focused]}}))}/>
           <Button label="Node color" onPress={()=>setMapPrefs(p=>{const palette=['#dbeafe','#dcfce7','#fef3c7','#fce7f3','#e9d5ff'];const current=p.colors[focused]||palette[0];return {...p,colors:{...p.colors,[focused]:palette[(palette.indexOf(current)+1)%palette.length]}};})}/>
         </View>}
@@ -1304,6 +1306,18 @@ if(locked){
                   label="Export selected as PDF"
                   onPress={exportSelected}
                 />
+                {selected.some(id=>notes.some(n=>n.id===id&&n.folderId!==null))&&(
+                  <Button
+                    label="Remove from folder"
+                    danger
+                    onPress={()=>{
+                      setNotes(ns=>ns.map(n=>selected.includes(n.id)&&n.folderId!==null?{...n,folderId:null,updatedAt:Date.now()}:n));
+                      setSelected([]);
+                      setSelectionMenu(false);
+                    }}
+                  />
+                )}
+
               </View>
             )}
 
@@ -1319,17 +1333,6 @@ if(locked){
                     }}
                   />
                 ))}
-                {selected.some(id=>notes.some(n=>n.id===id&&n.folderId!==null))&&(
-                  <Button
-                    label="Remove from folder"
-                    danger
-                    onPress={()=>{
-                      setNotes(ns=>ns.map(n=>selected.includes(n.id)&&n.folderId!==null?{...n,folderId:null,updatedAt:Date.now()}:n));
-                      setSelected([]);
-                      setMoveFolderMenu(false);
-                    }}
-                  />
-                )}
                 <Button
                   label="Cancel"
                   onPress={()=>setMoveFolderMenu(false)}
@@ -1518,7 +1521,7 @@ if(locked){
                           setFocused(n.id);
                           tx.value=withTiming(0);
                           ty.value=withTiming(0);
-                          scale.value=withTiming(1);
+                          scale.value=withTiming(preferredFit);
                           setMenu(false);
                           setSidebar(false);setFoldersExpanded(false);
                         }
