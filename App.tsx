@@ -425,7 +425,7 @@ const [canvasH,setCanvasH]=useState(H-180);
 
 // The user-preferred fit is one zoom-out step (1/1.2) from the
 // previous fitted view. 100% denotes this baseline, not raw scale 1.
-const preferredFit=useMemo(()=>{const fit=fitMap(visible,Math.max(1,canvasW),Math.max(1,canvasH)).scale;return Number.isFinite(fit)&&fit>0?fit*(1.75/1.2):1;},[visible,canvasW,canvasH]);
+const preferredFit=useMemo(()=>{const fit=fitMap(visible,Math.max(1,canvasW),Math.max(1,canvasH)).scale;return Number.isFinite(fit)&&fit>0?fit*(1.75/1.2)*1.1:1;},[visible,canvasW,canvasH]);
 useEffect(()=>{if(!menu&&Number.isFinite(preferredFit))scale.value=withTiming(preferredFit,{duration:300});},[menu,focused,preferredFit]);
 useAnimatedReaction(
   ()=>Number.isFinite(scale.value)&&Number.isFinite(preferredFit)&&preferredFit>0?Math.round(Math.max(10,Math.min(200,scale.value/preferredFit*100))):100,
@@ -463,7 +463,7 @@ const miniLines=completeMap.filter(n=>n.note.parentId&&n.note.parentId!=='root')
 const hiddenIndicators=fullMap.filter(n=>!visible.some(v=>v.note.id===n.note.id)&&
   visible.some(v=>v.note.id===n.note.parentId)).map(n=>{
   const p=fullMap.find(v=>v.note.id===n.note.parentId)!;
-  const radius=p.level===0?50:35;
+  const radius=p.level===0?45:35;
   const angle=Math.atan2(n.y-p.y,n.x-p.x);
   return {note:n.note,x:p.x+radius*Math.cos(angle),y:p.y+radius*Math.sin(angle)};
 });
@@ -482,7 +482,7 @@ const nodePress=(n:Note)=>{
 };
 
 const node=(n:Note,x:number,y:number,level:number)=>{
-  const size=level===0?100:70;
+  const size=level===0?90:70;
   const touchMargin=level>=2?42:30;
   // Calculate stable branch geometry outside the UI-thread gesture worklet.
   // Looking up React arrays inside onChange can fail intermittently.
