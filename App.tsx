@@ -299,7 +299,7 @@ const newMap=()=>{
   setFocused(newId);
   tx.value=withTiming(0);
   ty.value=withTiming(0);
-  scale.value=withTiming(1);
+  scale.value=withTiming(preferredFit);
   beginNew(newId);
 };
 
@@ -370,10 +370,15 @@ const rotateChildren=Gesture.Pan().minPointers(1).maxPointers(1).minDistance(12)
   .onUpdate(e=>{rotation.value=startRotation.value+e.rotation;});
 
 const pinch=Gesture.Pinch()
-  .onStart(()=>{startScale.value=scale.value;})
+  .onStart(()=>{
+    startScale.value=Number.isFinite(scale.value)&&scale.value>0?scale.value:1;
+  })
   .onUpdate(e=>{
-    const next=startScale.value*e.scale;
-    if(Number.isFinite(next)&&next>0&&Number.isFinite(preferredFit)&&preferredFit>0)scale.value=Math.min(preferredFit*2,Math.max(preferredFit*0.1,next));
+    const baseline=Number.isFinite(preferredFit)&&preferredFit>0?preferredFit:1;
+    const factor=Number.isFinite(e.scale)&&e.scale>0?e.scale:1;
+    const next=startScale.value*factor;
+    if(Number.isFinite(next)&&next>0)
+      scale.value=Math.min(baseline*2,Math.max(baseline*0.1,next));
   });
 
 const animated=useAnimatedStyle(()=>({
@@ -479,6 +484,12 @@ const nodePress=(n:Note)=>{
 const node=(n:Note,x:number,y:number,level:number)=>{
   const size=level===0?112:level===1?88:70;
   const touchMargin=level>=2?42:30;
+  // Calculate stable branch geometry outside the UI-thread gesture worklet.
+  // Looking up React arrays inside onChange can fail intermittently.
+  const branchParent=visible.find(v=>v.note.id===n.parentId);
+  const branchX=branchParent?x-branchParent.x:0;
+  const branchY=branchParent?y-branchParent.y:0;
+  const branchId=n.parentId||'';
 
   const long=Gesture.LongPress()
     .minDuration(550)
@@ -510,7 +521,28 @@ const node=(n:Note,x:number,y:number,level:number)=>{
   return (
     <GestureDetector
       key={n.id}
-      gesture={n.parentId&&n.parentId!=='root'?Gesture.Simultaneous(Gesture.Exclusive(long,triple,double,single),Gesture.Pan().minPointers(1).maxPointers(1).minDistance(4).onChange(e=>{const parent=visible.find(v=>v.note.id===n.parentId);const child=visible.find(v=>v.note.id===n.id);if(!parent||!child)return;const angle=rotation.value,c=Math.cos(angle),si=Math.sin(angle);const dx=scale.value*((child.x-parent.x)*c-(child.y-parent.y)*si),dy=scale.value*((child.x-parent.x)*si+(child.y-parent.y)*c);const delta=(dx*e.changeY-dy*e.changeX)/Math.max(2500,Math.min(dx*dx+dy*dy,160*160));if(Math.abs(delta)>0.00001)runOnJS(updateChildRotation)(n.parentId!,delta);}).onEnd(e=>{const parent=visible.find(v=>v.note.id===n.parentId);const child=visible.find(v=>v.note.id===n.id);if(!parent||!child)return;const a=rotation.value,c=Math.cos(a),si=Math.sin(a);const dx=scale.value*((child.x-parent.x)*c-(child.y-parent.y)*si),dy=scale.value*((child.x-parent.x)*si+(child.y-parent.y)*c);const speed=(dx*e.velocityY-dy*e.velocityX)/Math.max(2500,Math.min(dx*dx+dy*dy,160*160));runOnJS(finishChildRotation)(n.parentId!,Math.max(-2,Math.min(2,speed)));})) : Gesture.Exclusive(long,triple,double,single)}
+      gesture={branchParent?Gesture.Simultaneous(
+        Gesture.Exclusive(long,triple,double,single),
+        Gesture.Pan().minPointers(1).maxPointers(1).minDistance(4)
+          .onChange(e=>{
+            const a=rotation.value,c=Math.cos(a),si=Math.sin(a);
+            const k=Number.isFinite(scale.value)&&scale.value>0?scale.value:1;
+            const dx=k*(branchX*c-branchY*si),dy=k*(branchX*si+branchY*c);
+            const denominator=Math.max(2500,Math.min(dx*dx+dy*dy,160*160));
+            const delta=(dx*e.changeY-dy*e.changeX)/denominator;
+            if(Number.isFinite(delta)&&Math.abs(delta)>0.00001)
+              runOnJS(updateChildRotation)(branchId,delta);
+          })
+          .onEnd(e=>{
+            const a=rotation.value,c=Math.cos(a),si=Math.sin(a);
+            const k=Number.isFinite(scale.value)&&scale.value>0?scale.value:1;
+            const dx=k*(branchX*c-branchY*si),dy=k*(branchX*si+branchY*c);
+            const denominator=Math.max(2500,Math.min(dx*dx+dy*dy,160*160));
+            const speed=(dx*e.velocityY-dy*e.velocityX)/denominator;
+            if(Number.isFinite(speed))
+              runOnJS(finishChildRotation)(branchId,Math.max(-2,Math.min(2,speed)));
+          })
+      ):Gesture.Exclusive(long,triple,double,single)}
     >
       <View collapsable={false} style={{
         position:'absolute',left:x-size/2-touchMargin,top:y-size/2-touchMargin,
