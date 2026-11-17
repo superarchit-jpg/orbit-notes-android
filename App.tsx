@@ -414,6 +414,9 @@ const visible=useMemo(()=>{
     (ancestors.has(n.note.parentId||'')&&n.level<=depth+1));
 },[fullMap,focused,notes]);
 
+const [canvasW,setCanvasW]=useState(W);
+const [canvasH,setCanvasH]=useState(H-180);
+
 // The user-preferred fit is one zoom-out step (1/1.2) from the
 // previous fitted view. 100% denotes this baseline, not raw scale 1.
 const preferredFit=useMemo(()=>fitMap(visible,canvasW,canvasH).scale/1.2,[visible,canvasW,canvasH]);
@@ -549,8 +552,6 @@ const node=(n:Note,x:number,y:number,level:number)=>{
   );
 };
 
-const [canvasW,setCanvasW]=useState(W);
-const [canvasH,setCanvasH]=useState(H-180);
 const centerX=canvasW/2,centerY=canvasH/2;
 
 const activeReader=notes.find(n=>n.id===reader)||initial[0];
