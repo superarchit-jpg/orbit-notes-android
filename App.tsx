@@ -3,7 +3,7 @@ import {Alert,AppState,BackHandler,Dimensions,Modal,Pressable,ScrollView,StatusB
 import Svg,{Line,Circle,Rect} from 'react-native-svg';
 import {SafeAreaProvider,SafeAreaView as InsetSafeAreaView} from 'react-native-safe-area-context';
 import {Gesture,GestureDetector,GestureHandlerRootView} from 'react-native-gesture-handler';
-import Animated,{runOnJS,useAnimatedStyle,useSharedValue,withTiming} from 'react-native-reanimated';
+import Animated,{runOnJS,useAnimatedReaction,useAnimatedStyle,useSharedValue,withTiming} from 'react-native-reanimated';
 import type {SharedValue} from 'react-native-reanimated';
 import {loadSnapshot,saveSnapshot,loadMapPreferences,saveMapPreferences,emptyMapPreferences} from './storage';
 import {radialTree,fitMap,pointSegmentDistance} from './mapGeometry';
@@ -41,6 +41,7 @@ const [nodeActions,setNodeActions]=useState<string|null>(null);
 const [draftChildId,setDraftChildId]=useState<string|null>(null);
 const [readerTapAt,setReaderTapAt]=useState(0);
 const [librarySearch,setLibrarySearch]=useState('');
+const [zoomPercent,setZoomPercent]=useState(100);
 const [librarySort,setLibrarySort]=useState<'modified'|'title'|'created'>('modified');
 const [sortMenu,setSortMenu]=useState(false);
 const [foldersExpanded,setFoldersExpanded]=useState(false);
@@ -371,7 +372,7 @@ const rotateChildren=Gesture.Pan().minPointers(1).maxPointers(1).minDistance(12)
 const pinch=Gesture.Pinch()
   .onStart(()=>{startScale.value=scale.value;})
   .onUpdate(e=>{
-    scale.value=Math.min(4,Math.max(.35,startScale.value*e.scale));
+    scale.value=Math.min(preferredFit*2,Math.max(preferredFit*0.1,startScale.value*e.scale));
   });
 
 const animated=useAnimatedStyle(()=>({
@@ -413,6 +414,14 @@ const visible=useMemo(()=>{
     (ancestors.has(n.note.parentId||'')&&n.level<=depth+1));
 },[fullMap,focused,notes]);
 
+// The user-preferred fit is one zoom-out step (1/1.2) from the
+// previous fitted view. 100% denotes this baseline, not raw scale 1.
+const preferredFit=useMemo(()=>fitMap(visible,canvasW,canvasH).scale/1.2,[visible,canvasW,canvasH]);
+useAnimatedReaction(
+  ()=>Math.round(Math.max(0,Math.min(200,scale.value/Math.max(.001,preferredFit)*100))),
+  (value,previous)=>{if(value!==previous)runOnJS(setZoomPercent)(value);}
+);
+
 // Use a fixed local drawing space and transform every point into it.
 // This avoids SVG viewport width/preserveAspectRatio mismatches that made
 // the overview appear pushed to the right on Android.
@@ -432,7 +441,7 @@ const fitCurrentMap=()=>{
   const fit=fitMap(visible,canvasW,canvasH);
   tx.value=withTiming(fit.x);
   ty.value=withTiming(fit.y);
-  scale.value=withTiming(fit.scale);
+  scale.value=withTiming(fit.scale/1.2);
   rotation.value=withTiming(0);
 };
 const parentPoint:{x:number;y:number}={x:0,y:0};
@@ -464,6 +473,7 @@ const nodePress=(n:Note)=>{
 
 const node=(n:Note,x:number,y:number,level:number)=>{
   const size=level===0?112:level===1?88:70;
+  const touchMargin=level>=2?42:24;
 
   const long=Gesture.LongPress()
     .minDuration(550)
@@ -498,8 +508,8 @@ const node=(n:Note,x:number,y:number,level:number)=>{
       gesture={n.parentId&&n.parentId!=='root'?Gesture.Simultaneous(Gesture.Exclusive(long,triple,double,single),Gesture.Pan().minPointers(1).maxPointers(1).minDistance(12).onChange(e=>{const parent=visible.find(v=>v.note.id===n.parentId);const child=visible.find(v=>v.note.id===n.id);if(!parent||!child)return;const angle=rotation.value,c=Math.cos(angle),si=Math.sin(angle);const dx=scale.value*((child.x-parent.x)*c-(child.y-parent.y)*si),dy=scale.value*((child.x-parent.x)*si+(child.y-parent.y)*c);const delta=(dx*e.changeY-dy*e.changeX)/Math.max(2500,Math.min(dx*dx+dy*dy,160*160));if(Math.abs(delta)>0.00001)runOnJS(updateChildRotation)(n.parentId!,delta);}).onEnd(e=>{const parent=visible.find(v=>v.note.id===n.parentId);const child=visible.find(v=>v.note.id===n.id);if(!parent||!child)return;const a=rotation.value,c=Math.cos(a),si=Math.sin(a);const dx=scale.value*((child.x-parent.x)*c-(child.y-parent.y)*si),dy=scale.value*((child.x-parent.x)*si+(child.y-parent.y)*c);const speed=(dx*e.velocityY-dy*e.velocityX)/Math.max(2500,Math.min(dx*dx+dy*dy,160*160));runOnJS(finishChildRotation)(n.parentId!,Math.max(-2,Math.min(2,speed)));})) : Gesture.Exclusive(long,triple,double,single)}
     >
       <View collapsable={false} style={{
-        position:'absolute',left:x-size/2-24,top:y-size/2-24,
-        width:size+48,height:size+48,alignItems:'center',justifyContent:'center'
+        position:'absolute',left:x-size/2-touchMargin,top:y-size/2-touchMargin,
+        width:size+touchMargin*2,height:size+touchMargin*2,alignItems:'center',justifyContent:'center'
       }}>
       <View style={[
         styles.node,
@@ -507,8 +517,8 @@ const node=(n:Note,x:number,y:number,level:number)=>{
           width:size,
           height:size,
           borderRadius:size/2,
-          left:24,
-          top:24,
+          left:touchMargin,
+          top:touchMargin,
           backgroundColor:mapPrefs.colors[n.id]|| (n.id===focused?'#315fd6':level<=1?'#dbeafe':'#eef2ff'),
           borderColor:n.id===focused?'#315fd6':'#93c5fd'
         }
@@ -881,8 +891,9 @@ if(locked){
 
         {!menu&&<View style={{flexDirection:'row',justifyContent:'center',gap:6,paddingVertical:5,flexWrap:'wrap'}}>
           <Button label="+ Add child" onPress={()=>{setMapPrefs(p=>({...p,collapsed:{...p.collapsed,[focused]:false}}));addChild(focused);}}/>
-           <Button label="−" onPress={()=>{scale.value=withTiming(Math.max(.35,scale.value/1.2));}}/>
-          <Button label="+" onPress={()=>{scale.value=withTiming(Math.min(4,scale.value*1.2));}}/>
+           <Button label="−" onPress={()=>{scale.value=withTiming(Math.max(preferredFit*0.1,scale.value/1.2));}}/>
+          <Button label="+" onPress={()=>{scale.value=withTiming(Math.min(preferredFit*2,scale.value*1.2));}}/>
+          <Text accessibilityLabel={`Zoom ${zoomPercent} percent`} style={{fontSize:12,fontWeight:"700",color:"#334155",minWidth:46,textAlign:"center"}}>{zoomPercent}%</Text>
           <Button label={mapPrefs.collapsed[focused]?'Expand branch':'Collapse branch'} onPress={()=>setMapPrefs(p=>({...p,collapsed:{...p.collapsed,[focused]:!p.collapsed[focused]}}))}/>
           <Button label="Node color" onPress={()=>setMapPrefs(p=>{const palette=['#dbeafe','#dcfce7','#fef3c7','#fce7f3','#e9d5ff'];const current=p.colors[focused]||palette[0];return {...p,colors:{...p.colors,[focused]:palette[(palette.indexOf(current)+1)%palette.length]}};})}/>
         </View>}
