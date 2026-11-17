@@ -460,9 +460,11 @@ const miniLines=completeMap.filter(n=>n.note.parentId&&n.note.parentId!=='root')
   const p=completeMap.find(x=>x.note.id===n.note.parentId);
   return p?[{id:n.note.id,x1:p.x,y1:p.y,x2:n.x,y2:n.y}]:[];
 });
-const hiddenIndicators=fullMap.filter(n=>!visible.some(v=>v.note.id===n.note.id)&&
+// Use the uncollapsed hierarchy so manually collapsed children retain
+// their small indicators around the visible parent.
+const hiddenIndicators=completeMap.filter(n=>!visible.some(v=>v.note.id===n.note.id)&&
   visible.some(v=>v.note.id===n.note.parentId)).map(n=>{
-  const p=fullMap.find(v=>v.note.id===n.note.parentId)!;
+  const p=completeMap.find(v=>v.note.id===n.note.parentId)!;
   const radius=[60,55,45,40,37.5,35][Math.min(p.level,5)];
   const angle=Math.atan2(n.y-p.y,n.x-p.x);
   return {note:n.note,x:p.x+radius*Math.cos(angle),y:p.y+radius*Math.sin(angle)};
@@ -913,7 +915,13 @@ if(locked){
               {hiddenIndicators.map(ind=><Pressable key={'indicator-'+ind.note.id}
                 accessibilityRole="button"
                 accessibilityLabel={'Expand '+(ind.note.title||'child note')}
-                onPress={()=>moveTo(ind.note.id)}
+                onPress={()=>{
+                   // Reveal the branch before focusing the hidden child.
+                   const parentId=ind.note.parentId;
+                   if(parentId&&mapPrefs.collapsed[parentId])
+                     setMapPrefs(p=>({...p,collapsed:{...p.collapsed,[parentId]:false}}));
+                   moveTo(ind.note.id);
+                 }}
                 style={{position:'absolute',left:ind.x-11,top:ind.y-11,width:22,height:22,
                   borderRadius:11,borderWidth:1.5,borderColor:'#60a5fa',
                   backgroundColor:mapPrefs.colors[ind.note.id]||'#dbeafe',zIndex:5}}/> )}
