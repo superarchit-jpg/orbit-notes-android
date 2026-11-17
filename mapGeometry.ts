@@ -71,7 +71,7 @@ export function radialTree<T extends MapNode>(
     // Siblings share a connector length. Increase it only when a parent
     // has enough children to need additional clearance; do not shrink
     // every successive level irrespective of local density.
-    const radius=(level===0?186:level===1?146:126)+
+    const radius=(level===0?186:level===1?146:level===2?112:108)+
       Math.min(80,Math.max(0,count-2)*12);
     kids.forEach((child,index)=>{
       let angle:number;
