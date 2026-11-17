@@ -463,7 +463,7 @@ const miniLines=completeMap.filter(n=>n.note.parentId&&n.note.parentId!=='root')
 const hiddenIndicators=fullMap.filter(n=>!visible.some(v=>v.note.id===n.note.id)&&
   visible.some(v=>v.note.id===n.note.parentId)).map(n=>{
   const p=fullMap.find(v=>v.note.id===n.note.parentId)!;
-  const radius=p.level===0?45:35;
+  const radius=[60,55,45,40,37.5,35][Math.min(p.level,5)];
   const angle=Math.atan2(n.y-p.y,n.x-p.x);
   return {note:n.note,x:p.x+radius*Math.cos(angle),y:p.y+radius*Math.sin(angle)};
 });
@@ -482,7 +482,7 @@ const nodePress=(n:Note)=>{
 };
 
 const node=(n:Note,x:number,y:number,level:number)=>{
-  const size=level===0?90:70;
+  const size=[120,110,90,80,75,70][Math.min(level,5)];
   const touchMargin=level>=2?42:30;
   // Calculate stable branch geometry outside the UI-thread gesture worklet.
   // Looking up React arrays inside onChange can fail intermittently.
