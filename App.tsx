@@ -11,7 +11,7 @@ import {hasPin,setPin,checkPin,removePin,biometricEnabled,setBiometricEnabled,bi
 import {exportPDF,Note} from './export';
 import {safeExportName,saveExportToAndroid,ExportFormat} from './localSave';
 import * as FileSystem from 'expo-file-system/legacy';
-import {saveEncryptedBackup,selectAndDecryptBackup} from './backup';
+import {saveEncryptedBackup,selectBackupFile,decryptSelectedBackup} from './backup';
 import {radialLayout,overviewLayout} from './layout';
 import {TrashBatch,deleteBranches,restoreBatch,pruneTrash} from './trash';
 
@@ -47,7 +47,7 @@ const [sortMenu,setSortMenu]=useState(false);
 const [foldersExpanded,setFoldersExpanded]=useState(false);
 const [mapMenu,setMapMenu]=useState(false),[selectionMenu,setSelectionMenu]=useState(false),[sidebar,setSidebar]=useState(false),[moveFolderMenu,setMoveFolderMenu]=useState(false),[exportTarget,setExportTarget]=useState<string|null>(null);
 
-const [backupMode,setBackupMode]=useState<'save'|'restore'|null>(null),[backupPassword,setBackupPassword]=useState(''),[backupBusy,setBackupBusy]=useState(false);
+const [backupMode,setBackupMode]=useState<'save'|'restore'|null>(null),[backupPassword,setBackupPassword]=useState(''),[backupBusy,setBackupBusy]=useState(false),[backupFile,setBackupFile]=useState<{uri:string;name:string}|null>(null);
 const [exportKind,setExportKind]=useState<ExportFormat|null>(null),[exportName,setExportName]=useState(''),[exportBusy,setExportBusy]=useState(false);
 
 const tx=useSharedValue(0),ty=useSharedValue(0),scale=useSharedValue(1),rotation=useSharedValue(0),startRotation=useSharedValue(0),startX=useSharedValue(0),startY=useSharedValue(0),startScale=useSharedValue(1);
@@ -688,6 +688,7 @@ const confirmExport=async()=>{
 const runBackup=async()=>{
   if(!backupMode||backupBusy)return;
 
+  if(backupMode==='restore'&&!backupFile){Alert.alert('Choose a backup','Select a backup file before entering its password.');return;}
   if(backupPassword.length<12){
     Alert.alert(
       'Password required',
@@ -714,7 +715,7 @@ const runBackup=async()=>{
         );
       }
     }else{
-      const restored=await selectAndDecryptBackup(backupPassword);
+      const restored=await decryptSelectedBackup(backupFile!.uri,backupPassword);
 
       if(restored){
         await saveSnapshot(restored);
@@ -723,6 +724,7 @@ const runBackup=async()=>{
         setTrash(restored.trash);
         setFocused(restored.focused);
         setBackupMode(null);
+        setBackupFile(null);
         setBackupPassword('');
         setSettings(false);
         Alert.alert(
@@ -1171,22 +1173,30 @@ if(locked){
               <Text style={styles.muted}>
                 {backupMode==='save'
                   ?'Choose an Android folder and keep the password somewhere safe.'
-                  :'Restoring will REPLACE all current notes, folders and recently deleted items. The backup password is required.'}
+                  :'Select the backup file first. Then enter its password. Restoring will REPLACE the current notebook.'}
               </Text>
-              <TextInput
+              {backupMode==='restore'&&<>
+                <Button label={backupFile?'Change backup file':'Select backup file'} onPress={async()=>{
+                  try{const file=await selectBackupFile();if(file){setBackupFile(file);setBackupPassword('');}}
+                  catch(e){Alert.alert('Backup selection failed',String(e));}
+                }}/>
+                {backupFile&&<Text style={styles.muted}>{backupFile.name}</Text>}
+              </>}
+              {(backupMode==='save'||backupFile!==null)&&<TextInput
                 secureTextEntry
                 value={backupPassword}
                 onChangeText={setBackupPassword}
                 placeholder="Backup password (12+ characters)"
                 style={styles.input}
                 editable={!backupBusy}
-              />
+              />}
               <View style={styles.wrap}>
                 <Button
                   label="Cancel"
                   onPress={()=>{
                     if(!backupBusy){
                       setBackupMode(null);
+                      setBackupFile(null);
                       setBackupPassword('');
                     }
                   }}
@@ -1196,7 +1206,7 @@ if(locked){
                     ?'Working…'
                     :backupMode==='save'
                       ?'Choose folder & save'
-                      :'Choose file & restore'}
+                      :'Restore selected backup'}
                   primary
                   onPress={()=>{
                     if(backupMode==='restore'){
