@@ -1,5 +1,6 @@
 import JSZip from 'jszip';
 import * as Print from 'expo-print';
+import {radialTree} from './mapGeometry';
 import * as FileSystem from 'expo-file-system/legacy';
 export type Note = {id:string;parentId:string|null;title:string;body:string;updatedAt:number;folderId:string|null};
 const esc=(s:string)=>s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
@@ -11,7 +12,6 @@ export function subtree(root:Note,notes:Note[]):{note:Note;depth:number}[]{
 }
 /** One-page, complete radial map. The PDF scales the entire hierarchy to A4 landscape. */
 function pdfMapPage(root:Note,notes:Note[]):string{
- const {radialTree}=await import('./mapGeometry');
  const nodes=radialTree(root,notes);
  const byId=new Map(nodes.map(n=>[n.note.id,n]));
  const radii=[60,55,45,40,37.5,35];
