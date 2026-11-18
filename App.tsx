@@ -922,7 +922,7 @@ if(locked){
                    while(parentId&&parentId!=='root'&&!seen.has(parentId)){
                      seen.add(parentId);
                      ancestors.push(parentId);
-                     parentId=notes.find(n=>n.id===parentId)?.parentId;
+                     parentId=notes.find(n=>n.id===parentId)?.parentId||null;
                    }
                    setMapPrefs(p=>{
                      const collapsed={...p.collapsed};
