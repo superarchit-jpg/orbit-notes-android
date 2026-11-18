@@ -15,10 +15,18 @@ export async function exportPDF(root:Note,notes:Note[]){
  const nodes=radialTree(root,notes);
  const byId=new Map(nodes.map(n=>[n.note.id,n]));
  const radii=[60,55,45,40,37.5,35];
- const minX=Math.min(...nodes.map(n=>n.x-radii[Math.min(n.level,5)]))-24;
- const maxX=Math.max(...nodes.map(n=>n.x+radii[Math.min(n.level,5)]))+24;
- const minY=Math.min(...nodes.map(n=>n.y-radii[Math.min(n.level,5)]))-24;
- const maxY=Math.max(...nodes.map(n=>n.y+radii[Math.min(n.level,5)]))+24;
+ // Use a single pass: spreading large node arrays into Math.min/max can exceed
+ // JavaScript's argument limit and crash exports of deep or wide maps.
+ let minX=Infinity,maxX=-Infinity,minY=Infinity,maxY=-Infinity;
+ for(const n of nodes){
+   const radius=radii[Math.min(n.level,5)];
+   minX=Math.min(minX,n.x-radius);
+   maxX=Math.max(maxX,n.x+radius);
+   minY=Math.min(minY,n.y-radius);
+   maxY=Math.max(maxY,n.y+radius);
+ }
+ if(!nodes.length){minX=-60;maxX=60;minY=-60;maxY=60;}
+ minX-=24;maxX+=24;minY-=24;maxY+=24;
  const width=Math.max(1,maxX-minX),height=Math.max(1,maxY-minY);
  const textLines=(title:string,maxChars:number)=> {
    const words=title.trim().split(/\\s+/).filter(Boolean);
