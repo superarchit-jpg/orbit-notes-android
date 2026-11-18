@@ -479,6 +479,25 @@ const lines=visible
     };
   });
 
+const navigateIndicator=(targetId:string)=>{
+  const target=notes.find(n=>n.id===targetId);
+  if(!target)return;
+  const ancestors:string[]=[];
+  let parentId=target.parentId;
+  const seen=new Set<string>();
+  while(parentId&&parentId!=='root'&&!seen.has(parentId)){
+    seen.add(parentId);
+    ancestors.push(parentId);
+    parentId=notes.find(n=>n.id===parentId)?.parentId||null;
+  }
+  setMapPrefs(p=>{
+    const collapsed={...p.collapsed};
+    ancestors.forEach(id=>{collapsed[id]=false;});
+    return {...p,collapsed};
+  });
+  moveTo(targetId);
+};
+
 const nodePress=(n:Note)=>{
   if(n.id!==focused)moveTo(n.id);
 };
@@ -936,29 +955,22 @@ if(locked){
               {visible.map(({note,x,y,level})=>
                 node(note,x,y,level)
               )}
-              {hiddenIndicators.map(ind=><Pressable key={'indicator-'+ind.note.id}
-                accessibilityRole="button"
-                accessibilityLabel={'Expand '+(ind.note.title||'child note')}
-                onPress={()=>{
-                   // Expand all collapsed ancestors before focusing the child.
-                   const ancestors:string[]=[];
-                   let parentId=ind.note.parentId;
-                   const seen=new Set<string>();
-                   while(parentId&&parentId!=='root'&&!seen.has(parentId)){
-                     seen.add(parentId);
-                     ancestors.push(parentId);
-                     parentId=notes.find(n=>n.id===parentId)?.parentId||null;
-                   }
-                   setMapPrefs(p=>{
-                     const collapsed={...p.collapsed};
-                     ancestors.forEach(id=>{collapsed[id]=false;});
-                     return {...p,collapsed};
-                   });
-                   moveTo(ind.note.id);
-                 }}
-                style={{position:'absolute',left:ind.x-11,top:ind.y-11,width:22,height:22,
-                  borderRadius:11,borderWidth:1.5,borderColor:'#60a5fa',
-                  backgroundColor:mapPrefs.colors[ind.note.id]||'#dbeafe',zIndex:5}}/> )}
+              {hiddenIndicators.map(ind=>
+                <GestureDetector key={'indicator-'+ind.note.id} gesture={Gesture.Tap().maxDuration(350).onEnd((_e,ok)=>{
+                  if(ok)runOnJS(navigateIndicator)(ind.note.id);
+                })}>
+                  <Pressable
+                    accessibilityRole="button"
+                    accessibilityLabel={'Expand '+(ind.note.title||'child note')}
+                    onPress={()=>navigateIndicator(ind.note.id)}
+                    style={{position:'absolute',left:ind.x-17,top:ind.y-17,width:34,height:34,
+                      alignItems:'center',justifyContent:'center',zIndex:20}}>
+                    <View pointerEvents="none" style={{width:22,height:22,borderRadius:11,
+                      borderWidth:1.5,borderColor:'#60a5fa',
+                      backgroundColor:mapPrefs.colors[ind.note.id]||'#dbeafe'}}/>
+                  </Pressable>
+                </GestureDetector>
+              )}
 
             </Animated.View>
             </View>
