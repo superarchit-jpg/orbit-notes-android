@@ -8,7 +8,7 @@ import type {SharedValue} from 'react-native-reanimated';
 import {loadSnapshot,saveSnapshot,loadMapPreferences,saveMapPreferences,emptyMapPreferences} from './storage';
 import {radialTree,fitMap,pointSegmentDistance} from './mapGeometry';
 import {hasPin,setPin,checkPin,removePin,biometricEnabled,setBiometricEnabled,biometricAvailable,authenticateBiometric,lockStatus,recordPinAttempt} from './appLock';
-import {exportPDF,Note} from './export';
+import {exportPDF,exportMultipleMapsPDF,Note} from './export';
 import {safeExportName,saveExportToAndroid,saveMultiplePDFsToAndroid,ExportFormat} from './localSave';
 import * as FileSystem from 'expo-file-system/legacy';
 import {saveEncryptedBackup,selectBackupFile,decryptSelectedBackup} from './backup';
@@ -666,31 +666,8 @@ const confirmExport=async()=>{
       }
       return;
     }
-    const exportNotes=exportTarget==='__selection__'
-      ?(()=>{
-        const root:Note={
-          id:'__export_root__',
-          parentId:null,
-          title:'Selected maps',
-          body:'',
-          updatedAt:Date.now(),
-          folderId:null
-        };
-        return {
-          root,
-          all:[
-            ...notes.filter(n=>!selected.includes(n.id)),
-            ...notes.filter(n=>selected.includes(n.id)).map(n=>({
-              ...n,parentId:root.id
-            })),
-            root
-          ]
-        };
-      })()
-      :null;
-
-    tempUri=exportNotes
-      ?await exportPDF(exportNotes.root,exportNotes.all)
+    tempUri=exportTarget==='__selection__'
+      ?await exportMultipleMapsPDF(notes.filter(n=>selected.includes(n.id)),notes)
       :await exportPDF(notes.find(n=>n.id===exportTarget)||current,notes);
 
     const fallbackExportName=exportTarget==='__selection__'?(selected.length===1?(notes.find(n=>n.id===selected[0])?.title||'Orbit Notes'):'Selected maps'):(notes.find(n=>n.id===exportTarget)?.title||current.title);
