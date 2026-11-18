@@ -175,9 +175,9 @@ const moveTo=(target:string)=>{
   if(!point)return;
   setFocused(target);
   const angle=rotation.value;
-   tx.value=withTiming(-(point.x*Math.cos(angle)-point.y*Math.sin(angle)),{duration:560});
-  ty.value=withTiming(-(point.x*Math.sin(angle)+point.y*Math.cos(angle)),{duration:560});
-  scale.value=withTiming(preferredFit,{duration:560});
+   tx.value=withTiming(-preferredFit*1.1*(point.x*Math.cos(angle)-point.y*Math.sin(angle)),{duration:560});
+  ty.value=withTiming(-preferredFit*1.1*(point.x*Math.sin(angle)+point.y*Math.cos(angle)),{duration:560});
+  scale.value=withTiming(preferredFit*1.1,{duration:560});
 };
 
 const openReader=(target:string)=>{
@@ -426,7 +426,7 @@ const [canvasH,setCanvasH]=useState(H-180);
 // The user-preferred fit is one zoom-out step (1/1.2) from the
 // previous fitted view. 100% denotes this baseline, not raw scale 1.
 const preferredFit=useMemo(()=>{const points=visible.length<=2?[...visible,{x:-313.5,y:0},{x:313.5,y:0}]:visible;const fit=fitMap(points,Math.max(1,canvasW),Math.max(1,canvasH)).scale;return Number.isFinite(fit)&&fit>0?fit*(1.75/1.2)*1.1:1;},[visible,canvasW,canvasH]);
-useEffect(()=>{if(!menu&&Number.isFinite(preferredFit))scale.value=withTiming(preferredFit,{duration:300});},[menu,focused,preferredFit]);
+useEffect(()=>{if(!menu&&Number.isFinite(preferredFit))scale.value=withTiming(preferredFit*1.1,{duration:300});},[menu,focused,preferredFit]);
 useAnimatedReaction(
   ()=>Number.isFinite(scale.value)&&Number.isFinite(preferredFit)&&preferredFit>0?Math.round(Math.max(10,Math.min(200,scale.value/preferredFit*100))):100,
   (value,previous)=>{if(value!==previous)runOnJS(setZoomPercent)(value);}
@@ -451,7 +451,7 @@ const fitCurrentMap=()=>{
   const fit=fitMap(visible,canvasW,canvasH);
   tx.value=withTiming(fit.x);
   ty.value=withTiming(fit.y);
-  scale.value=withTiming(preferredFit);
+  scale.value=withTiming(preferredFit*1.1);
   rotation.value=withTiming(0);
 };
 const parentPoint:{x:number;y:number}={x:0,y:0};
@@ -588,7 +588,7 @@ const node=(n:Note,x:number,y:number,level:number)=>{
               styles.nodeTitle,
               {
                 color:n.id===focused&&!mapPrefs.colors[n.id]?'white':'#1e40af',
-                fontSize:level===2?12:14
+                fontSize:level>=2?14:16
               }
             ]}
           >
@@ -875,9 +875,9 @@ if(locked){
             <IconButton
               label="⌖"
               onPress={()=>{
-                tx.value=withTiming(-(focusPoint?.x||0));
-                ty.value=withTiming(-(focusPoint?.y||0));
-                scale.value=withTiming(preferredFit);
+                tx.value=withTiming(-preferredFit*1.1*(focusPoint?.x||0));
+                ty.value=withTiming(-preferredFit*1.1*(focusPoint?.y||0));
+                scale.value=withTiming(preferredFit*1.1);
                 rotation.value=withTiming(0);
               }}
             />
@@ -894,6 +894,7 @@ if(locked){
         <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{flexGrow:0,maxHeight:48}} contentContainerStyle={{alignItems:'center',paddingHorizontal:12,gap:4}}>
           {ancestors.filter(n=>n.id!=='root').map((n,i)=><Pressable key={n.id} accessibilityRole="button" accessibilityLabel={`Focus ${n.title||'Untitled'}`} onPress={()=>moveTo(n.id)} style={{padding:8}}><Text style={{color:n.id===focused?'#1d4ed8':'#475569',fontWeight:n.id===focused?'800':'500'}}>{i?'› ':''}{n.title||'Untitled'}</Text></Pressable>)}
         </ScrollView>
+        {(nodeActions||mapMenu)&&<Pressable accessibilityLabel="Close menu" onPress={()=>{setNodeActions(null);setMapMenu(false);}} style={[StyleSheet.absoluteFill,{zIndex:20,elevation:10}]}/>}
         {nodeActions&&<View style={[styles.popup,{top:115,right:12,maxWidth:220}]}>
           <Text style={{fontWeight:'800',color:'#334155'}} numberOfLines={2}>{notes.find(n=>n.id===nodeActions)?.title||'Note actions'}</Text>
           <Button label="Read note" onPress={()=>{openReader(nodeActions);setNodeActions(null);}}/>
@@ -1325,7 +1326,7 @@ if(locked){
           animationType="slide"
           onRequestClose={()=>BackHandler.exitApp()}
         >
-          <SafeAreaView style={styles.screen}>
+          <InsetSafeAreaView style={styles.screen} edges={['top','bottom']}>
             <View style={styles.header}>
               <IconButton
                 label="☰"
@@ -1370,6 +1371,7 @@ if(locked){
               </View>
             </View>
 
+            {(selectionMenu||moveFolderMenu||sidebar||sortMenu)&&<Pressable accessibilityLabel="Close menu" onPress={()=>{setSelectionMenu(false);setMoveFolderMenu(false);setSidebar(false);setSortMenu(false);}} style={[StyleSheet.absoluteFill,{zIndex:20,elevation:10}]}/>}
             {selectionMenu&&selected.length>0&&(
               <View style={styles.popup}>
                 <Button
@@ -1525,7 +1527,7 @@ if(locked){
                 <Text style={styles.muted}>{shown.length} {shown.length===1?'map':'maps'}{selected.length>0?` · ${selected.length} selected`:''}</Text>
                 <Button label={librarySort==='modified'?'Sort: Modified ▾':librarySort==='title'?'Sort: Title ▾':'Sort: Created ▾'} onPress={()=>setSortMenu(v=>!v)}/>
               </View>
-              {sortMenu&&<View style={{flexDirection:'row',flexWrap:'wrap',gap:6}}>
+              {sortMenu&&<View style={{flexDirection:'row',flexWrap:'wrap',gap:6,zIndex:30,elevation:15,backgroundColor:'#f8fafc'}}>
                 {(['modified','title','created'] as const).map(option=>(
                   <Button key={option} label={`${librarySort===option?'✓ ':''}${option==='modified'?'Last modified':option==='title'?'Title A–Z':'Date created'}`} onPress={()=>{setLibrarySort(option);setSortMenu(false);}}/>
                 ))}
@@ -1648,7 +1650,7 @@ if(locked){
                 </>
               )}
             </ScrollView>
-          </SafeAreaView>
+          </InsetSafeAreaView>
         </Modal>
       </SafeAreaView>
     </GestureHandlerRootView>
@@ -1739,7 +1741,7 @@ const styles=StyleSheet.create({
   },
   sidebar:{
     position:'absolute',
-    top:0,
+    top:60,
     bottom:0,
     left:0,
     width:'47%',
