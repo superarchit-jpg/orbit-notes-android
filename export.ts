@@ -9,23 +9,43 @@ export function subtree(root:Note,notes:Note[]):{note:Note;depth:number}[]{
  while(stack.length){const entry=stack.pop()!;if(visited.has(entry.note.id))continue;visited.add(entry.note.id);result.push(entry);const kids=children.get(entry.note.id)||[];for(let i=kids.length-1;i>=0;i--)stack.push({note:kids[i],depth:entry.depth+1});}
  return result;
 }
-/** Paginated radial diagrams: each level is rendered as a real map in the PDF. */
+/** One-page, complete radial map. The PDF scales the entire hierarchy to A4 landscape. */
 export async function exportPDF(root:Note,notes:Note[]){
- const entries=subtree(root,notes);
- const diagrams=entries.filter(({note})=>note.id===root.id||notes.some(n=>n.parentId===note.id));
- const pages=diagrams.map(({note})=>{
-  const children=notes.filter(n=>n.parentId===note.id);
-  const groups:Note[][]=[];for(let i=0;i<children.length;i+=10)groups.push(children.slice(i,i+10));
-  if(!groups.length)groups.push([]);
-  return groups.map((group,page)=>{
-   const cx=410,cy=315,ring=205;
-   const nodes=group.map((n,i)=>({n,x:cx+Math.cos(-Math.PI/2+2*Math.PI*i/Math.max(group.length,1))*ring,y:cy+Math.sin(-Math.PI/2+2*Math.PI*i/Math.max(group.length,1))*ring}));
-   const diagram=`<svg xmlns="http://www.w3.org/2000/svg" width="820" height="635" viewBox="0 0 820 635"><rect width="820" height="635" fill="#f8fafc"/>${nodes.map(p=>`<line x1="${cx}" y1="${cy}" x2="${p.x}" y2="${p.y}" stroke="#94a3b8" stroke-width="3"/>`).join('')}<circle cx="${cx}" cy="${cy}" r="72" fill="#315fd6"/><text x="${cx}" y="${cy}" text-anchor="middle" dominant-baseline="middle" fill="white" font-size="18" font-family="sans-serif">${esc(note.title.slice(0,22))}</text>${nodes.map(p=>`<circle cx="${p.x}" cy="${p.y}" r="52" fill="#dbeafe" stroke="#93c5fd" stroke-width="2"/><text x="${p.x}" y="${p.y-6}" text-anchor="middle" fill="#1e40af" font-size="13" font-family="sans-serif">${esc(p.n.title.slice(0,18))}</text>${p.n.body.trim()?`<circle cx="${p.x+32}" cy="${p.y+31}" r="6" fill="#2563eb"/>`:''}`).join('')}</svg>`;
-   const details=[note,...group].filter(n=>n.body.trim()).map(n=>`<div class="detail"><b>${esc(n.title)}</b><p>${esc(n.body)}</p></div>`).join('');
-   return `<section class="page"><h2>${esc(note.title)}${groups.length>1?` (${page+1}/${groups.length})`:''}</h2>${diagram}${details}</section>`;
-  }).join('');
+ const {radialTree}=await import('./mapGeometry');
+ const nodes=radialTree(root,notes);
+ const byId=new Map(nodes.map(n=>[n.note.id,n]));
+ const radii=[60,55,45,40,37.5,35];
+ const minX=Math.min(...nodes.map(n=>n.x-radii[Math.min(n.level,5)]))-24;
+ const maxX=Math.max(...nodes.map(n=>n.x+radii[Math.min(n.level,5)]))+24;
+ const minY=Math.min(...nodes.map(n=>n.y-radii[Math.min(n.level,5)]))-24;
+ const maxY=Math.max(...nodes.map(n=>n.y+radii[Math.min(n.level,5)]))+24;
+ const width=Math.max(1,maxX-minX),height=Math.max(1,maxY-minY);
+ const textLines=(title:string,maxChars:number)=> {
+   const words=title.trim().split(/\\s+/).filter(Boolean);
+   const lines:string[]=[];let line='';
+   for(const word of words){
+     if((line+' '+word).trim().length>maxChars&&line){lines.push(line);line='';}
+     if(word.length>maxChars){if(line){lines.push(line);line='';}for(let i=0;i<word.length;i+=maxChars)lines.push(word.slice(i,i+maxChars));}
+     else line=(line+' '+word).trim();
+   }
+   if(line)lines.push(line);
+   return lines;
+ };
+ const edges=nodes.filter(n=>n.note.parentId&&byId.has(n.note.parentId)).map(n=>{
+   const p=byId.get(n.note.parentId!)!;
+   return `<line x1="${p.x}" y1="${p.y}" x2="${n.x}" y2="${n.y}" stroke="#94a3b8" stroke-width="3"/>`;
  }).join('');
- const html=`<!DOCTYPE html><html><head><meta name="viewport" content="width=device-width"/><style>@page{size:A4 landscape;margin:12mm}body{font-family:Arial,sans-serif;color:#1f2937}h1{color:#1d4ed8}h2{margin:5px 0}svg{width:100%;height:auto;max-height:155mm}.page{page-break-after:always;break-after:page}.detail{display:inline-block;vertical-align:top;width:46%;margin:4px;padding:6px;border-left:2px solid #93c5fd;font-size:11px;page-break-inside:avoid}p{white-space:pre-wrap;margin:3px 0}</style></head><body><h1>${esc(root.title)} — Mind Map</h1>${pages}</body></html>`;
+ const circles=nodes.map(n=>{
+   const radius=radii[Math.min(n.level,5)],isRoot=n.note.id===root.id;
+   const title=textLines(n.note.title,Math.max(9,Math.floor(radius/3.5)));
+   const lines=title.slice(0,4);
+   const body=n.note.body.trim().replace(/\\s+/g,' ');
+   const label=lines.map((line,i)=>`<tspan x="${n.x}" dy="${i===0?0:13}">${esc(line)}</tspan>`).join('');
+   const y=n.y-(lines.length-1)*6.5-(body?7:0);
+   return `<circle cx="${n.x}" cy="${n.y}" r="${radius}" fill="${isRoot?'#315fd6':'#dbeafe'}" stroke="#93c5fd" stroke-width="2"/><text x="${n.x}" y="${y}" text-anchor="middle" font-family="sans-serif" font-size="12" font-weight="600" fill="${isRoot?'white':'#1e40af'}">${label}</text>${body?`<text x="${n.x}" y="${n.y+radius-13}" text-anchor="middle" font-family="sans-serif" font-size="8" fill="${isRoot?'white':'#334155'}">${esc(body.slice(0,Math.floor(radius/4))) }${body.length>Math.floor(radius/4)?'…':''}</text>`:''}`;
+ }).join('');
+ const diagram=`<svg xmlns="http://www.w3.org/2000/svg" viewBox="${minX} ${minY} ${width} ${height}" preserveAspectRatio="xMidYMid meet" style="width:100%;height:100%;display:block"><rect x="${minX}" y="${minY}" width="${width}" height="${height}" fill="#f8fafc"/>${edges}${circles}</svg>`;
+ const html=`<!DOCTYPE html><html><head><meta name="viewport" content="width=device-width"/><style>@page{size:A4 landscape;margin:8mm}html,body{margin:0;padding:0;font-family:Arial,sans-serif}.page{width:281mm;height:194mm;overflow:hidden;page-break-after:avoid;break-after:avoid}</style></head><body><div class="page">${diagram}</div></body></html>`;
  const out=await Print.printToFileAsync({html});return out.uri;
 }
 // Diagram elements are native PowerPoint shapes, so users can edit them after export.
