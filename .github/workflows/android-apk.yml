@@ -73,3 +73,55 @@ jobs:
           profile: pixel_6
           disable-animations: true
           script: bash .github/scripts/android-ui-smoke.sh
+
+  diagnose-failure:
+    name: Diagnose failed Android build
+    needs: [build-android-apk]
+    if: ${{ always() && needs.build-android-apk.result == 'failure' && github.ref_name == 'v0.16-map-redesign' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      actions: read
+      contents: read
+    steps:
+      - name: Record failed steps
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const { owner, repo } = context.repo;
+            const runId = context.runId;
+            const jobs = await github.paginate(github.rest.actions.listJobsForWorkflowRun, {
+              owner, repo, run_id: runId, per_page: 100
+            });
+            const failed = jobs.filter(job => job.conclusion === 'failure');
+            const lines = [
+              '# Orbit Notes build failure diagnostics',
+              '',
+              'Build: https://github.com/' + owner + '/' + repo + '/actions/runs/' + runId,
+              'Commit: ' + context.sha,
+              'Branch: ' + context.ref,
+              '',
+            ];
+            for (const job of failed) {
+              lines.push('## ' + job.name);
+              lines.push('Job logs: ' + job.html_url);
+              const steps = (job.steps || []).filter(step => step.conclusion === 'failure');
+              if (steps.length === 0) lines.push('- No failed step reported; inspect job logs.');
+              for (const step of steps) lines.push('- Failed step: ' + step.name);
+              lines.push('');
+            }
+            if (failed.length === 0) lines.push('No failed job reported; inspect workflow logs.');
+            lines.push('Repair is handled by the separate hourly ChatGPT automation.');
+            lines.push('Any repair commit requires three review passes.');
+            const report = lines.join('\\n') + '\\n';
+            fs.writeFileSync('orbit-build-failure.md', report);
+            await core.summary.addRaw(report).write();
+            core.warning('Orbit Notes build failed; diagnostics saved.');
+      - name: Upload failure diagnostics
+        uses: actions/upload-artifact@v4
+        with:
+          name: Orbit-Notes-Failure-Diagnostics
+          path: orbit-build-failure.md
+          if-no-files-found: error
+          retention-days: 14
