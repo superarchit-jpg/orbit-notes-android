@@ -1016,6 +1016,7 @@ if(locked){
             justifyContent:'center',
             padding:24
           }}>
+            <Pressable accessibilityLabel="Close export dialog" onPress={()=>{if(!exportBusy)setExportKind(null);}} style={StyleSheet.absoluteFill}/>
             <View style={{
               backgroundColor:'white',
               padding:22,
@@ -1190,6 +1191,7 @@ if(locked){
             justifyContent:'center',
             padding:22
           }}>
+            <Pressable accessibilityLabel="Close backup dialog" onPress={()=>{if(!backupBusy){setBackupMode(null);setBackupFile(null);setBackupPassword('');}}} style={StyleSheet.absoluteFill}/>
             <View style={{
               backgroundColor:'white',
               padding:20,
