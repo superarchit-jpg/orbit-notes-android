@@ -916,10 +916,20 @@ if(locked){
                 accessibilityRole="button"
                 accessibilityLabel={'Expand '+(ind.note.title||'child note')}
                 onPress={()=>{
-                   // Reveal the branch before focusing the hidden child.
-                   const parentId=ind.note.parentId;
-                   if(parentId&&mapPrefs.collapsed[parentId])
-                     setMapPrefs(p=>({...p,collapsed:{...p.collapsed,[parentId]:false}}));
+                   // Expand all collapsed ancestors before focusing the child.
+                   const ancestors:string[]=[];
+                   let parentId=ind.note.parentId;
+                   const seen=new Set<string>();
+                   while(parentId&&parentId!=='root'&&!seen.has(parentId)){
+                     seen.add(parentId);
+                     ancestors.push(parentId);
+                     parentId=notes.find(n=>n.id===parentId)?.parentId;
+                   }
+                   setMapPrefs(p=>{
+                     const collapsed={...p.collapsed};
+                     ancestors.forEach(id=>{collapsed[id]=false;});
+                     return {...p,collapsed};
+                   });
                    moveTo(ind.note.id);
                  }}
                 style={{position:'absolute',left:ind.x-11,top:ind.y-11,width:22,height:22,
