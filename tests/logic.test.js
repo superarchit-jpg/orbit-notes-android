@@ -200,7 +200,12 @@ check(
   'Missing PDF export implementation'
 );
 
-console.log('PASS: PDF export module');
+check(
+  exp.includes('for(const n of nodes)') && !exp.includes('Math.min(...nodes.map') && !exp.includes('Math.max(...nodes.map'),
+  'Large-map PDF bounds must avoid spreading node arrays into Math.min/Math.max'
+);
+
+console.log('PASS: PDF export module and large-map bounds');
 
 console.log(
   'PASS: All Orbit Notes v0.15 source checks'
