@@ -424,11 +424,11 @@ const [canvasW,setCanvasW]=useState(W);
 const [canvasH,setCanvasH]=useState(H-180);
 
 // The user-preferred fit is one zoom-out step (1/1.2) from the
-// previous fitted view. 100% denotes this baseline, not raw scale 1.
+// previous fitted view. The 110% view is now labelled 100%.
 const preferredFit=useMemo(()=>{const points=visible.length<=2?[...visible,{x:-313.5,y:0},{x:313.5,y:0}]:visible;const fit=fitMap(points,Math.max(1,canvasW),Math.max(1,canvasH)).scale;return Number.isFinite(fit)&&fit>0?fit*(1.75/1.2)*1.1:1;},[visible,canvasW,canvasH]);
 useEffect(()=>{if(!menu&&Number.isFinite(preferredFit))scale.value=withTiming(preferredFit*1.1,{duration:300});},[menu,focused,preferredFit]);
 useAnimatedReaction(
-  ()=>Number.isFinite(scale.value)&&Number.isFinite(preferredFit)&&preferredFit>0?Math.round(Math.max(10,Math.min(200,scale.value/preferredFit*100))):100,
+  ()=>Number.isFinite(scale.value)&&Number.isFinite(preferredFit)&&preferredFit>0?Math.round(Math.max(10,Math.min(200,scale.value/(preferredFit*1.1)*100))):100,
   (value,previous)=>{if(value!==previous)runOnJS(setZoomPercent)(value);}
 );
 
@@ -631,7 +631,7 @@ const exportOne=(kind:ExportFormat,targetId?:string)=>{
     if(!parent)break;
     mapRoot=parent;
   }
-  setExportName(mapRoot.title);
+  setExportName('');
   setExportKind(kind);
   setMapMenu(false);
   setSelectionMenu(false);
@@ -640,7 +640,7 @@ const exportOne=(kind:ExportFormat,targetId?:string)=>{
 const exportSelected=()=>{
   setExportSeparate(false);
   setExportTarget('__selection__');
-  setExportName('Selected maps');
+  setExportName('');
   setExportKind('pdf');
   setSelectionMenu(false);
 };
@@ -693,13 +693,15 @@ const confirmExport=async()=>{
       ?await exportPDF(exportNotes.root,exportNotes.all)
       :await exportPDF(notes.find(n=>n.id===exportTarget)||current,notes);
 
-    const destination=await saveExportToAndroid(tempUri,exportName,kind);
+    const fallbackExportName=exportTarget==='__selection__'?(selected.length===1?(notes.find(n=>n.id===selected[0])?.title||'Orbit Notes'):'Selected maps'):(notes.find(n=>n.id===exportTarget)?.title||current.title);
+    const finalExportName=exportName.trim()||fallbackExportName;
+    const destination=await saveExportToAndroid(tempUri,finalExportName,kind);
 
     if(destination){
       setExportKind(null);
       Alert.alert(
         'Saved to device',
-        `${safeExportName(exportName,kind)} was saved to your chosen Android folder.`
+        `${safeExportName(finalExportName,kind)} was saved to your chosen Android folder.`
       );
     }else{
       Alert.alert(
@@ -981,8 +983,8 @@ if(locked){
 
         {!menu&&<View style={{flexDirection:'row',justifyContent:'center',gap:6,paddingVertical:5,flexWrap:'wrap'}}>
           <Button label="+ Add child" onPress={()=>{setMapPrefs(p=>({...p,collapsed:{...p.collapsed,[focused]:false}}));addChild(focused);}}/>
-           <Button label="−" onPress={()=>{scale.value=withTiming(Math.max(preferredFit*0.1,preferredFit*(Math.round(scale.value/preferredFit*10)-1)/10));}}/>
-          <Button label="+" onPress={()=>{scale.value=withTiming(Math.min(preferredFit*2,preferredFit*(Math.round(scale.value/preferredFit*10)+1)/10));}}/>
+           <Button label="−" onPress={()=>{scale.value=withTiming(Math.max(preferredFit*1.1*0.1,preferredFit*1.1*(Math.round(scale.value/(preferredFit*1.1)*10)-1)/10));}}/>
+          <Button label="+" onPress={()=>{scale.value=withTiming(Math.min(preferredFit*1.1*2,preferredFit*1.1*(Math.round(scale.value/(preferredFit*1.1)*10)+1)/10));}}/>
           <Text accessibilityLabel={`Zoom ${zoomPercent} percent`} style={{fontSize:12,fontWeight:"700",color:"#334155",minWidth:46,textAlign:"center",textAlignVertical:"center",alignSelf:"center",includeFontPadding:false}}>{zoomPercent}%</Text>
           <Button label={mapPrefs.collapsed[focused]?'Expand branch':'Collapse branch'} onPress={()=>setMapPrefs(p=>({...p,collapsed:{...p.collapsed,[focused]:!p.collapsed[focused]}}))}/>
           <Button label="Node color" onPress={()=>setMapPrefs(p=>{const palette=['#dbeafe','#dcfce7','#fef3c7','#fce7f3','#e9d5ff'];const current=p.colors[focused]||palette[0];return {...p,colors:{...p.colors,[focused]:palette[(palette.indexOf(current)+1)%palette.length]}};})}/>
@@ -1029,7 +1031,7 @@ if(locked){
               <Text style={styles.muted}>
                 Android requires folder access through its system picker when saving files to a chosen folder.
               </Text>
-              {exportTarget==='__selection__'&&<View style={styles.wrap}>
+              {exportTarget==='__selection__'&&selected.length>1&&<View style={styles.wrap}>
                 <Button label={`${!exportSeparate?'✓ ':''}Single PDF`} onPress={()=>setExportSeparate(false)}/>
                 <Button label={`${exportSeparate?'✓ ':''}Separate PDFs`} onPress={()=>setExportSeparate(true)}/>
               </View>}
@@ -1042,7 +1044,7 @@ if(locked){
                 autoCapitalize="sentences"
               />}
               <Text style={styles.muted}>
-                {exportSeparate?`${selected.length} individual PDF files (named after each map)` :safeExportName(exportName,exportKind||'pdf')}
+                {exportSeparate?`${selected.length} individual PDF files (named after each map)` :safeExportName(exportName.trim()||(exportTarget==='__selection__'?(selected.length===1?(notes.find(n=>n.id===selected[0])?.title||'Orbit Notes'):'Selected maps'):(notes.find(n=>n.id===exportTarget)?.title||current.title)),exportKind||'pdf')}
               </Text>
               <View style={styles.wrap}>
                 <Button
