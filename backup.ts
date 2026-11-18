@@ -46,13 +46,24 @@ export async function saveEncryptedBackup(snapshot:LocalSnapshot,password:string
   await FileSystem.writeAsStringAsync(uri,fromByteArray(utf8ToBytes(content)),{encoding:FileSystem.EncodingType.Base64});
   return true;
 }
-export async function selectAndDecryptBackup(password:string):Promise<LocalSnapshot|null>{
+export async function selectBackupFile():Promise<{uri:string;name:string}|null>{
   const result=await DocumentPicker.getDocumentAsync({type:'*/*',copyToCacheDirectory:true,multiple:false});
   if(result.canceled)return null;
-  const uri=result.assets[0]?.uri;
-  if(!uri)throw new Error('No backup selected');
+  const asset=result.assets[0];
+  if(!asset?.uri)throw new Error('No backup selected');
+  const info=await FileSystem.getInfoAsync(asset.uri);
+  if(!info.exists||('size' in info&&typeof info.size==='number'&&info.size>MAX_BYTES*2))
+    throw new Error('Backup file too large');
+  return {uri:asset.uri,name:asset.name||'Selected backup'};
+}
+export async function decryptSelectedBackup(uri:string,password:string):Promise<LocalSnapshot>{
   const info=await FileSystem.getInfoAsync(uri);
-  if(!info.exists||('size' in info&&typeof info.size==='number'&&info.size>MAX_BYTES*2))throw new Error('Backup file too large');
+  if(!info.exists||('size' in info&&typeof info.size==='number'&&info.size>MAX_BYTES*2))
+    throw new Error('Backup file too large');
   const content=await FileSystem.readAsStringAsync(uri,{encoding:FileSystem.EncodingType.UTF8});
   return decryptSnapshot(content,password);
+}
+export async function selectAndDecryptBackup(password:string):Promise<LocalSnapshot|null>{
+  const selected=await selectBackupFile();
+  return selected?decryptSelectedBackup(selected.uri,password):null;
 }
