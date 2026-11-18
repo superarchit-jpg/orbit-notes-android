@@ -71,7 +71,14 @@ export function radialTree<T extends MapNode>(
     // Siblings share a connector length. Increase it only when a parent
     // has enough children to need additional clearance; do not shrink
     // every successive level irrespective of local density.
-    const radius=(level===0?330:level===1?260*0.95:level===2?190*0.95:level===3?120:50)*0.95+
+    // Match the circle diameters in App.tsx (levels 0–5, then 70).
+    // Keep at least 30 world units of visible clearance at deep levels.
+    const diameters=[120,110,90,80,75,70];
+    const parentRadius=diameters[Math.min(level,5)]/2;
+    const childRadius=diameters[Math.min(level+1,5)]/2;
+    const minimumDistance=parentRadius+childRadius+30;
+    const baseDistance=(level===0?330:level===1?260*0.95:level===2?190*0.95:level===3?120:50)*0.95;
+    const radius=Math.max(baseDistance,minimumDistance)+
       Math.min(80,Math.max(0,count-2)*12);
     kids.forEach((child,index)=>{
       let angle:number;
