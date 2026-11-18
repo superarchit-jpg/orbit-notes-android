@@ -196,7 +196,7 @@ const beginEdit=(target:string)=>{
 
 const saveEdit=()=>{
   if(!reader)return;
-  setNotes(ns=>{const updated=Date.now();const target=ns.find(n=>n.id===reader);let parentId=target?.parentId;const ancestorIds=new Set<string>();while(parentId&&parentId!=='root'){ancestorIds.add(parentId);parentId=ns.find(n=>n.id===parentId)?.parentId;}return ns.map(n=>n.id===reader?{...n,title:title.trim()||'Untitled',body,updatedAt:updated}:ancestorIds.has(n.id)?{...n,updatedAt:updated}:n);});
+  setNotes(ns=>{const updated=Date.now();const target=ns.find(n=>n.id===reader);let parentId=target?.parentId;const ancestorIds=new Set<string>();while(parentId&&parentId!=='root'){ancestorIds.add(parentId);parentId=ns.find(n=>n.id===parentId)?.parentId;}return ns.map(n=>n.id===reader?{...n,title:title.trim(),body,updatedAt:updated}:ancestorIds.has(n.id)?{...n,updatedAt:updated}:n);});
   setEditing(false);
   setDraftChildId(null);
   setReader(null);
@@ -425,7 +425,7 @@ const [canvasH,setCanvasH]=useState(H-180);
 
 // The user-preferred fit is one zoom-out step (1/1.2) from the
 // previous fitted view. 100% denotes this baseline, not raw scale 1.
-const preferredFit=useMemo(()=>{const fit=fitMap(visible,Math.max(1,canvasW),Math.max(1,canvasH)).scale;return Number.isFinite(fit)&&fit>0?fit*(1.75/1.2)*1.1:1;},[visible,canvasW,canvasH]);
+const preferredFit=useMemo(()=>{const points=visible.length<=2?[...visible,{x:-313.5,y:0},{x:313.5,y:0}]:visible;const fit=fitMap(points,Math.max(1,canvasW),Math.max(1,canvasH)).scale;return Number.isFinite(fit)&&fit>0?fit*(1.75/1.2)*1.1:1;},[visible,canvasW,canvasH]);
 useEffect(()=>{if(!menu&&Number.isFinite(preferredFit))scale.value=withTiming(preferredFit,{duration:300});},[menu,focused,preferredFit]);
 useAnimatedReaction(
   ()=>Number.isFinite(scale.value)&&Number.isFinite(preferredFit)&&preferredFit>0?Math.round(Math.max(10,Math.min(200,scale.value/preferredFit*100))):100,
@@ -569,7 +569,7 @@ const node=(n:Note,x:number,y:number,level:number)=>{
               styles.nodeTitle,
               {
                 color:n.id===focused&&!mapPrefs.colors[n.id]?'white':'#1e40af',
-                fontSize:level===2?11:13
+                fontSize:level===2?12:14
               }
             ]}
           >
@@ -604,7 +604,15 @@ const moveSelection=(folderId:string|null)=>{
 const exportOne=(kind:ExportFormat,targetId?:string)=>{
   const target=notes.find(n=>n.id===(targetId||current.id))||current;
   setExportTarget(target.id);
-  setExportName(target.title);
+  let mapRoot=target;
+  const seen=new Set<string>();
+  while(mapRoot.parentId&&mapRoot.parentId!=='root'&&!seen.has(mapRoot.id)){
+    seen.add(mapRoot.id);
+    const parent=notes.find(n=>n.id===mapRoot.parentId);
+    if(!parent)break;
+    mapRoot=parent;
+  }
+  setExportName(mapRoot.title);
   setExportKind(kind);
   setMapMenu(false);
   setSelectionMenu(false);
