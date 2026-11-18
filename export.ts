@@ -10,7 +10,7 @@ export function subtree(root:Note,notes:Note[]):{note:Note;depth:number}[]{
  return result;
 }
 /** One-page, complete radial map. The PDF scales the entire hierarchy to A4 landscape. */
-export async function exportPDF(root:Note,notes:Note[]){
+function pdfMapPage(root:Note,notes:Note[]):string{
  const {radialTree}=await import('./mapGeometry');
  const nodes=radialTree(root,notes);
  const byId=new Map(nodes.map(n=>[n.note.id,n]));
@@ -53,8 +53,21 @@ export async function exportPDF(root:Note,notes:Note[]){
    return `<circle cx="${n.x}" cy="${n.y}" r="${radius}" fill="${isRoot?'#315fd6':'#dbeafe'}" stroke="#93c5fd" stroke-width="2"/><text x="${n.x}" y="${y}" text-anchor="middle" font-family="sans-serif" font-size="12" font-weight="600" fill="${isRoot?'white':'#1e40af'}">${label}</text>${body?`<text x="${n.x}" y="${n.y+radius-13}" text-anchor="middle" font-family="sans-serif" font-size="8" fill="${isRoot?'white':'#334155'}">${esc(body.slice(0,Math.floor(radius/4))) }${body.length>Math.floor(radius/4)?'…':''}</text>`:''}`;
  }).join('');
  const diagram=`<svg xmlns="http://www.w3.org/2000/svg" viewBox="${minX} ${minY} ${width} ${height}" preserveAspectRatio="xMidYMid meet" style="width:100%;height:100%;display:block"><rect x="${minX}" y="${minY}" width="${width}" height="${height}" fill="#f8fafc"/>${edges}${circles}</svg>`;
- const html=`<!DOCTYPE html><html><head><meta name="viewport" content="width=device-width"/><style>@page{size:A4 landscape;margin:8mm}html,body{margin:0;padding:0;font-family:Arial,sans-serif}.page{width:281mm;height:194mm;overflow:hidden;page-break-after:avoid;break-after:avoid}</style></head><body><div class="page">${diagram}</div></body></html>`;
- const out=await Print.printToFileAsync({html});return out.uri;
+ return `<div class="page">${diagram}</div>`;
+}
+function pdfDocument(pages:string[]):string{
+ return `<!DOCTYPE html><html><head><meta name="viewport" content="width=device-width"/><style>@page{size:A4 landscape;margin:8mm}html,body{margin:0;padding:0;font-family:Arial,sans-serif}.page{width:281mm;height:194mm;overflow:hidden;break-after:page;page-break-after:always}.page:last-child{break-after:auto;page-break-after:auto}</style></head><body>${pages.join('')}</body></html>`;
+}
+export async function exportPDF(root:Note,notes:Note[]):Promise<string>{
+ const out=await Print.printToFileAsync({html:pdfDocument([pdfMapPage(root,notes)])});
+ return out.uri;
+}
+/** Combine selected maps in one PDF, with one complete map per landscape page. */
+export async function exportMultipleMapsPDF(roots:Note[],notes:Note[]):Promise<string>{
+ if(!roots.length)throw new Error('No maps selected');
+ const pages=roots.map(root=>pdfMapPage(root,notes));
+ const out=await Print.printToFileAsync({html:pdfDocument(pages)});
+ return out.uri;
 }
 // Diagram elements are native PowerPoint shapes, so users can edit them after export.
 function diagramShapes(root:Note, children:Note[]):string{
