@@ -9,7 +9,7 @@ import {loadSnapshot,saveSnapshot,loadMapPreferences,saveMapPreferences,emptyMap
 import {radialTree,fitMap,pointSegmentDistance} from './mapGeometry';
 import {hasPin,setPin,checkPin,removePin,biometricEnabled,setBiometricEnabled,biometricAvailable,authenticateBiometric,lockStatus,recordPinAttempt} from './appLock';
 import {exportPDF,Note} from './export';
-import {safeExportName,saveExportToAndroid,ExportFormat} from './localSave';
+import {safeExportName,saveExportToAndroid,saveMultiplePDFsToAndroid,ExportFormat} from './localSave';
 import * as FileSystem from 'expo-file-system/legacy';
 import {saveEncryptedBackup,selectBackupFile,decryptSelectedBackup} from './backup';
 import {radialLayout,overviewLayout} from './layout';
@@ -48,7 +48,7 @@ const [foldersExpanded,setFoldersExpanded]=useState(false);
 const [mapMenu,setMapMenu]=useState(false),[selectionMenu,setSelectionMenu]=useState(false),[sidebar,setSidebar]=useState(false),[moveFolderMenu,setMoveFolderMenu]=useState(false),[exportTarget,setExportTarget]=useState<string|null>(null);
 
 const [backupMode,setBackupMode]=useState<'save'|'restore'|null>(null),[backupPassword,setBackupPassword]=useState(''),[backupBusy,setBackupBusy]=useState(false),[backupFile,setBackupFile]=useState<{uri:string;name:string}|null>(null);
-const [exportKind,setExportKind]=useState<ExportFormat|null>(null),[exportName,setExportName]=useState(''),[exportBusy,setExportBusy]=useState(false);
+const [exportKind,setExportKind]=useState<ExportFormat|null>(null),[exportName,setExportName]=useState(''),[exportBusy,setExportBusy]=useState(false),[exportSeparate,setExportSeparate]=useState(false);
 
 const tx=useSharedValue(0),ty=useSharedValue(0),scale=useSharedValue(1),rotation=useSharedValue(0),startRotation=useSharedValue(0),startX=useSharedValue(0),startY=useSharedValue(0),startScale=useSharedValue(1);
 
@@ -619,6 +619,7 @@ const exportOne=(kind:ExportFormat,targetId?:string)=>{
 };
 
 const exportSelected=()=>{
+  setExportSeparate(false);
   setExportTarget('__selection__');
   setExportName('Selected maps');
   setExportKind('pdf');
@@ -632,6 +633,20 @@ const confirmExport=async()=>{
   let tempUri:string|undefined;
 
   try{
+    if(exportTarget==='__selection__'&&exportSeparate){
+      const roots=notes.filter(n=>selected.includes(n.id));
+      if(!roots.length)throw new Error('No maps selected');
+      const files:{uri:string;name:string}[]=[];
+      try{
+        for(const root of roots)files.push({uri:await exportPDF(root,notes),name:root.title});
+        const count=await saveMultiplePDFsToAndroid(files);
+        if(count){setExportKind(null);Alert.alert('PDFs saved',`${count} separate PDF files saved to the selected folder.`);}
+        else Alert.alert('Save cancelled','No files were saved.');
+      }finally{
+        for(const file of files){try{await FileSystem.deleteAsync(file.uri,{idempotent:true});}catch{}}
+      }
+      return;
+    }
     const exportNotes=exportTarget==='__selection__'
       ?(()=>{
         const root:Note={
@@ -998,19 +1013,22 @@ if(locked){
                 Save {exportKind?.toUpperCase()} to device
               </Text>
               <Text style={styles.muted}>
-                Enter a filename. Android will ask you to choose a folder
-                such as Downloads or Documents.
+                Android requires folder access through its system picker when saving files to a chosen folder.
               </Text>
-              <TextInput
+              {exportTarget==='__selection__'&&<View style={styles.wrap}>
+                <Button label={`${!exportSeparate?'✓ ':''}Single PDF`} onPress={()=>setExportSeparate(false)}/>
+                <Button label={`${exportSeparate?'✓ ':''}Separate PDFs`} onPress={()=>setExportSeparate(true)}/>
+              </View>}
+              {!exportSeparate&&<TextInput
                 style={styles.input}
                 value={exportName}
                 onChangeText={setExportName}
                 editable={!exportBusy}
                 maxLength={100}
                 autoCapitalize="sentences"
-              />
+              />}
               <Text style={styles.muted}>
-                {safeExportName(exportName,exportKind||'pdf')}
+                {exportSeparate?`${selected.length} individual PDF files (named after each map)` :safeExportName(exportName,exportKind||'pdf')}
               </Text>
               <View style={styles.wrap}>
                 <Button
