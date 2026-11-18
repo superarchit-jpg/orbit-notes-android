@@ -72,26 +72,4 @@ jobs:
           arch: x86_64
           profile: pixel_6
           disable-animations: true
-          script: |
-            set -euo pipefail
-            APK=$(find android/app/build/outputs/apk/release -name '*.apk' -print -quit)
-            test -n "$APK"
-            adb install -r "$APK"
-            adb shell am force-stop com.orbitnotes.prototype || true
-            adb shell monkey -p com.orbitnotes.prototype 1
-            FOUND=0
-            for attempt in $(seq 1 25); do
-              sleep 3
-              adb shell uiautomator dump /sdcard/orbit-ui.xml >/dev/null 2>&1 || true
-              adb pull /sdcard/orbit-ui.xml /tmp/orbit-ui.xml >/dev/null 2>&1 || true
-              if grep -q 'Create map' /tmp/orbit-ui.xml 2>/dev/null; then
-                FOUND=1
-                break
-              fi
-            done
-            if [ "$FOUND" != 1 ]; then
-              echo 'TEST-01 FAIL: Library-first Create map action not visible'
-              adb logcat -d -t 300 | tail -n 150
-              exit 1
-            fi
-            echo 'TEST-01 PASS: release APK launches into library with Create map action'
+          script: bash .github/scripts/android-ui-smoke.sh
