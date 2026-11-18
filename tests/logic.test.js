@@ -205,6 +205,13 @@ check(
   'Large-map PDF bounds must avoid spreading node arrays into Math.min/Math.max'
 );
 
+check(
+  exp.includes('export async function exportMultipleMapsPDF') &&
+  exp.includes('roots.map(root=>pdfMapPage(root,notes))') &&
+  exp.includes("pages.join('')") &&
+  app.includes('await exportMultipleMapsPDF(notes.filter(n=>selected.includes(n.id)),notes)'),
+  'Combined PDF export must render every selected map as its own page'
+);
 console.log('PASS: PDF export module and large-map bounds');
 
 console.log(
