@@ -24,3 +24,17 @@ export async function saveExportToAndroid(sourceUri:string,filename:string,forma
   await FileSystem.writeAsStringAsync(destination,base64,{encoding:FileSystem.EncodingType.Base64});
   return destination;
 }
+
+/** Save multiple PDF documents to one user-selected Android folder. */
+export async function saveMultiplePDFsToAndroid(files:{uri:string;name:string}[]):Promise<number>{
+  const permission=await FileSystem.StorageAccessFramework.requestDirectoryPermissionsAsync();
+  if(!permission.granted)return 0;
+  let count=0;
+  for(const file of files){
+    const base64=await FileSystem.readAsStringAsync(file.uri,{encoding:FileSystem.EncodingType.Base64});
+    const destination=await FileSystem.StorageAccessFramework.createFileAsync(permission.directoryUri,safeExportName(file.name,'pdf'),MIME.pdf);
+    await FileSystem.writeAsStringAsync(destination,base64,{encoding:FileSystem.EncodingType.Base64});
+    count++;
+  }
+  return count;
+}
