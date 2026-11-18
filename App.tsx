@@ -45,7 +45,7 @@ const [zoomPercent,setZoomPercent]=useState(100);
 const [librarySort,setLibrarySort]=useState<'modified'|'title'|'created'>('modified');
 const [sortMenu,setSortMenu]=useState(false);
 const [foldersExpanded,setFoldersExpanded]=useState(false);
-const [mapMenu,setMapMenu]=useState(false),[libraryMenu,setLibraryMenu]=useState(false),[selectionMenu,setSelectionMenu]=useState(false),[sidebar,setSidebar]=useState(false),[moveFolderMenu,setMoveFolderMenu]=useState(false),[exportTarget,setExportTarget]=useState<string|null>(null);
+const [mapMenu,setMapMenu]=useState(false),[selectionMenu,setSelectionMenu]=useState(false),[sidebar,setSidebar]=useState(false),[moveFolderMenu,setMoveFolderMenu]=useState(false),[exportTarget,setExportTarget]=useState<string|null>(null);
 
 const [backupMode,setBackupMode]=useState<'save'|'restore'|null>(null),[backupPassword,setBackupPassword]=useState(''),[backupBusy,setBackupBusy]=useState(false);
 const [exportKind,setExportKind]=useState<ExportFormat|null>(null),[exportName,setExportName]=useState(''),[exportBusy,setExportBusy]=useState(false);
@@ -607,7 +607,6 @@ const exportOne=(kind:ExportFormat,targetId?:string)=>{
   setExportName(target.title);
   setExportKind(kind);
   setMapMenu(false);
-  setLibraryMenu(false);
   setSelectionMenu(false);
 };
 
@@ -1317,23 +1316,11 @@ if(locked){
                       label="+"
                       onPress={newMap}
                     />
-                    <IconButton
-                      label="⋮"
-                      onPress={()=>setLibraryMenu(v=>!v)}
-                    />
+
                   </>
                 )}
               </View>
             </View>
-
-            {libraryMenu&&selected.length===0&&(
-              <View style={styles.popup}>
-                <Button
-                  label="Export as PDF"
-                  onPress={()=>exportOne('pdf','root')}
-                />
-              </View>
-            )}
 
             {selectionMenu&&selected.length>0&&(
               <View style={styles.popup}>
