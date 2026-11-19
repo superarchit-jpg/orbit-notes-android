@@ -1,6 +1,6 @@
 import React,{useEffect,useMemo,useState} from 'react';
 import {Alert,AppState,BackHandler,Dimensions,KeyboardAvoidingView,Modal,Platform,Pressable,ScrollView,StatusBar,StyleSheet,Text,TextInput,View} from 'react-native';
-import Svg,{Line,Circle,Rect} from 'react-native-svg';
+import Svg,{Line,Circle,Rect,Path} from 'react-native-svg';
 import {SafeAreaProvider,SafeAreaView as InsetSafeAreaView} from 'react-native-safe-area-context';
 import {Gesture,GestureDetector,GestureHandlerRootView} from 'react-native-gesture-handler';
 import Animated,{FadeInLeft,FadeOutLeft,runOnJS,useAnimatedReaction,useAnimatedStyle,useSharedValue,withTiming} from 'react-native-reanimated';
@@ -30,12 +30,36 @@ const CARD_PALETTE=['#fffdfb','#fce7df','#fff3c9','#e8f3dd','#e6ecfc','#f5e6f4']
 
 const Button=({label,onPress,primary=false,danger=false,active=false}:{label:string;onPress:()=>void;primary?:boolean;danger?:boolean;active?:boolean})=>{const palette=React.useContext(PaletteContext);return <Pressable accessibilityRole="button" accessibilityLabel={label} onPress={onPress} style={[styles.button,{backgroundColor:active?palette.accent:palette.control},primary&&styles.primary,danger&&styles.danger]}><Text style={[styles.buttonText,{color:palette.text},(primary||danger||active)&&{color:'white'}]}>{label==='🗑'?<Svg width={23} height={23} viewBox="0 0 24 24"><Line x1={4} y1={7} x2={20} y2={7} stroke="#dc2626" strokeWidth={1.8}/><Line x1={9} y1={4} x2={15} y2={4} stroke="#dc2626" strokeWidth={1.8}/><Rect x={6} y={7} width={12} height={14} rx={2} stroke="#dc2626" strokeWidth={1.8} fill="none"/><Line x1={10} y1={11} x2={10} y2={17} stroke="#dc2626" strokeWidth={1.5}/><Line x1={14} y1={11} x2={14} y2={17} stroke="#dc2626" strokeWidth={1.5}/></Svg>:label}</Text></Pressable>;}
 
+const ICON_PATHS:Record<string,string>={
+  '☰':'M4 6h16M4 12h16M4 18h16',
+  '←':'M20 12H4m7-7-7 7 7 7',
+  '⋮':'M12 5h.01M12 12h.01M12 19h.01',
+  '×':'M5 5l14 14M19 5L5 19',
+  '+':'M12 4v16M4 12h16',
+  '✎':'M4 20l4-1 11-11-3-3L5 16l-1 4M14 7l3 3',
+  '🗑':'M4 7h16M9 4h6M7 7v13h10V7M10 11v6M14 11v6',
+  '☆':'M12 2l3.1 6.4 7.1 1.1-5.1 5 .9 7-6-3.3-6 3.3.9-7-5.1-5 7.1-1.1L12 2z',
+  '★':'M12 2l3.1 6.4 7.1 1.1-5.1 5 .9 7-6-3.3-6 3.3.9-7-5.1-5 7.1-1.1L12 2z',
+  '☑':'M3 3h18v18H3zM7 12l3 3 7-7',
+  '☷':'M5 6h14M5 12h14M5 18h14',
+  '▦':'M3 3h8v8H3zM13 3h8v8h-8zM3 13h8v8H3zM13 13h8v8h-8z',
+  'Fit':'M4 9V4h5M15 4h5v5M20 15v5h-5M9 20H4v-5'
+};
+const MaterialIcon=({name,color}:{name:string;color:string})=>{
+  const data=ICON_PATHS[name];
+  return data?<Svg width={23} height={23} viewBox="0 0 24 24"><Path d={data} fill="none" stroke={color} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"/></Svg>:<Text style={{fontSize:name==='Fit'?14:22,color,fontWeight:'700'}}>{name}</Text>;
+};
 const Upright=({angle,children}:{angle:SharedValue<number>;children:React.ReactNode})=>{
   const style=useAnimatedStyle(()=>({transform:[{rotateZ:`${-angle.value}rad`}]}));
   return <Animated.View style={[{alignItems:'center',justifyContent:'center'},style]}>{children}</Animated.View>;
 };
 
-const IconButton=({label,onPress,danger=false,accessibilityLabel}:{label:string;onPress:()=>void;danger?:boolean;accessibilityLabel?:string})=>{const palette=React.useContext(PaletteContext);return <Pressable accessibilityRole="button" accessibilityLabel={accessibilityLabel||label} onPress={onPress} style={{minWidth:48,minHeight:48,paddingHorizontal:10,paddingVertical:10,alignItems:'center',justifyContent:'center'}}>{label==='🗑'?<Svg width={23} height={23} viewBox="0 0 24 24"><Line x1={4} y1={7} x2={20} y2={7} stroke="#dc2626" strokeWidth={1.8}/><Line x1={9} y1={4} x2={15} y2={4} stroke="#dc2626" strokeWidth={1.8}/><Rect x={6} y={7} width={12} height={14} rx={2} stroke="#dc2626" strokeWidth={1.8} fill="none"/><Line x1={10} y1={11} x2={10} y2={17} stroke="#dc2626" strokeWidth={1.5}/><Line x1={14} y1={11} x2={14} y2={17} stroke="#dc2626" strokeWidth={1.5}/></Svg>:<Text style={{fontSize:23,color:danger?'#dc2626':palette.text}}>{label}</Text>}</Pressable>;}
+const IconButton=({label,onPress,danger=false,accessibilityLabel}:{label:string;onPress:()=>void;danger?:boolean;accessibilityLabel?:string})=>{
+  const palette=React.useContext(PaletteContext);
+  return <Pressable accessibilityRole="button" accessibilityLabel={accessibilityLabel||label} onPress={onPress} style={{paddingHorizontal:12,paddingVertical:10,minWidth:48,minHeight:48,alignItems:'center',justifyContent:'center'}}>
+    <MaterialIcon name={label} color={danger?'#dc2626':palette.text}/>
+  </Pressable>;
+};
 
 export default function App(){
 const [notes,setNotes]=useState<Note[]>(initial),[folders,setFolders]=useState<Folder[]>([]),[focused,setFocused]=useState('root'),[overview,setOverview]=useState(false),[menu,setMenu]=useState(true),[reader,setReader]=useState<string|null>(null),[editing,setEditing]=useState(false),[title,setTitle]=useState(''),[body,setBody]=useState(''),[folderName,setFolderName]=useState(''),[creatingFolder,setCreatingFolder]=useState(false),[selected,setSelected]=useState<string[]>([]),[folderFilter,setFolderFilter]=useState<string|null>(null),[loaded,setLoaded]=useState(false),[storageError,setStorageError]=useState<string|null>(null),[trash,setTrash]=useState<TrashBatch[]>([]),[showTrash,setShowTrash]=useState(false),[undoBatch,setUndoBatch]=useState<string|null>(null);
