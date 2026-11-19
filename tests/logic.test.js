@@ -157,6 +157,25 @@ check(
 );
 console.log('PASS: Stage 3 approved UX control wiring');
 
+for (const marker of [
+  'accessibilityLabel="Note title"',
+  'accessibilityLabel="Note content"',
+  "accessibilityLabel={editing?'Cancel editing':'Close note'}",
+  'styles.editorField',
+  'styles.editorLabel',
+  'No deleted notes. Notes moved here will appear for recovery.',
+  'No maps in this folder',
+  'No maps match this search.'
+]) {
+  check(app.includes(marker), `Missing approved UX-06 change: ${marker}`);
+}
+check(
+  app.includes('onPress={saveEdit}') && app.includes('onPress={cancelReader}') &&
+  app.includes('onPress={()=>restore(b)}'),
+  'UX-06 must retain existing save, close and restore operations'
+);
+console.log('PASS: Stage 3 UX-06 editor and empty-state wiring');
+
 // Upright labels during rotation
 check(
   app.includes('const Upright='),
