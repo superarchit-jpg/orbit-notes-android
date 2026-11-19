@@ -1,4 +1,4 @@
-import React,{useEffect,useMemo,useState} from 'react';
+import React,{useEffect,useMemo,useState,useRef} from 'react';
 import {Alert,AppState,BackHandler,Dimensions,KeyboardAvoidingView,Appearance,Modal,Platform,Pressable,ScrollView,StatusBar,StyleSheet,Text,TextInput,View} from 'react-native';
 import Svg,{Line,Circle,Rect,Path} from 'react-native-svg';
 import {SafeAreaProvider,SafeAreaView as InsetSafeAreaView} from 'react-native-safe-area-context';
@@ -7,7 +7,7 @@ import Animated,{FadeInLeft,FadeOutLeft,runOnJS,useAnimatedReaction,useAnimatedS
 import type {SharedValue} from 'react-native-reanimated';
 import {loadSnapshot,saveSnapshot,loadMapPreferences,saveMapPreferences,emptyMapPreferences} from './storage';
 import {radialTree,fitMap,pointSegmentDistance} from './mapGeometry';
-import {hasPin,isPinLockEnabled,setPinLockEnabled,setPin,checkPin,removePin,biometricEnabled,setBiometricEnabled,biometricAvailable,authenticateBiometric,lockStatus,recordPinAttempt} from './appLock';
+import {hasPin,isPinLockEnabled,setPinLockEnabled,setPin,checkPin,credentialKind,removePin,biometricEnabled,setBiometricEnabled,biometricAvailable,authenticateBiometric,lockStatus,recordPinAttempt} from './appLock';
 import {exportPDF,exportMultipleMapsPDF,Note} from './export';
 import {safeExportName,saveExportToAndroid,saveMultiplePDFsToAndroid,ExportFormat} from './localSave';
 import * as FileSystem from 'expo-file-system/legacy';
@@ -73,6 +73,7 @@ export default function App(){
 const [notes,setNotes]=useState<Note[]>(initial),[folders,setFolders]=useState<Folder[]>([]),[focused,setFocused]=useState('root'),[overview,setOverview]=useState(false),[menu,setMenu]=useState(true),[reader,setReader]=useState<string|null>(null),[editing,setEditing]=useState(false),[title,setTitle]=useState(''),[body,setBody]=useState(''),[folderName,setFolderName]=useState(''),[creatingFolder,setCreatingFolder]=useState(false),[selected,setSelected]=useState<string[]>([]),[folderFilter,setFolderFilter]=useState<string|null>(null),[loaded,setLoaded]=useState(false),[storageError,setStorageError]=useState<string|null>(null),[trash,setTrash]=useState<TrashBatch[]>([]),[showTrash,setShowTrash]=useState(false),[undoBatch,setUndoBatch]=useState<string|null>(null);
 
 const [mapPrefs,setMapPrefs]=useState(emptyMapPreferences);
+const bioPromptInProgress=useRef(false),bioPrompted=useRef(false);
 const [colorTarget,setColorTarget]=useState<'cards'|'note'|null>(null);
 const deviceTheme=Appearance.getColorScheme();
 const effectiveTheme=mapPrefs.themeMode==='system'?(deviceTheme==='dark'?'dark':'light'):mapPrefs.theme;
@@ -97,7 +98,7 @@ const [exportKind,setExportKind]=useState<ExportFormat|null>(null),[exportName,s
 
 const tx=useSharedValue(0),ty=useSharedValue(0),scale=useSharedValue(1),rotation=useSharedValue(0),startRotation=useSharedValue(0),startX=useSharedValue(0),startY=useSharedValue(0),startScale=useSharedValue(1);
 
-const [locked,setLocked]=useState(true),[pinConfigured,setPinConfigured]=useState(false),[pinLockEnabled,setPinLockEnabledState]=useState(false),[pinInput,setPinInput]=useState(''),[pinSetup,setPinSetup]=useState(''),[pinOld,setPinOld]=useState(''),[pinNew,setPinNew]=useState(''),[pinAction,setPinAction]=useState<'change'|'delete'|null>(null),[pinAttempts,setPinAttempts]=useState(0),[blockedUntil,setBlockedUntil]=useState(0),[settings,setSettings]=useState(false),[biometrics,setBiometrics]=useState(false);
+const [credentialType,setCredentialType]=useState<'pin'|'password'>('pin'),[storedCredentialType,setStoredCredentialType]=useState<'pin'|'password'>('pin'),[appActive,setAppActive]=useState(AppState.currentState==='active'),[locked,setLocked]=useState(true),[pinConfigured,setPinConfigured]=useState(false),[pinLockEnabled,setPinLockEnabledState]=useState(false),[pinInput,setPinInput]=useState(''),[pinSetup,setPinSetup]=useState(''),[pinOld,setPinOld]=useState(''),[pinNew,setPinNew]=useState(''),[pinAction,setPinAction]=useState<'change'|'delete'|null>(null),[pinAttempts,setPinAttempts]=useState(0),[blockedUntil,setBlockedUntil]=useState(0),[settings,setSettings]=useState(false),[biometrics,setBiometrics]=useState(false);
 
 useEffect(()=>{
   let alive=true;
@@ -127,10 +128,12 @@ useEffect(()=>{
         }
       }
       const configured=await hasPin();
+       const kind=await credentialKind();
       const enabled=await isPinLockEnabled();
       const bio=await biometricEnabled();
       if(alive){
         setPinConfigured(configured);
+         setStoredCredentialType(kind);setCredentialType(kind);
         setPinLockEnabledState(enabled);
         setBiometrics(bio);
         setLocked(enabled);
@@ -159,7 +162,9 @@ useEffect(()=>{
 
 useEffect(()=>{
   const sub=AppState.addEventListener('change',state=>{
-    if(state!=='active'&&pinLockEnabled){
+    setAppActive(state==='active');
+     if(state!=='active')bioPrompted.current=false;
+     if(state!=='active'&&pinLockEnabled){
       setLocked(true);
       setPinInput('');
     }
@@ -167,6 +172,13 @@ useEffect(()=>{
   return()=>sub.remove();
 },[pinLockEnabled]);
 
+useEffect(()=>{
+ if(!loaded||!locked||!pinLockEnabled||!biometrics||!appActive||bioPrompted.current||bioPromptInProgress.current)return;
+ bioPrompted.current=true;bioPromptInProgress.current=true;
+ let cancelled=false;
+ authenticateBiometric().then(ok=>{if(ok&&!cancelled){setLocked(false);setPinInput('');}}).catch(()=>{}).finally(()=>{bioPromptInProgress.current=false;});
+ return()=>{cancelled=true;};
+},[loaded,locked,pinLockEnabled,biometrics,appActive]);
 const unlock=async()=>{
   try{
     const status=await lockStatus();
@@ -189,7 +201,7 @@ const unlock=async()=>{
 const enablePin=async()=>{
   try{
     if(pinConfigured)await setPinLockEnabled(true);
-    else {await setPin(pinSetup);setPinConfigured(true);}
+    else {await setPin(pinSetup,credentialType);setPinConfigured(true);setStoredCredentialType(credentialType);}
     setPinLockEnabledState(true);
     setPinSetup('');
     Alert.alert('App lock enabled','Your existing PIN will be required after leaving the app.');
@@ -216,7 +228,8 @@ const confirmPinChange=async()=>{
     await recordPinAttempt(valid);
     if(!valid){Alert.alert('Incorrect PIN','Enter your current PIN to continue.');return;}
     if(pinAction==='change'){
-      await setPin(pinNew);
+      await setPin(pinNew,credentialType);
+      setStoredCredentialType(credentialType);
       // Updating a PIN does not alter the existing enabled/disabled choice.
       await setPinLockEnabled(pinLockEnabled);
       Alert.alert('PIN changed','Your updated PIN is stored on this device.');
@@ -930,17 +943,18 @@ if(locked){
 
       <TextInput
         secureTextEntry
-        keyboardType="number-pad"
+        keyboardType={storedCredentialType==='pin'?'number-pad':'default'}
+        autoCapitalize="none"
         maxLength={12}
         value={pinInput}
         onChangeText={setPinInput}
-        placeholder="Enter app PIN"
+        placeholder={storedCredentialType==='pin'?'Enter app PIN':'Enter app password'}
         placeholderTextColor={palette.muted}
         style={[styles.input,{backgroundColor:palette.surface,color:palette.text,borderColor:palette.border}]}
       />
 
       <Button
-        label="Unlock with PIN"
+        label={storedCredentialType==='pin'?'Unlock with PIN':'Unlock with password'}
         primary
         onPress={unlock}
       />
