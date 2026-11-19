@@ -7,7 +7,7 @@ import Animated,{FadeInLeft,FadeOutLeft,runOnJS,useAnimatedReaction,useAnimatedS
 import type {SharedValue} from 'react-native-reanimated';
 import {loadSnapshot,saveSnapshot,loadMapPreferences,saveMapPreferences,emptyMapPreferences} from './storage';
 import {radialTree,fitMap,pointSegmentDistance} from './mapGeometry';
-import {hasPin,setPin,checkPin,removePin,biometricEnabled,setBiometricEnabled,biometricAvailable,authenticateBiometric,lockStatus,recordPinAttempt} from './appLock';
+import {hasPin,isPinLockEnabled,setPinLockEnabled,setPin,checkPin,removePin,biometricEnabled,setBiometricEnabled,biometricAvailable,authenticateBiometric,lockStatus,recordPinAttempt} from './appLock';
 import {exportPDF,exportMultipleMapsPDF,Note} from './export';
 import {safeExportName,saveExportToAndroid,saveMultiplePDFsToAndroid,ExportFormat} from './localSave';
 import * as FileSystem from 'expo-file-system/legacy';
@@ -94,7 +94,7 @@ const [exportKind,setExportKind]=useState<ExportFormat|null>(null),[exportName,s
 
 const tx=useSharedValue(0),ty=useSharedValue(0),scale=useSharedValue(1),rotation=useSharedValue(0),startRotation=useSharedValue(0),startX=useSharedValue(0),startY=useSharedValue(0),startScale=useSharedValue(1);
 
-const [locked,setLocked]=useState(true),[pinConfigured,setPinConfigured]=useState(false),[pinInput,setPinInput]=useState(''),[pinSetup,setPinSetup]=useState(''),[pinAttempts,setPinAttempts]=useState(0),[blockedUntil,setBlockedUntil]=useState(0),[settings,setSettings]=useState(false),[biometrics,setBiometrics]=useState(false);
+const [locked,setLocked]=useState(true),[pinConfigured,setPinConfigured]=useState(false),[pinLockEnabled,setPinLockEnabledState]=useState(false),[pinInput,setPinInput]=useState(''),[pinSetup,setPinSetup]=useState(''),[pinOld,setPinOld]=useState(''),[pinNew,setPinNew]=useState(''),[pinAction,setPinAction]=useState<'change'|'delete'|null>(null),[pinAttempts,setPinAttempts]=useState(0),[blockedUntil,setBlockedUntil]=useState(0),[settings,setSettings]=useState(false),[biometrics,setBiometrics]=useState(false);
 
 useEffect(()=>{
   let alive=true;
@@ -122,10 +122,12 @@ useEffect(()=>{
           setTrash([]);
         }
       }
-      const enabled=await hasPin();
+      const configured=await hasPin();
+      const enabled=await isPinLockEnabled();
       const bio=await biometricEnabled();
       if(alive){
-        setPinConfigured(enabled);
+        setPinConfigured(configured);
+        setPinLockEnabledState(enabled);
         setBiometrics(bio);
         setLocked(enabled);
         const lock=await lockStatus();
@@ -153,13 +155,13 @@ useEffect(()=>{
 
 useEffect(()=>{
   const sub=AppState.addEventListener('change',state=>{
-    if(state!=='active'&&pinConfigured){
+    if(state!=='active'&&pinLockEnabled){
       setLocked(true);
       setPinInput('');
     }
   });
   return()=>sub.remove();
-},[pinConfigured]);
+},[pinLockEnabled]);
 
 const unlock=async()=>{
   try{
@@ -182,23 +184,49 @@ const unlock=async()=>{
 
 const enablePin=async()=>{
   try{
-    await setPin(pinSetup);
-    setPinConfigured(true);
+    if(pinConfigured)await setPinLockEnabled(true);
+    else {await setPin(pinSetup);setPinConfigured(true);}
+    setPinLockEnabledState(true);
     setPinSetup('');
-    Alert.alert('App lock enabled','Your PIN will be required after leaving the app.');
+    Alert.alert('App lock enabled','Your existing PIN will be required after leaving the app.');
   }catch(e){
-    Alert.alert('Cannot set PIN',String(e));
+    Alert.alert('Cannot enable PIN lock',String(e));
   }
 };
 
-const disablePin=()=>Alert.alert('Disable app lock?','Anyone with access to your unlocked phone can open your notes.',[
+const disablePin=()=>Alert.alert('Disable app lock?','Your PIN will remain saved. You can enable the lock again without resetting it.',[
   {text:'Cancel'},
   {text:'Disable',style:'destructive',onPress:async()=>{
-    await removePin();
-    setPinConfigured(false);
-    setBiometrics(false);
+    try{
+      await setPinLockEnabled(false);
+      setPinLockEnabledState(false);
+      setLocked(false);
+    }catch(e){Alert.alert('Unable to disable lock',String(e));}
   }}
 ]);
+const confirmPinChange=async()=>{
+  try{
+    const status=await lockStatus();
+    if(Date.now()<status.blockedUntil){Alert.alert('Try again later','PIN changes are temporarily blocked.');return;}
+    const valid=await checkPin(pinOld);
+    await recordPinAttempt(valid);
+    if(!valid){Alert.alert('Incorrect PIN','Enter your current PIN to continue.');return;}
+    if(pinAction==='change'){
+      await setPin(pinNew);
+      // Updating a PIN does not alter the existing enabled/disabled choice.
+      await setPinLockEnabled(pinLockEnabled);
+      Alert.alert('PIN changed','Your updated PIN is stored on this device.');
+    }else if(pinAction==='delete'){
+      await removePin();
+      setPinConfigured(false);
+      setPinLockEnabledState(false);
+      setLocked(false);
+      setBiometrics(false);
+      Alert.alert('PIN deleted','App lock is no longer configured.');
+    }
+    setPinOld('');setPinNew('');setPinAction(null);
+  }catch(e){Alert.alert('PIN change failed',String(e));}
+};
 
 const current=notes.find(n=>n.id===focused)||notes[0];
 const parent=notes.find(n=>n.id===current.parentId);
@@ -1181,15 +1209,15 @@ if(locked){
             ):(
               <>
                 <Text style={[styles.section,{color:palette.text}]}>
-                  App lock enabled
+                  {pinLockEnabled?'App lock enabled':'PIN saved · App lock disabled'}
                 </Text>
-                <Button
+                {pinLockEnabled&&<Button
                   label="Lock now"
                   onPress={()=>{
                     setSettings(false);
                     setLocked(true);
                   }}
-                />
+                />}
                 <Button
                   label={biometrics
                     ?'Disable biometric unlock'
@@ -1210,11 +1238,19 @@ if(locked){
                     }
                   }}
                 />
-                <Button
-                  label="Disable PIN lock"
-                  danger
-                  onPress={disablePin}
-                />
+                <Button label={pinLockEnabled?'Disable PIN lock':'Enable PIN lock'} onPress={pinLockEnabled?disablePin:enablePin}/>
+                <Button label="Change PIN" onPress={()=>{setPinAction('change');setPinOld('');setPinNew('');}}/>
+                <Button label="Delete stored PIN" danger onPress={()=>{setPinAction('delete');setPinOld('');setPinNew('');}}/>
+                {pinAction&&<View style={{gap:10}}>
+                  <Text style={{color:palette.text,fontWeight:'700'}}>{pinAction==='change'?'Change stored PIN':'Delete stored PIN'}</Text>
+                  <TextInput accessibilityLabel="Current PIN" secureTextEntry keyboardType="number-pad" placeholder="Current PIN" value={pinOld} onChangeText={setPinOld} maxLength={12} style={[styles.input,{color:palette.text,borderColor:palette.border}]}/>
+                  {pinAction==='change'&&<TextInput accessibilityLabel="New PIN" secureTextEntry keyboardType="number-pad" placeholder="New 6–12 digit PIN" value={pinNew} onChangeText={setPinNew} maxLength={12} style={[styles.input,{color:palette.text,borderColor:palette.border}]}/>}
+                  <Button label={pinAction==='change'?'Save new PIN':'Confirm PIN deletion'} danger={pinAction==='delete'} primary={pinAction==='change'} onPress={()=>{
+                    if(pinAction==='delete')Alert.alert('Delete your stored PIN?','PIN and biometric unlock settings will be erased.',[{text:'Cancel'},{text:'Delete PIN',style:'destructive',onPress:confirmPinChange}]);
+                    else confirmPinChange();
+                  }}/>
+                  <Button label="Cancel PIN action" onPress={()=>{setPinAction(null);setPinOld('');setPinNew('');}}/>
+                </View>
               </>
             )}
 
