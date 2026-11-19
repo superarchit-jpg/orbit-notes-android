@@ -30,12 +30,17 @@ for(let i=1;i<deepPositions.length;i++){
  assert.ok(clearance>=29.99,`insufficient connector clearance at level ${child.level}: ${clearance}`);
 }
 console.log('PASS: GEO-03 deep-level connector clearance');
-const {formatSelection,parseRichLine,toggleChecklistLine,plainNoteText}=require(path.join(temp,'noteFormatting.js'));
+const {formatSelection,parseRichLine,plainNoteText}=require(path.join(temp,'noteFormatting.js'));
 assert.equal(formatSelection('hello world',0,5,'bold'),'**hello** world');
 assert.equal(formatSelection('hello world',0,5,'italic'),'*hello* world');
-assert.equal(formatSelection('one\ntwo',0,7,'checklist'),'☐ one\n☐ two');
+assert.equal(formatSelection('one\ntwo',0,7,'bullets'),'• one\n• two');
+assert.equal(formatSelection('one\ntwo',0,7,'numbers'),'1. one\n2. two');
+assert.equal(formatSelection('hello',0,5,'underline'),'__hello__');
 assert.deepEqual(parseRichLine('hello **bold** and *italic*').filter(x=>x.bold||x.italic).map(x=>x.text),['bold','italic']);
-assert.equal(toggleChecklistLine('☐ one\n☐ two',1),'☐ one\n☑ two');
+assert.equal(parseRichLine('__underlined__')[0].underline,true);
+assert.equal(plainNoteText('__underlined__'),'underlined');
+// Previous checklist text remains readable but is not interactive.
+assert.equal(parseRichLine('☐ existing unchecked note')[0].text,'☐ existing unchecked note');
 assert.equal(plainNoteText('**bold** *italic*'),'bold italic');
 console.log('PASS: local rich-text helpers and checklist behavior');
 console.log('PASS: executable layout and trash tests');
