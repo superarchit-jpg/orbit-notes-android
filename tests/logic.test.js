@@ -177,7 +177,7 @@ console.log('PASS: Stage 3 UX-06 editor and empty-state wiring');
 
 for (const marker of [
   'const LIGHT=','const DARK=','PaletteContext.Provider',
-  "mapPrefs.theme==='dark'",'const mapPreview=(root:Note)=>',
+  "effectiveTheme==='dark'",'const mapPreview=(root:Note)=>',
   "mapPrefs.viewMode==='grid'&&mapPreview(n)",
   'Change selected card colors',
   'Filter ${f.name}', 'Create new map',
@@ -186,7 +186,7 @@ for (const marker of [
   'parseRichLine(line)', 'label="bullets" accessibilityLabel="Bulleted list"',
   "onRequestClose={cancelReader}", 'label="palette" accessibilityLabel="Note color"'
 ]) check(app.includes(marker), `Missing approved Keep redesign wiring: ${marker}`);
-check(!app.includes('label="Reminders"')&&!app.includes('label="Archive"'),'Unapproved NAV-06 sections must remain absent');
+check(!app.includes('label="Reminders"')&&app.includes('showArchive'),'Archive must be explicitly separated from active library and Reminders must remain absent');
 console.log('PASS: approved Keep-inspired redesign wiring');
 
 // Targeted device feedback regression: pinned cards and new child draft lifecycle.
@@ -238,6 +238,11 @@ for(const obsolete of [
 ]) check(!app.includes(obsolete),`Removed functionality resurfaced: ${obsolete}`);
 check(app.includes('label="Center focused note"'),'Working recenter action must remain');
 console.log('PASS: 26 approved recording changes and scope exclusions');
+for(const marker of ['archiveSelection','showArchive','selectedTrash','acknowledgeTrashRetention','RichNoteEditor','credentialType','Follow system','retentionNotice','bioPrompted.current'])
+  check(app.includes(marker),`Missing Stage 4 approved feature: ${marker}`);
+check(!app.includes("Updated {activeReader?stamp"),'Note reader must not show modification date');
+check(!app.includes("selected.includes(n.id)?'☑':'☐'"),'Card selection checkboxes must remain removed');
+console.log('PASS: Stage 4 new feature guards');
 
 // Upright labels during rotation
 check(
