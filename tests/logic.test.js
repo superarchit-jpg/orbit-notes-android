@@ -107,6 +107,18 @@ check(
 );
 
 check(
+  app.includes('const preferredFit=useMemo(()=>{const fit=fitMap([{x:-313.5,y:0},{x:313.5,y:0}]') &&
+  !app.includes('const preferredFit=useMemo(()=>{const points=visible'),
+  'The 100% zoom baseline must remain independent of visible node count'
+);
+
+check(
+  app.includes('tx.value=withTiming(-scale.value*(focusPoint?.x||0))') &&
+  app.includes('ty.value=withTiming(-scale.value*(focusPoint?.y||0))'),
+  'Recenter must not override the current zoom'
+);
+
+check(
   app.includes('duration:560'),
   'Missing configured focus transition'
 );
@@ -227,5 +239,5 @@ check(
 console.log('PASS: PDF export module and large-map bounds');
 
 console.log(
-  'PASS: All Orbit Notes v0.15 source checks'
+  'PASS: All Orbit Notes v0.16 source checks'
 );
