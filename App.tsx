@@ -1669,7 +1669,8 @@ if(locked){
                        setSidebar(false);setFoldersExpanded(false);
                     }}
                   />
-                  <Button label={foldersExpanded?'▾  Labels':'›  Labels'} onPress={()=>setFoldersExpanded(v=>!v)}/>
+                   <View style={{height:1,backgroundColor:palette.border,marginVertical:5}}/>
+                   <Button label={foldersExpanded?'▾  Labels':'›  Labels'} onPress={()=>setFoldersExpanded(v=>!v)}/>
                   {foldersExpanded&&folders.map(f=>(
                     <View key={f.id} style={{flexDirection:'row',alignItems:'center',gap:2}}>
                       <View style={{flex:1}}>
@@ -1712,10 +1713,10 @@ if(locked){
             )}
 
             {creatingFolder&&(
-              <View style={[
-                styles.wrap,
-                {padding:12}
-              ]}>
+              <View style={[StyleSheet.absoluteFill,{zIndex:50,justifyContent:'flex-end',backgroundColor:'rgba(0,0,0,0.42)'}]}>
+                <Pressable style={StyleSheet.absoluteFill} accessibilityLabel="Dismiss label editor" onPress={()=>{setCreatingFolder(false);setEditingFolderId(null);}}/>
+                <View style={{backgroundColor:palette.surface,borderTopLeftRadius:26,borderTopRightRadius:26,padding:20,gap:12}}>
+                  <Text style={[styles.section,{color:palette.text}]}>{editingFolderId?'Edit label':'Create label'}</Text>
                 <TextInput
                   style={[
                     styles.input,
@@ -1748,6 +1749,7 @@ if(locked){
                   label="Cancel"
                   onPress={()=>{setCreatingFolder(false);setEditingFolderId(null);setFolderName('');}}
                 />
+              </View>
               </View>
             )}
 
