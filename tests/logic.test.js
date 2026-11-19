@@ -15,6 +15,7 @@ const layout = read('layout.ts');
 const geometry = read('mapGeometry.ts');
 const trash = read('trash.ts');
 const app = read('App.tsx');
+const richEditor=read('RichNoteEditor.tsx');
 const exp = read('export.ts');
 const localSave = read('localSave.ts');
 
@@ -158,7 +159,7 @@ console.log('PASS: Stage 3 approved UX control wiring');
 
 for (const marker of [
   'accessibilityLabel="Note title"',
-  'accessibilityLabel="Note content"',
+  
   "accessibilityLabel={draftChildId===reader?'Discard new child note':'Close note'}",
   'styles.editorField',
   'styles.editorLabel',
@@ -173,6 +174,7 @@ check(
   app.includes('onPress={()=>restore(b)}'),
   'UX-06 must retain existing save, close and restore operations'
 );
+check(richEditor.includes('accessibilityLabel="Note content"'),'Offline rich editor must retain accessible note content label');
 console.log('PASS: Stage 3 UX-06 editor and empty-state wiring');
 
 for (const marker of [
