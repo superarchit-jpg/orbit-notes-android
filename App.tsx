@@ -1334,7 +1334,7 @@ if(locked){
           animationType="slide"
           onRequestClose={cancelReader}
         >
-          <SafeAreaView style={styles.screen}>
+          <SafeAreaView style={[styles.screen,{backgroundColor:mapPrefs.noteColors[reader||'']||palette.background}]}>
             <View style={styles.header}>
               <IconButton label="←" accessibilityLabel="Back to map" onPress={cancelReader}/>
               <View style={styles.wrap}>
@@ -1357,7 +1357,7 @@ if(locked){
                   <Text style={styles.editorLabel}>Note title</Text>
                   <TextInput
                     accessibilityLabel="Note title"
-                    style={styles.input}
+                    style={[styles.input,{backgroundColor:palette.surface,color:palette.text,borderColor:palette.border}]}
                     value={title}
                     onChangeText={setTitle}
                     placeholder="Heading"
@@ -1367,7 +1367,7 @@ if(locked){
                   <Text style={styles.editorLabel}>Note content</Text>
                   <TextInput
                     accessibilityLabel="Note content"
-                    style={[styles.input,{flex:1,textAlignVertical:'top'}]}
+                    style={[styles.input,{flex:1,textAlignVertical:'top',backgroundColor:palette.surface,color:palette.text,borderColor:palette.border}]}
                     multiline
                     value={body}
                     onChangeText={setBody}
@@ -1391,7 +1391,7 @@ if(locked){
             ):(
               <ScrollView contentContainerStyle={[styles.editor,{backgroundColor:mapPrefs.noteColors[reader||'']||palette.background}]}>
                 <Pressable onPress={()=>{const now=Date.now();if(now-readerTapAt<360&&reader)beginEdit(reader);setReaderTapAt(now);}}>
-                  <Text style={styles.readerTitle}>{activeReader?.title}</Text>
+                  <Text style={[styles.readerTitle,{color:palette.text}]}>{activeReader?.title}</Text>
                 </Pressable>
                 <Pressable onPress={()=>{const now=Date.now();if(now-readerTapAt<360&&reader)beginEdit(reader);setReaderTapAt(now);}}>
                   {activeReader?.body?<View style={{marginVertical:15,gap:3}}>{noteBodyView(activeReader.body)}</View>:<Text style={[styles.readBody,{color:palette.muted}]}>This note is empty.</Text>}
@@ -1724,9 +1724,9 @@ if(locked){
                       }
                     >
                       <View style={{flex:1,width:'100%'}}>
-                        <Text style={[styles.listTitle,{color:palette.text}]} numberOfLines={2}>{n.title||'Untitled map'}</Text>
+                        <Text style={[styles.listTitle,{color:mapPrefs.cardColors[n.id]?'#362722':palette.text}]} numberOfLines={2}>{n.title||'Untitled map'}</Text>
                         {mapPrefs.viewMode==='grid'&&mapPreview(n)}
-                        <Text style={[styles.muted,{color:palette.muted}]}>
+                        <Text style={[styles.muted,{color:mapPrefs.cardColors[n.id]?'#755d55':palette.muted}]}>
                           {new Date(n.updatedAt).toLocaleDateString('en-GB',{day:'2-digit',month:'2-digit',year:'2-digit'})} {new Date(n.updatedAt).toLocaleTimeString('en-IN',{hour:'2-digit',minute:'2-digit',hour12:true}).toLowerCase()}
                         </Text>
                       </View>
@@ -1744,7 +1744,7 @@ if(locked){
                     <View style={{alignItems:'center',paddingVertical:48,paddingHorizontal:20,gap:12}}>
                       <Text style={{fontSize:34,color:'#64748b'}}>◎</Text>
                       <Text style={[styles.listTitle,{textAlign:'center'}]}>{librarySearch.trim()?'No matching maps':folderFilter?'No maps in this label':'Your library is ready'}</Text>
-                      <Text style={[styles.muted,{textAlign:'center'}]}>{librarySearch.trim()?'No maps match this search. Try different words or clear the search.':folderFilter?'Create a map in this label, or move an existing map here from the library.':'Create your first map to start building your notes.'}</Text>
+                      <Text style={[styles.muted,{color:palette.muted,textAlign:'center'}]}>{librarySearch.trim()?'No maps match this search. Try different words or clear the search.':folderFilter?'Create a map in this label, or move an existing map here from the library.':'Create your first map to start building your notes.'}</Text>
                       {librarySearch.trim()?<Button label="Clear search" onPress={()=>setLibrarySearch('')}/>:<Button label="Create map" primary onPress={newMap}/>}
                     </View>
                   )}
@@ -1781,7 +1781,7 @@ const styles=StyleSheet.create({
   },
   screen:{
     flex:1,
-    backgroundColor:'#f8fafc'
+    backgroundColor:'#fff8f5'
   },
   header:{
     minHeight:60,
@@ -1793,7 +1793,7 @@ const styles=StyleSheet.create({
   logo:{
     fontSize:21,
     fontWeight:'800',
-    color:'#0f172a'
+    color:'#362722'
   },
   button:{
     borderRadius:12,
@@ -1804,7 +1804,7 @@ const styles=StyleSheet.create({
     justifyContent:'center'
   },
   primary:{
-    backgroundColor:'#315fd6'
+    backgroundColor:'#b65e4d'
   },
   danger:{
     backgroundColor:'#dc2626'
@@ -1812,7 +1812,7 @@ const styles=StyleSheet.create({
   buttonText:{
     fontSize:14,
     fontWeight:'700',
-    color:'#334155'
+    color:'#563f38'
   },
   toolbar:{
     flexDirection:'row',
@@ -1877,7 +1877,7 @@ const styles=StyleSheet.create({
   },
   muted:{
     fontSize:12,
-    color:'#64748b'
+    color:'#755d55'
   },
   editor:{
     paddingHorizontal:20,
@@ -1895,9 +1895,9 @@ const styles=StyleSheet.create({
   },
   input:{
     borderWidth:1,
-    borderColor:'#cbd5e1',
-    borderRadius:12,
-    backgroundColor:'white',
+    borderColor:'#e7cfc7',
+    borderRadius:14,
+    backgroundColor:'#fffdfb',
     padding:14,
     fontSize:16
   },
