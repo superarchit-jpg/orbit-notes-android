@@ -83,6 +83,7 @@ const [zoomPercent,setZoomPercent]=useState(100);
 const [librarySort,setLibrarySort]=useState<'modified'|'title'|'created'>('modified');
 const [sortMenu,setSortMenu]=useState(false);
 const [foldersExpanded,setFoldersExpanded]=useState(false);
+const [editingFolderId,setEditingFolderId]=useState<string|null>(null);
 const [mapMenu,setMapMenu]=useState(false),[selectionMenu,setSelectionMenu]=useState(false),[sidebar,setSidebar]=useState(false),[moveFolderMenu,setMoveFolderMenu]=useState(false),[exportTarget,setExportTarget]=useState<string|null>(null);
 
 const [backupMode,setBackupMode]=useState<'save'|'restore'|null>(null),[backupPassword,setBackupPassword]=useState(''),[backupBusy,setBackupBusy]=useState(false),[backupFile,setBackupFile]=useState<{uri:string;name:string}|null>(null);
@@ -1417,7 +1418,7 @@ if(locked){
         <Modal
           visible={menu}
           animationType="slide"
-          onRequestClose={()=>BackHandler.exitApp()}
+          onRequestClose={()=>{if(sidebar)setSidebar(false);else if(selectionMenu||moveFolderMenu||sortMenu){setSelectionMenu(false);setMoveFolderMenu(false);setSortMenu(false);}else BackHandler.exitApp();}}
         >
           <InsetSafeAreaView style={[styles.screen,{backgroundColor:palette.background}]} edges={['top','bottom']}>
             <View style={styles.header}>
@@ -1466,7 +1467,7 @@ if(locked){
               </View>
             </View>
 
-            {(selectionMenu||moveFolderMenu||sidebar||sortMenu)&&<Pressable accessibilityLabel="Close menu" onPress={()=>{setSelectionMenu(false);setMoveFolderMenu(false);setSidebar(false);setSortMenu(false);}} style={[StyleSheet.absoluteFill,{zIndex:20,elevation:10}]}/>}
+            {(selectionMenu||moveFolderMenu||sidebar||sortMenu)&&<Pressable accessibilityLabel="Close menu" onPress={()=>{setSelectionMenu(false);setMoveFolderMenu(false);setSidebar(false);setSortMenu(false);}} style={[StyleSheet.absoluteFill,{zIndex:20,elevation:10,backgroundColor:sidebar?'rgba(0,0,0,0.32)':'transparent'}]}/>}
             {selectionMenu&&selected.length>0&&(
               <View style={[styles.bottomSheet,{backgroundColor:palette.surface,borderColor:palette.border}]}>
                 <Button label={selected.every(id=>mapPrefs.pinned.includes(id))?'Unpin selected maps':'Pin selected maps'} onPress={()=>{
@@ -1532,15 +1533,12 @@ if(locked){
             )}
 
             {sidebar&&(
+              <GestureDetector gesture={Gesture.Pan().activeOffsetX([-40,40]).onEnd(e=>{if(e.translationX<-55)runOnJS(setSidebar)(false);})}>
               <Animated.View entering={FadeInLeft.duration(220)} exiting={FadeOutLeft.duration(160)} style={[styles.sidebar,{backgroundColor:palette.surface,borderRightColor:palette.border}]}>
                 <View style={styles.header}>
-                  <Text style={styles.section}>
+                  <Text style={[styles.section,{color:palette.text}]}>
                     Orbit Notes
                   </Text>
-                  <IconButton
-                    label="×"
-                    onPress={()=>setSidebar(false)}
-                  />
                 </View>
                 <ScrollView contentContainerStyle={{
                   padding:12,
@@ -1557,20 +1555,28 @@ if(locked){
                   />
                   <Button label={foldersExpanded?'▾  Labels':'›  Labels'} onPress={()=>setFoldersExpanded(v=>!v)}/>
                   {foldersExpanded&&folders.map(f=>(
-                    <Button
-                      key={f.id}
-                      label={`◩  ${f.name}`}
-                      active={!showTrash&&folderFilter===f.id}
-                      onPress={()=>{
-                        setFolderFilter(f.id);
-                        setShowTrash(false);
-                        setSidebar(false);setFoldersExpanded(false);
-                      }}
-                    />
+                    <View key={f.id} style={{flexDirection:'row',alignItems:'center',gap:2}}>
+                      <View style={{flex:1}}>
+                        <Button label={`◩  ${f.name}`} active={!showTrash&&folderFilter===f.id} onPress={()=>{
+                          setFolderFilter(f.id);setShowTrash(false);setSidebar(false);setFoldersExpanded(false);
+                        }}/>
+                      </View>
+                      <IconButton label="✎" accessibilityLabel={`Rename label ${f.name}`} onPress={()=>{
+                        setEditingFolderId(f.id);setFolderName(f.name);setCreatingFolder(true);setSidebar(false);
+                      }}/>
+                      <IconButton label="🗑" accessibilityLabel={`Delete label ${f.name}`} onPress={()=>Alert.alert('Delete label?',`Maps in "${f.name}" will remain available under All maps.`,[
+                        {text:'Cancel',style:'cancel'},
+                        {text:'Delete label',style:'destructive',onPress:()=>{
+                          setNotes(ns=>ns.map(n=>n.folderId===f.id?{...n,folderId:null}:n));
+                          setFolders(fs=>fs.filter(x=>x.id!==f.id));
+                          if(folderFilter===f.id)setFolderFilter(null);
+                        }}
+                      ])}/>
+                    </View>
                   ))}
                   {foldersExpanded&&<Button
                     label="+ Create label"
-                    onPress={()=>setCreatingFolder(true)}
+                    onPress={()=>{setEditingFolderId(null);setFolderName('');setCreatingFolder(true);setSidebar(false);}}
                   />}
                   <Button
                     label="▤  Recently Deleted"
@@ -1581,9 +1587,10 @@ if(locked){
                       setSelected([]);
                     }}
                   />
-                  <Button label="⚙  Settings & app lock" onPress={()=>{setSettings(true);setSidebar(false);setFoldersExpanded(false);}}/>
+                  <Button label="⚙  Settings" onPress={()=>{setSettings(true);setSidebar(false);setFoldersExpanded(false);}}/>
                 </ScrollView>
               </Animated.View>
+              </GestureDetector>
             )}
 
             {creatingFolder&&(
@@ -1601,30 +1608,27 @@ if(locked){
                   placeholder="Label name"
                 />
                 <Button
-                  label="Create"
+                  label={editingFolderId?'Save label':'Create label'}
                   primary
                   onPress={()=>{
-                    if(folderName.trim()){
+                    const nextName=folderName.trim();
+                    if(!nextName)return;
+                    if(editingFolderId){
+                      setFolders(fs=>fs.map(f=>f.id===editingFolderId?{...f,name:nextName}:f));
+                    }else{
                       const newId=id();
-                      setFolders(f=>[
-                        ...f,
-                        {
-                          id:newId,
-                          name:folderName.trim()
-                        }
-                      ]);
-                      if(selected.length){
-                        moveSelection(newId);
-                      }
-                      setFolderName('');
-                      setCreatingFolder(false);
-                      setMoveFolderMenu(false);
+                      setFolders(fs=>[...fs,{id:newId,name:nextName}]);
+                      if(selected.length)moveSelection(newId);
                     }
+                    setEditingFolderId(null);
+                    setFolderName('');
+                    setCreatingFolder(false);
+                    setMoveFolderMenu(false);
                   }}
                 />
                 <Button
                   label="Cancel"
-                  onPress={()=>setCreatingFolder(false)}
+                  onPress={()=>{setCreatingFolder(false);setEditingFolderId(null);setFolderName('');}}
                 />
               </View>
             )}
@@ -1910,7 +1914,7 @@ const styles=StyleSheet.create({
   },
   sidebar:{
     position:'absolute',
-    top:60,
+    top:0,
     bottom:0,
     left:0,
     width:'82%',
