@@ -17,6 +17,8 @@ const notes=[{id:'root',parentId:null},{id:'a',parentId:'root'},{id:'b',parentId
 const {remaining,batch}=deleteBranches(notes,['a']);assert.deepEqual(remaining.map(x=>x.id),['root','c']);
 assert.deepEqual(restoreBatch(remaining,batch).map(x=>x.id),['root','c','a','b']);
 assert.throws(()=>restoreBatch(notes,batch),/conflicting/);
+assert.equal(pruneTrash([{...batch,deletedAt:0}],7*86400000-1).length,1);
+assert.equal(pruneTrash([{...batch,deletedAt:0}],7*86400000).length,0);
 assert.equal(pruneTrash([{...batch,deletedAt:0}],31*86400000).length,0);
 const {radialTree}=require(path.join(temp,'mapGeometry.js'));
 const diameters=[120,110,90,80,75,70];
