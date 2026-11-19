@@ -83,10 +83,13 @@ export type MapPreferences={
   viewMode:'grid'|'list';
   cardColors:Record<string,string>;
   noteColors:Record<string,string>;
+  archived:string[];
+  trashRetentionAcknowledged:boolean;
+  themeMode?:'light'|'dark'|'system';
 };
 export const emptyMapPreferences=():MapPreferences=>({
   offsets:{},collapsed:{},colors:{},pinned:[],
-  theme:'light',viewMode:'grid',cardColors:{},noteColors:{}
+  theme:'light',viewMode:'grid',cardColors:{},noteColors:{},archived:[],trashRetentionAcknowledged:false,themeMode:'light'
 });
 export async function loadMapPreferences():Promise<MapPreferences>{
   await writeQueue;
@@ -103,7 +106,10 @@ export async function loadMapPreferences():Promise<MapPreferences>{
       theme:parsed.theme==='dark'?'dark':'light',
       viewMode:parsed.viewMode==='list'?'list':'grid',
       cardColors:parsed.cardColors&&typeof parsed.cardColors==='object'?parsed.cardColors:{},
-      noteColors:parsed.noteColors&&typeof parsed.noteColors==='object'?parsed.noteColors:{}
+      noteColors:parsed.noteColors&&typeof parsed.noteColors==='object'?parsed.noteColors:{},
+      archived:Array.isArray(parsed.archived)?parsed.archived.filter((x):x is string=>typeof x==='string'):[],
+      trashRetentionAcknowledged:parsed.trashRetentionAcknowledged===true,
+      themeMode:parsed.themeMode==='system'?'system':parsed.theme==='dark'?'dark':'light'
     };
   }catch{return emptyMapPreferences();}
 }
