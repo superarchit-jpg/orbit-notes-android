@@ -1695,7 +1695,7 @@ const styles=StyleSheet.create({
     flex:1,
     overflow:'hidden',
     backgroundColor:'#fff9f6'
-  }
+  },
   world:{
     position:'absolute',
     width:0,
