@@ -30,7 +30,7 @@ const Upright=({angle,children}:{angle:SharedValue<number>;children:React.ReactN
   return <Animated.View style={[{alignItems:'center',justifyContent:'center'},style]}>{children}</Animated.View>;
 };
 
-const IconButton=({label,onPress,danger=false,accessibilityLabel}:{label:string;onPress:()=>void;danger?:boolean;accessibilityLabel?:string})=><Pressable accessibilityRole="button" accessibilityLabel={accessibilityLabel||label} onPress={onPress} style={{paddingHorizontal:12,paddingVertical:9,minWidth:42,alignItems:'center'}}>{label==='🗑'?<Svg width={23} height={23} viewBox="0 0 24 24"><Line x1={4} y1={7} x2={20} y2={7} stroke="#dc2626" strokeWidth={1.8}/><Line x1={9} y1={4} x2={15} y2={4} stroke="#dc2626" strokeWidth={1.8}/><Rect x={6} y={7} width={12} height={14} rx={2} stroke="#dc2626" strokeWidth={1.8} fill="none"/><Line x1={10} y1={11} x2={10} y2={17} stroke="#dc2626" strokeWidth={1.5}/><Line x1={14} y1={11} x2={14} y2={17} stroke="#dc2626" strokeWidth={1.5}/></Svg>:<Text style={{fontSize:23,color:danger?'#dc2626':'#1e293b'}}>{label}</Text>}</Pressable>;
+const IconButton=({label,onPress,danger=false,accessibilityLabel}:{label:string;onPress:()=>void;danger?:boolean;accessibilityLabel?:string})=><Pressable accessibilityRole="button" accessibilityLabel={accessibilityLabel||label} onPress={onPress} style={{minWidth:48,minHeight:48,paddingHorizontal:10,paddingVertical:10,alignItems:'center',justifyContent:'center'}}>{label==='🗑'?<Svg width={23} height={23} viewBox="0 0 24 24"><Line x1={4} y1={7} x2={20} y2={7} stroke="#dc2626" strokeWidth={1.8}/><Line x1={9} y1={4} x2={15} y2={4} stroke="#dc2626" strokeWidth={1.8}/><Rect x={6} y={7} width={12} height={14} rx={2} stroke="#dc2626" strokeWidth={1.8} fill="none"/><Line x1={10} y1={11} x2={10} y2={17} stroke="#dc2626" strokeWidth={1.5}/><Line x1={14} y1={11} x2={14} y2={17} stroke="#dc2626" strokeWidth={1.5}/></Svg>:<Text style={{fontSize:23,color:danger?'#dc2626':'#1e293b'}}>{label}</Text>}</Pressable>;
 
 export default function App(){
 const [notes,setNotes]=useState<Note[]>(initial),[folders,setFolders]=useState<Folder[]>([]),[focused,setFocused]=useState('root'),[overview,setOverview]=useState(false),[menu,setMenu]=useState(true),[reader,setReader]=useState<string|null>(null),[editing,setEditing]=useState(false),[title,setTitle]=useState(''),[body,setBody]=useState(''),[folderName,setFolderName]=useState(''),[creatingFolder,setCreatingFolder]=useState(false),[selected,setSelected]=useState<string[]>([]),[folderFilter,setFolderFilter]=useState<string|null>(null),[loaded,setLoaded]=useState(false),[storageError,setStorageError]=useState<string|null>(null),[trash,setTrash]=useState<TrashBatch[]>([]),[showTrash,setShowTrash]=useState(false),[undoBatch,setUndoBatch]=useState<string|null>(null);
@@ -838,35 +838,16 @@ if(locked){
         ]}>
           <IconButton
             label="←"
+            accessibilityLabel="Back to library"
             onPress={()=>{
               setMenu(true);
               setMapMenu(false);
             }}
           />
 
-          <View style={{
-            flexDirection:'row',
-            alignItems:'center'
-          }}>
-            <IconButton
-              label="↖"
-              onPress={()=>parent&&moveTo(parent.id)}
-            />
-            <IconButton
-              label="⌖"
-              onPress={()=>{
-                tx.value=withTiming(-scale.value*(focusPoint?.x||0));
-                ty.value=withTiming(-scale.value*(focusPoint?.y||0));
-                rotation.value=withTiming(0);
-              }}
-            />
-            <IconButton label="Fit" onPress={fitCurrentMap}/>
-            <IconButton label="↻" onPress={()=>{rotation.value=withTiming(0);}}/>
-            <IconButton label="▣" onPress={()=>setShowMiniMap(v=>!v)}/>
-            <IconButton
-              label="⋮"
-              onPress={()=>setMapMenu(v=>!v)}
-            />
+          <View style={{flexDirection:'row',alignItems:'center'}}>
+            <IconButton label="Fit" accessibilityLabel="Fit map to screen" onPress={fitCurrentMap}/>
+            <IconButton label="⋮" accessibilityLabel="More map actions" onPress={()=>setMapMenu(v=>!v)}/>
           </View>
         </View>
 
@@ -893,9 +874,18 @@ if(locked){
                 setMapMenu(false);
               }}
             />
+            <Button label="Go to parent note" onPress={()=>{if(parent)moveTo(parent.id);setMapMenu(false);}}/>
+            <Button label="Center focused note" onPress={()=>{
+              tx.value=withTiming(-scale.value*(focusPoint?.x||0));
+              ty.value=withTiming(-scale.value*(focusPoint?.y||0));
+              rotation.value=withTiming(0);
+              setMapMenu(false);
+            }}/>
+            <Button label="Reset rotation" onPress={()=>{rotation.value=withTiming(0);setMapMenu(false);}}/>
+            <Button label={showMiniMap?'Hide mini-map':'Show mini-map'} onPress={()=>{setShowMiniMap(v=>!v);setMapMenu(false);}}/>
             <Button
               label="Export as PDF"
-              onPress={()=>exportOne('pdf')}
+              onPress={()=>{setMapMenu(false);exportOne('pdf');}}
             />
             <Button
               label="App lock & settings"
@@ -958,14 +948,14 @@ if(locked){
 
         </View>
 
-        {!menu&&<View style={{flexDirection:'row',justifyContent:'center',gap:6,paddingVertical:5,flexWrap:'wrap'}}>
+        {!menu&&<ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{flexDirection:'row',alignItems:'center',gap:8,paddingHorizontal:12,paddingVertical:6}}>
           <Button label="+ Add child" onPress={()=>{setMapPrefs(p=>({...p,collapsed:{...p.collapsed,[focused]:false}}));addChild(focused);}}/>
            <Button label="−" onPress={()=>{scale.value=withTiming(Math.max(preferredFit*1.1*0.1,preferredFit*1.1*(Math.round(scale.value/(preferredFit*1.1)*10)-1)/10));}}/>
           <Button label="+" onPress={()=>{scale.value=withTiming(Math.min(preferredFit*1.1*2,preferredFit*1.1*(Math.round(scale.value/(preferredFit*1.1)*10)+1)/10));}}/>
           <Text accessibilityLabel={`Zoom ${zoomPercent} percent`} style={{fontSize:12,fontWeight:"700",color:"#334155",minWidth:46,textAlign:"center",textAlignVertical:"center",alignSelf:"center",includeFontPadding:false}}>{zoomPercent}%</Text>
           <Button label={mapPrefs.collapsed[focused]?'Expand branch':'Collapse branch'} onPress={()=>setMapPrefs(p=>({...p,collapsed:{...p.collapsed,[focused]:!p.collapsed[focused]}}))}/>
           <Button label="Node color" onPress={()=>setMapPrefs(p=>{const palette=['#dbeafe','#dcfce7','#fef3c7','#fce7f3','#e9d5ff'];const current=p.colors[focused]||palette[0];return {...p,colors:{...p.colors,[focused]:palette[(palette.indexOf(current)+1)%palette.length]}};})}/>
-        </View>}
+        </ScrollView>}
         {!menu&&showMiniMap&&<View style={{height:310,marginHorizontal:14,marginBottom:6,backgroundColor:'#e2e8f0',borderRadius:12,overflow:'hidden',padding:6}}><Text style={styles.muted}>Map overview · {completeMap.length} notes</Text><Svg width="100%" height={270} viewBox="0 0 1000 540" preserveAspectRatio="xMidYMid meet">{miniLines.map(l=><Line key={l.id} x1={l.x1*miniBounds.scale+miniBounds.dx} y1={l.y1*miniBounds.scale+miniBounds.dy} x2={l.x2*miniBounds.scale+miniBounds.dx} y2={l.y2*miniBounds.scale+miniBounds.dy} stroke="#94a3b8" strokeWidth={2}/>)}{completeMap.map(v=><Circle key={v.note.id} cx={v.x*miniBounds.scale+miniBounds.dx} cy={v.y*miniBounds.scale+miniBounds.dy} r={v.note.id===focused?5:3.5} fill={v.note.id===focused?'#2563eb':'#64748b'}/>)}</Svg></View>}
         {undoBatch&&(
           <View style={styles.toolbar}>
@@ -1659,8 +1649,10 @@ const styles=StyleSheet.create({
   button:{
     borderRadius:12,
     backgroundColor:'#e2e8f0',
-    paddingVertical:9,
-    paddingHorizontal:12
+    paddingVertical:12,
+    paddingHorizontal:14,
+    minHeight:48,
+    justifyContent:'center'
   },
   primary:{
     backgroundColor:'#315fd6'
@@ -1669,7 +1661,7 @@ const styles=StyleSheet.create({
     backgroundColor:'#dc2626'
   },
   buttonText:{
-    fontSize:12,
+    fontSize:14,
     fontWeight:'700',
     color:'#334155'
   },
