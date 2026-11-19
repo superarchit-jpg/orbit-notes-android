@@ -228,22 +228,30 @@ const beginEdit=(target:string)=>{
 
 const saveEdit=()=>{
   if(!reader)return;
-  if(draftChildId===reader&&!title.trim()&&!body.trim()){
-    setNotes(ns=>ns.filter(n=>n.id!==reader));
-  }else{
-    setNotes(ns=>{const updated=Date.now();const target=ns.find(n=>n.id===reader);let parentId=target?.parentId;const ancestorIds=new Set<string>();while(parentId&&parentId!=='root'){ancestorIds.add(parentId);parentId=ns.find(n=>n.id===parentId)?.parentId;}return ns.map(n=>n.id===reader?{...n,title:title.trim(),body,updatedAt:updated}:ancestorIds.has(n.id)?{...n,updatedAt:updated}:n);});
-  }
+  // A newly created child remains in the hierarchy even if its fields are blank.
+  // Only the editor's explicit cross action discards a draft child.
+  setNotes(ns=>{const updated=Date.now();const target=ns.find(n=>n.id===reader);let parentId=target?.parentId;const ancestorIds=new Set<string>();while(parentId&&parentId!=='root'){ancestorIds.add(parentId);parentId=ns.find(n=>n.id===parentId)?.parentId;}return ns.map(n=>n.id===reader?{...n,title:title.trim(),body,updatedAt:updated}:ancestorIds.has(n.id)?{...n,updatedAt:updated}:n);});
   setEditing(false);
   setDraftChildId(null);
   setReader(null);
 };
 
 const cancelReader=()=>{
+  // Back/dismiss preserves the approved automatic-save behavior.
   if(editing){saveEdit();return;}
-  if(draftChildId)setNotes(ns=>ns.filter(n=>n.id!==draftChildId));
   setDraftChildId(null);
   setReader(null);
   setEditing(false);
+};
+const closeReaderWithCross=()=>{
+  if(draftChildId&&draftChildId===reader){
+    setEditing(false);
+    setNotes(ns=>ns.filter(n=>n.id!==draftChildId));
+    setDraftChildId(null);
+    setReader(null);
+    return;
+  }
+  cancelReader();
 };
 
 // Debounced local autosave preserves edits if Android suspends the app.
@@ -1359,7 +1367,7 @@ if(locked){
                 )}
                 {!editing&&<IconButton label="+" accessibilityLabel="Add child note" onPress={()=>reader&&addChild(reader)}/>}
                 {!editing&&<IconButton label="✎" accessibilityLabel="Edit note" onPress={()=>reader&&beginEdit(reader)}/>}
-                <IconButton label="×" accessibilityLabel={editing?'Save and close note':'Close note'} onPress={cancelReader}/>
+                <IconButton label="×" accessibilityLabel={draftChildId===reader?'Discard new child note':'Close note'} onPress={closeReaderWithCross}/>
               </View>
             </View>
 
@@ -1464,6 +1472,14 @@ if(locked){
             {(selectionMenu||moveFolderMenu||sidebar||sortMenu)&&<Pressable accessibilityLabel="Close menu" onPress={()=>{setSelectionMenu(false);setMoveFolderMenu(false);setSidebar(false);setSortMenu(false);}} style={[StyleSheet.absoluteFill,{zIndex:20,elevation:10}]}/>}
             {selectionMenu&&selected.length>0&&(
               <View style={[styles.bottomSheet,{backgroundColor:palette.surface,borderColor:palette.border}]}>
+                <Button label={selected.every(id=>mapPrefs.pinned.includes(id))?'Unpin selected maps':'Pin selected maps'} onPress={()=>{
+                  setMapPrefs(p=>{
+                    const allPinned=selected.every(id=>p.pinned.includes(id));
+                    return {...p,pinned:allPinned?p.pinned.filter(id=>!selected.includes(id)):[...new Set([...p.pinned,...selected])]};
+                  });
+                  setSelected([]);
+                  setSelectionMenu(false);
+                }}/>
                 <Button label="Change selected card colors" onPress={()=>{setColorTarget('cards');setSelectionMenu(false);}}/>
                 <Button
                   label="Move to existing label"
@@ -1724,14 +1740,21 @@ if(locked){
                       }
                     >
                       <View style={{flex:1,width:'100%'}}>
-                        <Text style={[styles.listTitle,{color:mapPrefs.cardColors[n.id]?'#362722':palette.text}]} numberOfLines={2}>{n.title||'Untitled map'}</Text>
+                        <Text style={[styles.listTitle,{color:mapPrefs.cardColors[n.id]?'#362722':palette.text,paddingRight:mapPrefs.pinned.includes(n.id)?29:0}]} numberOfLines={2}>{n.title||'Untitled map'}</Text>
                         {mapPrefs.viewMode==='grid'&&mapPreview(n)}
                         <Text style={[styles.muted,{color:mapPrefs.cardColors[n.id]?'#755d55':palette.muted}]}>
                           {new Date(n.updatedAt).toLocaleDateString('en-GB',{day:'2-digit',month:'2-digit',year:'2-digit'})} {new Date(n.updatedAt).toLocaleTimeString('en-IN',{hour:'2-digit',minute:'2-digit',hour12:true}).toLowerCase()}
                         </Text>
                       </View>
 
-                      {selected.length===0&&<IconButton label={mapPrefs.pinned.includes(n.id)?'★':'☆'} accessibilityLabel={mapPrefs.pinned.includes(n.id)?'Unpin map':'Pin map'} onPress={()=>setMapPrefs(p=>({...p,pinned:p.pinned.includes(n.id)?p.pinned.filter(x=>x!==n.id):[...p.pinned,n.id]}))}/>}
+                      {selected.length===0&&mapPrefs.pinned.includes(n.id)&&
+                        <Pressable accessibilityRole="button" accessibilityLabel="Unpin map" onPress={()=>setMapPrefs(p=>({...p,pinned:p.pinned.filter(x=>x!==n.id)}))}
+                          hitSlop={8} style={{position:'absolute',right:8,top:7,width:34,height:34,alignItems:'center',justifyContent:'center',zIndex:2}}>
+                          <Svg width={21} height={21} viewBox="0 0 24 24">
+                            <Path d="M8 3h8v2l-1.5 2.3v4.1l3.2 3V16H6.3v-1.6l3.2-3V7.3L8 5V3z" fill={palette.accent}/>
+                            <Path d="M12 16v6" stroke={palette.accent} strokeWidth={2} strokeLinecap="round"/>
+                          </Svg>
+                        </Pressable>}
                       {selected.length>0&&(
                         <Text style={styles.checkbox}>
                           {selected.includes(n.id)?'☑':'☐'}
