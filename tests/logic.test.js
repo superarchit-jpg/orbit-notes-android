@@ -140,7 +140,6 @@ for (const marker of [
   'label="Gesture help"',
   'label="Go to parent note"',
   'label="Center focused note"',
-  'label="Reset rotation"',
   'Show mini-map',
   'minHeight:48'
 ]) {
@@ -184,8 +183,8 @@ for (const marker of [
   'Filter ${f.name}', 'Create new map',
   'FadeInLeft.duration(220)', "No maps in this label",
   'formatSelection(value,textSelection.start',
-  'parseRichLine(content)', 'toggleChecklistLine(n.body,index)',
-  "onRequestClose={cancelReader}", "label=\"Note color\""
+  'parseRichLine(line)', 'label="bullets" accessibilityLabel="Bulleted list"',
+  "onRequestClose={cancelReader}", 'label="palette" accessibilityLabel="Note color"'
 ]) check(app.includes(marker), `Missing approved Keep redesign wiring: ${marker}`);
 check(!app.includes('label="Reminders"')&&!app.includes('label="Archive"'),'Unapproved NAV-06 sections must remain absent');
 console.log('PASS: approved Keep-inspired redesign wiring');
@@ -208,6 +207,37 @@ check(
   'New children must persist on Done or Back and disappear only on explicit cross'
 );
 console.log('PASS: pinned map and child note persistence regression');
+
+// Approved recording follow-up requirements.
+for(const marker of [
+  'thumbnailHeight=Math.min(244',
+  "mapPrefs.viewMode==='grid'?[0,1]:[0]",
+  "label={mapPrefs.viewMode==='grid'?'gridView':'listView'}",
+  'accessibilityLabel="Sort maps"',
+  'label="palette" accessibilityLabel="Node color"',
+  "label={mapPrefs.collapsed[focused]?'expandBranch':'collapseBranch'}",
+  'visible={gestureHelp}',
+  'height:150,marginHorizontal:12',
+  'label="⚙  Settings"',
+  'Rename label',
+  'Delete label?',
+  'setFolders(fs=>fs.map',
+  'const confirmPinChange=async()=>',
+  "label=\"Delete stored PIN\"",
+  "isPinLockEnabled()",
+  'label="numbers" accessibilityLabel="Numbered list"',
+  'label="underline" accessibilityLabel="Underline text"'
+]) check(app.includes(marker),`Missing approved recording improvement: ${marker}`);
+for(const obsolete of [
+  'label="Reset rotation"',
+  "'Map gesture guide'",
+  'label="App lock & settings"',
+  "applyNoteFormat('checklist')",
+  'toggleChecklistLine(n.body,index)',
+  'new Date(n.updatedAt).toLocaleDateString'
+]) check(!app.includes(obsolete),`Removed functionality resurfaced: ${obsolete}`);
+check(app.includes('label="Center focused note"'),'Working recenter action must remain');
+console.log('PASS: 26 approved recording changes and scope exclusions');
 
 // Upright labels during rotation
 check(
