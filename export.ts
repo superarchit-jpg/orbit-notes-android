@@ -1,6 +1,7 @@
 import JSZip from 'jszip';
 import * as Print from 'expo-print';
 import {radialTree} from './mapGeometry';
+import {plainNoteText} from './noteFormatting';
 import * as FileSystem from 'expo-file-system/legacy';
 export type Note = {id:string;parentId:string|null;title:string;body:string;updatedAt:number;folderId:string|null};
 const esc=(s:string)=>s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
@@ -47,7 +48,7 @@ function pdfMapPage(root:Note,notes:Note[]):string{
    const radius=radii[Math.min(n.level,5)],isRoot=n.note.id===root.id;
    const title=textLines(n.note.title,Math.max(9,Math.floor(radius/3.5)));
    const lines=title.slice(0,4);
-   const body=n.note.body.trim().replace(/\\s+/g,' ');
+   const body=plainNoteText(n.note.body).trim().replace(/\\s+/g,' ');
    const label=lines.map((line,i)=>`<tspan x="${n.x}" dy="${i===0?0:13}">${esc(line)}</tspan>`).join('');
    const y=n.y-(lines.length-1)*6.5-(body?7:0);
    return `<circle cx="${n.x}" cy="${n.y}" r="${radius}" fill="${isRoot?'#315fd6':'#dbeafe'}" stroke="#93c5fd" stroke-width="2"/><text x="${n.x}" y="${y}" text-anchor="middle" font-family="sans-serif" font-size="12" font-weight="600" fill="${isRoot?'white':'#1e40af'}">${label}</text>${body?`<text x="${n.x}" y="${n.y+radius-13}" text-anchor="middle" font-family="sans-serif" font-size="8" fill="${isRoot?'white':'#334155'}">${esc(body.slice(0,Math.floor(radius/4))) }${body.length>Math.floor(radius/4)?'…':''}</text>`:''}`;
