@@ -37,13 +37,16 @@ export async function setPin(pin:string,kind:CredentialKind='pin'){
   validateCredential(pin,kind);
   const salt=Crypto.randomUUID();
   const pepper=Crypto.randomUUID()+Crypto.randomUUID();
-  await SecureStore.setItemAsync(PEPPER,pepper);
-  await SecureStore.setItemAsync(KEY,JSON.stringify({salt,digest:await hash(pin,salt,pepper),kind}));
+  // New credentials are saved in one SecureStore value. Legacy credentials retain their separate pepper.
+  await SecureStore.setItemAsync(KEY,JSON.stringify({salt,digest:await hash(pin,salt,pepper),kind,pepper}));
   await SecureStore.setItemAsync(ENABLED,'yes');
 }
 export async function checkPin(pin:string){
   const raw=await SecureStore.getItemAsync(KEY);if(!raw)return false;
-  const {salt,digest}=JSON.parse(raw);const pepper=await SecureStore.getItemAsync(PEPPER);if(!pepper)return false;return (await hash(pin,salt,pepper))===digest;
+  const stored=JSON.parse(raw);
+  const pepper=stored.pepper||(await SecureStore.getItemAsync(PEPPER));
+  if(!pepper||typeof stored.salt!=='string'||typeof stored.digest!=='string')return false;
+  return (await hash(pin,stored.salt,pepper))===stored.digest;
 }
 export async function removePin(){await SecureStore.deleteItemAsync(ENABLED);await SecureStore.deleteItemAsync(KEY);await SecureStore.deleteItemAsync(BIO);await SecureStore.deleteItemAsync(LIMIT);await SecureStore.deleteItemAsync(PEPPER);}
 export async function biometricEnabled(){return (await SecureStore.getItemAsync(BIO))==='yes';}
