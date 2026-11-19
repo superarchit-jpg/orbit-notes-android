@@ -130,6 +130,33 @@ check(
 
 console.log('PASS: continuous transition wiring');
 
+// Stage 3 accepted UX: map controls, accessible labels, reliable touch targets and help.
+for (const marker of [
+  'accessibilityLabel="Back to library"',
+  'accessibilityLabel="Fit map to screen"',
+  'accessibilityLabel="More map actions"',
+  'accessibilityLabel="Open folders and tools"',
+  'accessibilityLabel="Create new map"',
+  'label="Gesture help"',
+  'label="Go to parent note"',
+  'label="Center focused note"',
+  'label="Reset rotation"',
+  'Show mini-map',
+  'minHeight:48'
+]) {
+  check(app.includes(marker), `Missing Stage 3 UI control: ${marker}`);
+}
+check(
+  !app.includes('label="↖"') && !app.includes('label="⌖"') && !app.includes('label="▣"'),
+  'Ambiguous map action symbols must not return to the header'
+);
+check(
+  app.includes('scale.value=withTiming(fit.scale*1.1)') &&
+  app.includes('Gesture.Simultaneous(pan,pinch,rotate,rotateChildren)'),
+  'Stage 3 must preserve Fit and gesture behavior'
+);
+console.log('PASS: Stage 3 approved UX control wiring');
+
 // Upright labels during rotation
 check(
   app.includes('const Upright='),
