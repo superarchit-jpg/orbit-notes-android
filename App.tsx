@@ -1,5 +1,5 @@
 import React,{useEffect,useMemo,useState,useRef} from 'react';
-import {Alert,AppState,BackHandler,Dimensions,KeyboardAvoidingView,Appearance,Modal,Platform,Pressable,ScrollView,StatusBar,StyleSheet,Text,TextInput,View} from 'react-native';
+import {Alert,AppState,BackHandler,Dimensions,KeyboardAvoidingView,useColorScheme,Modal,Platform,Pressable,ScrollView,StatusBar,StyleSheet,Text,TextInput,View} from 'react-native';
 import Svg,{Line,Circle,Rect,Path} from 'react-native-svg';
 import {SafeAreaProvider,SafeAreaView as InsetSafeAreaView} from 'react-native-safe-area-context';
 import {Gesture,GestureDetector,GestureHandlerRootView} from 'react-native-gesture-handler';
@@ -76,7 +76,7 @@ const [notes,setNotes]=useState<Note[]>(initial),[folders,setFolders]=useState<F
 const [mapPrefs,setMapPrefs]=useState(emptyMapPreferences);
 const bioPromptInProgress=useRef(false),bioPrompted=useRef(false);
 const [colorTarget,setColorTarget]=useState<'cards'|'note'|null>(null);
-const deviceTheme=Appearance.getColorScheme();
+const deviceTheme=useColorScheme();
 const effectiveTheme=mapPrefs.themeMode==='system'?(deviceTheme==='dark'?'dark':'light'):mapPrefs.theme;
 const palette=effectiveTheme==='dark'?DARK:LIGHT;
 const [showMiniMap,setShowMiniMap]=useState(false);
@@ -116,6 +116,7 @@ useEffect(()=>{
           setMenu(true);
           setTrash(preferences.trashRetentionAcknowledged?pruneTrash(existing.trash):existing.trash);
            if(!preferences.trashRetentionAcknowledged&&existing.trash.length>0)setRetentionNotice(true);
+           if(!preferences.trashRetentionAcknowledged&&existing.trash.length===0)setMapPrefs(p=>({...p,trashRetentionAcknowledged:true}));
         }
       }else{
         const snapshot={notes:initial,folders:[],focused:'root',trash:[]};
@@ -432,6 +433,27 @@ useEffect(()=>{
   return()=>sub.remove();
 },[menu,reader,settings,backupMode,exportKind]);
 
+const acknowledgeTrashRetention=()=>{
+  const expired=trash.filter(b=>Date.now()-b.deletedAt>=7*86400000).length;
+  Alert.alert('Activate seven-day retention?',`${expired} deleted batch(es) older than seven days will be permanently removed. Restore important notes first.`,[
+    {text:'Not yet',style:'cancel'},
+    {text:'Activate and remove expired',style:'destructive',onPress:()=>{
+      setTrash(b=>pruneTrash(b));setMapPrefs(p=>({...p,trashRetentionAcknowledged:true}));
+      setRetentionNotice(false);setSelectedTrash([]);
+    }}
+  ]);
+};
+const restoreSelectedTrash=()=>{
+ try{
+  let updated=notes;
+  for(const b of trash.filter(b=>selectedTrash.includes(b.id)))updated=restoreBatch(updated,b);
+  setNotes(updated);setTrash(t=>t.filter(b=>!selectedTrash.includes(b.id)));setSelectedTrash([]);
+ }catch(e){Alert.alert('Cannot restore selection',String(e));}
+};
+const removeSelectedTrash=()=>Alert.alert('Delete selected permanently?', 'This cannot be undone.',[
+ {text:'Cancel',style:'cancel'},
+ {text:'Delete forever',style:'destructive',onPress:()=>{setTrash(t=>t.filter(b=>!selectedTrash.includes(b.id)));setSelectedTrash([]);}}
+]);
 const restore=(batch:TrashBatch)=>{
   try{
     const restored=restoreBatch(notes,batch);
@@ -888,6 +910,7 @@ const runBackup=async()=>{
         setNotes(restored.notes);
         setFolders(restored.folders);
         setTrash(restored.trash);
+         if(restored.trash.length>0&&!restored.mapPreferences?.trashRetentionAcknowledged)setRetentionNotice(true);
          setShowArchive(false);setShowTrash(false);
         setFocused(restored.focused);
         if(restored.mapPreferences)setMapPrefs({...emptyMapPreferences(),...restored.mapPreferences});
@@ -1483,7 +1506,18 @@ if(locked){
               </ScrollView>
             )}
           </SafeAreaView>
+        </Modal> 
+        <Modal visible={retentionNotice} transparent animationType="fade" onRequestClose={()=>setRetentionNotice(false)}>
+          <View style={{flex:1,justifyContent:'center',padding:24,backgroundColor:'rgba(0,0,0,0.55)'}}>
+            <View style={{backgroundColor:palette.surface,padding:22,borderRadius:24,gap:16}}>
+              <Text style={[styles.section,{color:palette.text}]}>Recently Deleted policy update</Text>
+              <Text style={{color:palette.text}}>Deleted notes will be kept for seven days. Existing deleted notes older than seven days may be removed permanently after you activate the policy. Review and restore important notes first.</Text>
+              <Button label="Review Recently Deleted" primary onPress={()=>{setRetentionNotice(false);setShowTrash(true);setShowArchive(false);setMenu(true);}}/>
+              <Button label="Later — keep existing items" onPress={()=>setRetentionNotice(false)}/>
+            </View>
+          </View>
         </Modal>
+        
 
         <Modal
           visible={menu}
