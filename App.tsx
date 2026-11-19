@@ -1773,7 +1773,16 @@ if(locked){
                     Recently Deleted
                   </Text>
 
-                  {trash.length===0&&(
+                  {!mapPrefs.trashRetentionAcknowledged&&<View style={{gap:8,padding:12,borderWidth:1,borderColor:'#d97706',borderRadius:16,backgroundColor:palette.surface}}>
+                     <Text style={{fontWeight:'700',color:palette.text}}>Seven-day retention change</Text>
+                     <Text style={{color:palette.muted}}>Review or restore older deleted notes before activating seven-day cleanup. Items older than seven days will then be removed.</Text>
+                     <Button label="Apply seven-day retention" onPress={acknowledgeTrashRetention}/>
+                   </View>}
+                   {trash.length>0&&<View style={styles.wrap}>
+                     <Button label={selectedTrash.length===trash.length?'Clear selection':'Select all deleted'} onPress={()=>setSelectedTrash(v=>v.length===trash.length?[]:trash.map(b=>b.id))}/>
+                     {selectedTrash.length>0&&<><Button label={`Restore selected (${selectedTrash.length})`} onPress={restoreSelectedTrash}/><Button label="Delete selected forever" danger onPress={removeSelectedTrash}/></>}
+                   </View>}
+                   {trash.length===0&&(
                     <Text style={styles.muted}>
                       No deleted notes. Notes moved here will appear for recovery.
                     </Text>
@@ -1782,9 +1791,10 @@ if(locked){
                   {trash.map(b=>(
                     <View
                       key={b.id}
-                      style={styles.listRow}
-                    >
-                      <View style={{flex:1}}>
+                      style={[styles.listRow,{borderColor:selectedTrash.includes(b.id)?palette.accent:palette.border,borderWidth:selectedTrash.includes(b.id)?3:1}]}
+                     >
+                       <Pressable accessibilityRole="button" accessibilityLabel="Select deleted batch" onPress={()=>setSelectedTrash(v=>v.includes(b.id)?v.filter(x=>x!==b.id):[...v,b.id])}><Text style={{fontSize:22,color:palette.text}}>{selectedTrash.includes(b.id)?'◉':'○'}</Text></Pressable>
+                       <View style={{flex:1}}>
                         <Text style={styles.listTitle}>
                           {b.notes[0]?.title||'Deleted notes'}
                         </Text>
