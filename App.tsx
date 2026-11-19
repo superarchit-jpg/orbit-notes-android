@@ -137,7 +137,7 @@ useEffect(()=>{
           setFocused('root');
           setMenu(true);
           setTrash(preferences.trashRetentionAcknowledged?pruneTrash(existing.trash):existing.trash);
-           if(!preferences.trashRetentionAcknowledged&&existing.trash.length>0)setRetentionNotice(true);
+           if(!preferences.trashRetentionAcknowledged&&!preferences.trashRetentionWarningSeen&&existing.trash.length>0)setRetentionNotice(true);
            if(!preferences.trashRetentionAcknowledged&&existing.trash.length===0)setMapPrefs(p=>({...p,trashRetentionAcknowledged:true}));
         }
       }else{
@@ -946,8 +946,8 @@ const runBackup=async()=>{
          if(restored.trash.length>0&&!restored.mapPreferences?.trashRetentionAcknowledged)setRetentionNotice(true);
          setShowArchive(false);setShowTrash(false);
         setFocused(restored.focused);
-        if(restored.mapPreferences)setMapPrefs({...emptyMapPreferences(),...restored.mapPreferences,...(restored.trash.length>0&&!restored.mapPreferences.trashRetentionAcknowledged?{trashRetentionAcknowledged:false}:{})});
-         else if(restored.trash.length>0)setMapPrefs(p=>({...p,trashRetentionAcknowledged:false,archived:[]}));
+        if(restored.mapPreferences)setMapPrefs({...emptyMapPreferences(),...restored.mapPreferences,...(restored.trash.length>0&&!restored.mapPreferences.trashRetentionAcknowledged?{trashRetentionAcknowledged:false,trashRetentionWarningSeen:false}:{})});
+         else if(restored.trash.length>0)setMapPrefs(p=>({...p,trashRetentionAcknowledged:false,trashRetentionWarningSeen:false,archived:[]}));
         setBackupMode(null);
         setBackupFile(null);
         setBackupPassword('');
@@ -1537,13 +1537,13 @@ if(locked){
             )}
           </SafeAreaView>
         </Modal> 
-        <Modal visible={retentionNotice} transparent animationType="fade" onRequestClose={()=>setRetentionNotice(false)}>
+        <Modal visible={retentionNotice} transparent animationType="fade" onRequestClose={()=>{setRetentionNotice(false);setMapPrefs(p=>({...p,trashRetentionWarningSeen:true}));}}>
           <View style={{flex:1,justifyContent:'center',padding:24,backgroundColor:'rgba(0,0,0,0.55)'}}>
             <View style={{backgroundColor:palette.surface,padding:22,borderRadius:24,gap:16}}>
               <Text style={[styles.section,{color:palette.text}]}>Recently Deleted policy update</Text>
               <Text style={{color:palette.text}}>Deleted notes will be kept for seven days. Existing deleted notes older than seven days may be removed permanently after you activate the policy. Review and restore important notes first.</Text>
-              <Button label="Review Recently Deleted" primary onPress={()=>{setRetentionNotice(false);setShowTrash(true);setShowArchive(false);setMenu(true);}}/>
-              <Button label="Later — keep existing items" onPress={()=>setRetentionNotice(false)}/>
+              <Button label="Review Recently Deleted" primary onPress={()=>{setRetentionNotice(false);setMapPrefs(p=>({...p,trashRetentionWarningSeen:true}));setShowTrash(true);setShowArchive(false);setMenu(true);}}/>
+              <Button label="Later — keep existing items" onPress={()=>{setRetentionNotice(false);setMapPrefs(p=>({...p,trashRetentionWarningSeen:true}));}}/>
             </View>
           </View>
         </Modal>
