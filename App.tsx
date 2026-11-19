@@ -45,7 +45,10 @@ const ICON_PATHS:Record<string,string>={
   '▦':'M3 3h8v8H3zM13 3h8v8h-8zM3 13h8v8H3zM13 13h8v8h-8z',
   'Fit':'M4 9V4h5M15 4h5v5M20 15v5h-5M9 20H4v-5',
   'listView':'M4 4h6v6H4zM14 4h6v6h-6zM4 14h6v6H4zM14 14h6v6h-6z',
-  'gridView':'M5 6h14M5 12h14M5 18h14'
+  'gridView':'M5 6h14M5 12h14M5 18h14',
+  'palette':'M12 3a9 9 0 1 0 0 18h1.2c1.1 0 1.9-.9 1.9-2 0-.7-.4-1.3-.8-1.8-.3-.4-.5-.8-.5-1.3 0-1.1.9-2 2-2H19A7 7 0 0 0 12 3zM6.9 12h.01M8.5 7.9h.01M13.4 6.8h.01M17.1 9.4h.01',
+  'collapseBranch':'M5 12h14M12 5l7 7-7 7',
+  'expandBranch':'M12 5v14M5 12h14'
 };
 const MaterialIcon=({name,color}:{name:string;color:string})=>{
   const data=ICON_PATHS[name];
@@ -70,6 +73,7 @@ const [mapPrefs,setMapPrefs]=useState(emptyMapPreferences);
 const [colorTarget,setColorTarget]=useState<'cards'|'note'|null>(null);
 const palette=mapPrefs.theme==='dark'?DARK:LIGHT;
 const [showMiniMap,setShowMiniMap]=useState(false);
+const [gestureHelp,setGestureHelp]=useState(false);
 const [nodeActions,setNodeActions]=useState<string|null>(null);
 const [draftChildId,setDraftChildId]=useState<string|null>(null);
 const [readerTapAt,setReaderTapAt]=useState(0);
@@ -968,39 +972,19 @@ if(locked){
         </View>}
         {mapMenu&&(
           <View style={[styles.bottomSheet,{backgroundColor:palette.surface,borderColor:palette.border}]}>
-            <Button
-              label={overview?'Focus mode':'Overview'}
-              onPress={()=>{
-                setOverview(v=>!v);
-                setMapMenu(false);
-              }}
-            />
-            <Button label="Go to parent note" onPress={()=>{if(parent)moveTo(parent.id);setMapMenu(false);}}/>
+             <Button label="Go to parent note" onPress={()=>{if(parent)moveTo(parent.id);setMapMenu(false);}}/>
             <Button label="Center focused note" onPress={()=>{
               tx.value=withTiming(-scale.value*(focusPoint?.x||0));
               ty.value=withTiming(-scale.value*(focusPoint?.y||0));
               rotation.value=withTiming(0);
               setMapMenu(false);
             }}/>
-            <Button label="Reset rotation" onPress={()=>{rotation.value=withTiming(0);setMapMenu(false);}}/>
-            <Button label={showMiniMap?'Hide mini-map':'Show mini-map'} onPress={()=>{setShowMiniMap(v=>!v);setMapMenu(false);}}/>
+             <Button label={showMiniMap?'Hide mini-map':'Show mini-map'} onPress={()=>{setShowMiniMap(v=>!v);setMapMenu(false);}}/>
             <Button
               label="Export as PDF"
               onPress={()=>{setMapMenu(false);exportOne('pdf');}}
             />
-            <Button label="Gesture help" onPress={()=>{
-              setMapMenu(false);
-              Alert.alert('Map gesture guide',
-                'Tap: focus a node.\nDouble-tap: read a note.\nTriple-tap: edit a note.\nLong-press: note actions.\nDrag around a branch: rotate its children.\nTwo fingers: pinch to zoom or rotate the map.\nFit: frame the visible map.',
-                [{text:'Close'}]);
-            }}/>
-            <Button
-              label="App lock & settings"
-              onPress={()=>{
-                setSettings(true);
-                setMapMenu(false);
-              }}
-            />
+            <Button label="Gesture help" onPress={()=>{setGestureHelp(true);setMapMenu(false);}}/>
           </View>
         )}
 
@@ -1052,19 +1036,20 @@ if(locked){
             </Animated.View>
             </View>
           </GestureDetector>
-          {!menu&&showMiniMap&&<View style={{position:'absolute',right:14,bottom:96,width:174,height:130,backgroundColor:palette.surface,borderColor:palette.border,borderWidth:1,borderRadius:16,overflow:'hidden',padding:8,elevation:3,zIndex:8}}><Text style={styles.muted}>Map overview · {completeMap.length} notes</Text><Svg width="100%" height={102} viewBox="0 0 1000 540" preserveAspectRatio="xMidYMid meet">{miniLines.map(l=><Line key={l.id} x1={l.x1*miniBounds.scale+miniBounds.dx} y1={l.y1*miniBounds.scale+miniBounds.dy} x2={l.x2*miniBounds.scale+miniBounds.dx} y2={l.y2*miniBounds.scale+miniBounds.dy} stroke={palette.connector} strokeWidth={2}/>)}{completeMap.map(v=><Circle key={v.note.id} cx={v.x*miniBounds.scale+miniBounds.dx} cy={v.y*miniBounds.scale+miniBounds.dy} r={v.note.id===focused?5:3.5} fill={v.note.id===focused?palette.accent:palette.muted}/>)}</Svg></View>}
+
           {!menu&&<Pressable accessibilityRole="button" accessibilityLabel="Add child note" onPress={()=>{setMapPrefs(p=>({...p,collapsed:{...p.collapsed,[focused]:false}}));addChild(focused);}} style={{position:'absolute',right:18,bottom:17,width:58,height:58,borderRadius:19,backgroundColor:palette.accent,alignItems:'center',justifyContent:'center',elevation:6,zIndex:9}}>
             <Text style={{color:'white',fontSize:32}}>+</Text>
           </Pressable>}
         </View>
 
-        {!menu&&<ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{flexDirection:'row',alignItems:'center',gap:8,paddingHorizontal:12,paddingVertical:6}}>
-                     <Button label="−" onPress={()=>{scale.value=withTiming(Math.max(preferredFit*1.1*0.1,preferredFit*1.1*(Math.round(scale.value/(preferredFit*1.1)*10)-1)/10));}}/>
-          <Button label="+" onPress={()=>{scale.value=withTiming(Math.min(preferredFit*1.1*2,preferredFit*1.1*(Math.round(scale.value/(preferredFit*1.1)*10)+1)/10));}}/>
-          <Text accessibilityLabel={`Zoom ${zoomPercent} percent`} style={{fontSize:12,fontWeight:"700",color:"#334155",minWidth:46,textAlign:"center",textAlignVertical:"center",alignSelf:"center",includeFontPadding:false}}>{zoomPercent}%</Text>
-          <Button label={mapPrefs.collapsed[focused]?'Expand branch':'Collapse branch'} onPress={()=>setMapPrefs(p=>({...p,collapsed:{...p.collapsed,[focused]:!p.collapsed[focused]}}))}/>
-          <Button label="Node color" onPress={()=>setMapPrefs(p=>{const palette=['#dbeafe','#dcfce7','#fef3c7','#fce7f3','#e9d5ff'];const current=p.colors[focused]||palette[0];return {...p,colors:{...p.colors,[focused]:palette[(palette.indexOf(current)+1)%palette.length]}};})}/>
-        </ScrollView>}
+        {!menu&&<View style={{height:56,flexDirection:'row',alignItems:'center',justifyContent:'space-around',paddingHorizontal:12,backgroundColor:palette.surface}}>
+          <IconButton label="−" accessibilityLabel="Zoom out" onPress={()=>{scale.value=withTiming(Math.max(preferredFit*1.1*0.1,preferredFit*1.1*(Math.round(scale.value/(preferredFit*1.1)*10)-1)/10));}}/>
+          <Text accessibilityLabel={`Zoom ${zoomPercent} percent`} style={{fontSize:13,fontWeight:"700",color:palette.text,minWidth:48,textAlign:"center"}}>{zoomPercent}%</Text>
+          <IconButton label="+" accessibilityLabel="Zoom in" onPress={()=>{scale.value=withTiming(Math.min(preferredFit*1.1*2,preferredFit*1.1*(Math.round(scale.value/(preferredFit*1.1)*10)+1)/10));}}/>
+          <IconButton label={mapPrefs.collapsed[focused]?'expandBranch':'collapseBranch'} accessibilityLabel={mapPrefs.collapsed[focused]?'Expand branch':'Collapse branch'} onPress={()=>setMapPrefs(p=>({...p,collapsed:{...p.collapsed,[focused]:!p.collapsed[focused]}}))}/>
+          <IconButton label="palette" accessibilityLabel="Node color" onPress={()=>setMapPrefs(p=>{const colors=['#dbeafe','#dcfce7','#fef3c7','#fce7f3','#e9d5ff'];const current=p.colors[focused]||colors[0];return {...p,colors:{...p.colors,[focused]:colors[(colors.indexOf(current)+1)%colors.length]}};})}/>
+        </View>}
+          {!menu&&showMiniMap&&<View style={{height:150,marginHorizontal:12,marginBottom:6,backgroundColor:palette.surface,borderColor:palette.border,borderWidth:1,borderRadius:16,overflow:'hidden',padding:10}}><Text style={styles.muted}>Map overview · {completeMap.length} notes</Text><Svg width="100%" height={118} viewBox="0 0 1000 540" preserveAspectRatio="xMidYMid meet">{miniLines.map(l=><Line key={l.id} x1={l.x1*miniBounds.scale+miniBounds.dx} y1={l.y1*miniBounds.scale+miniBounds.dy} x2={l.x2*miniBounds.scale+miniBounds.dx} y2={l.y2*miniBounds.scale+miniBounds.dy} stroke={palette.connector} strokeWidth={2}/>)}{completeMap.map(v=><Circle key={v.note.id} cx={v.x*miniBounds.scale+miniBounds.dx} cy={v.y*miniBounds.scale+miniBounds.dy} r={v.note.id===focused?5:3.5} fill={v.note.id===focused?palette.accent:palette.muted}/>)}</Svg></View>}
 
         {undoBatch&&(
           <View style={styles.toolbar}>
@@ -1080,6 +1065,15 @@ if(locked){
             />
           </View>
         )}
+        <Modal visible={gestureHelp} transparent animationType="fade" onRequestClose={()=>setGestureHelp(false)}>
+          <View style={{flex:1,justifyContent:'flex-end',backgroundColor:'rgba(0,0,0,0.35)'}}>
+            <View style={{backgroundColor:palette.surface,borderTopLeftRadius:24,borderTopRightRadius:24,padding:20,gap:12}}>
+              <Text style={[styles.section,{color:palette.text}]}>Map gestures</Text>
+              <Text style={{color:palette.text,fontSize:15,lineHeight:24}}>Tap to focus a node.{"\n"}Double-tap to read.{"\n"}Triple-tap to edit.{"\n"}Long-press for note actions.{"\n"}Drag around a branch to rotate children.{"\n"}Use two fingers to zoom or rotate the map.{"\n"}Fit shows the visible map.</Text>
+              <Button label="Close" onPress={()=>setGestureHelp(false)}/>
+            </View>
+          </View>
+        </Modal>
         <Modal
           visible={exportKind!==null}
           transparent
@@ -1402,7 +1396,7 @@ if(locked){
                   <Button label="B" onPress={()=>applyNoteFormat('bold')}/>
                   <Button label="I" onPress={()=>applyNoteFormat('italic')}/>
                   <Button label="☐ List" onPress={()=>applyNoteFormat('checklist')}/>
-                  <Button label="Note color" onPress={()=>setColorTarget('note')}/>
+                  <IconButton label="palette" accessibilityLabel="Note color" onPress={()=>setColorTarget('note')}/>
                 </View>
               </KeyboardAvoidingView>
             ):(
