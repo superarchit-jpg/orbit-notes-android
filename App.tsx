@@ -1747,7 +1747,7 @@ if(locked){
                 <TextInput
                   style={[
                     styles.input,
-                    {flex:1}
+                    {minHeight:52,width:'100%',backgroundColor:palette.background,color:palette.text,borderColor:palette.border}
                   ]}
                   value={folderName}
                   onChangeText={setFolderName}
