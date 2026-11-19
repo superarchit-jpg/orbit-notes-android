@@ -1209,26 +1209,30 @@ if(locked){
 
             <View style={{backgroundColor:palette.surface,borderColor:palette.border,borderWidth:1,borderRadius:20,padding:16,gap:12}}>
               <Text style={[styles.section,{color:palette.text}]}>Appearance</Text>
-              <Button label={mapPrefs.theme==='dark'?'☾  Dark theme':'☼  Light theme'} onPress={()=>setMapPrefs(p=>({...p,theme:p.theme==='dark'?'light':'dark'}))}/>
+              <Button label="Light" active={mapPrefs.themeMode==='light'} onPress={()=>setMapPrefs(p=>({...p,themeMode:'light',theme:'light'}))}/>
+               <Button label="Dark" active={mapPrefs.themeMode==='dark'} onPress={()=>setMapPrefs(p=>({...p,themeMode:'dark',theme:'dark'}))}/>
+               <Button label="Follow system" active={mapPrefs.themeMode==='system'} onPress={()=>setMapPrefs(p=>({...p,themeMode:'system'}))}/>
               <Text style={[styles.muted,{color:palette.muted}]}>Your choice is saved on this device.</Text>
             </View>
             <View style={{backgroundColor:palette.surface,borderColor:palette.border,borderWidth:1,borderRadius:20,padding:16,gap:12}}>
             {!pinConfigured?(
               <>
                 <Text style={[styles.section,{color:palette.text}]}>
-                  Enable optional PIN lock
+                  Enable optional app lock
                 </Text>
+                <View style={styles.wrap}><Button label="Numeric PIN" active={credentialType==='pin'} onPress={()=>setCredentialType('pin')}/><Button label="Alphanumeric password" active={credentialType==='password'} onPress={()=>setCredentialType('password')}/></View>
                 <TextInput
                   secureTextEntry
-                  keyboardType="number-pad"
+                  keyboardType={credentialType==='pin'?'number-pad':'default'}
+                  autoCapitalize="none"
                   maxLength={12}
                   value={pinSetup}
                   onChangeText={setPinSetup}
-                  placeholder="Choose a 6–12 digit PIN"
+                  placeholder={credentialType==='pin'?'Choose a 4–6 digit PIN':'Choose a 6–12 character password'}
                   style={[styles.input,{backgroundColor:palette.background,color:palette.text,borderColor:palette.border}]}
                 />
                 <Button
-                  label="Enable PIN lock"
+                  label="Enable app lock"
                   primary
                   onPress={enablePin}
                 />
@@ -1265,13 +1269,16 @@ if(locked){
                     }
                   }}
                 />
-                <Button label={pinLockEnabled?'Disable PIN lock':'Enable PIN lock'} onPress={pinLockEnabled?disablePin:enablePin}/>
-                <Button label="Change PIN" onPress={()=>{setPinAction('change');setPinOld('');setPinNew('');}}/>
+                <Button label={pinLockEnabled?'Disable app lock':'Enable app lock'} onPress={pinLockEnabled?disablePin:enablePin}/>
+                <Button label="Change PIN / password" onPress={()=>{setPinAction('change');setPinOld('');setPinNew('');}}/>
                 <Button label="Delete stored PIN" danger onPress={()=>{setPinAction('delete');setPinOld('');setPinNew('');}}/>
                 {pinAction&&<View style={{gap:10}}>
-                  <Text style={{color:palette.text,fontWeight:'700'}}>{pinAction==='change'?'Change stored PIN':'Delete stored PIN'}</Text>
-                  <TextInput accessibilityLabel="Current PIN" secureTextEntry keyboardType="number-pad" placeholder="Current PIN" value={pinOld} onChangeText={setPinOld} maxLength={12} style={[styles.input,{color:palette.text,borderColor:palette.border}]}/>
-                  {pinAction==='change'&&<TextInput accessibilityLabel="New PIN" secureTextEntry keyboardType="number-pad" placeholder="New 6–12 digit PIN" value={pinNew} onChangeText={setPinNew} maxLength={12} style={[styles.input,{color:palette.text,borderColor:palette.border}]}/>}
+                  <Text style={{color:palette.text,fontWeight:'700'}}>{pinAction==='change'?'Change credentials':'Delete stored credentials'}</Text>
+                  <TextInput accessibilityLabel="Current credential" secureTextEntry keyboardType={storedCredentialType==='pin'?'number-pad':'default'} autoCapitalize="none" placeholder="Current PIN or password" value={pinOld} onChangeText={setPinOld} maxLength={12} style={[styles.input,{color:palette.text,borderColor:palette.border}]}/>
+                  {pinAction==='change'&&<View style={{gap:8}}>
+                    <View style={styles.wrap}><Button label="Numeric PIN" active={credentialType==='pin'} onPress={()=>setCredentialType('pin')}/><Button label="Alphanumeric password" active={credentialType==='password'} onPress={()=>setCredentialType('password')}/></View>
+                    <TextInput accessibilityLabel="New credential" secureTextEntry keyboardType={credentialType==='pin'?'number-pad':'default'} autoCapitalize="none" placeholder={credentialType==='pin'?'New 4–6 digit PIN':'New 6–12 character password'} value={pinNew} onChangeText={setPinNew} maxLength={12} style={[styles.input,{color:palette.text,borderColor:palette.border}]}/>
+                  </View>}
                   <Button label={pinAction==='change'?'Save new PIN':'Confirm PIN deletion'} danger={pinAction==='delete'} primary={pinAction==='change'} onPress={()=>{
                     if(pinAction==='delete')Alert.alert('Delete your stored PIN?','PIN and biometric unlock settings will be erased.',[{text:'Cancel'},{text:'Delete PIN',style:'destructive',onPress:confirmPinChange}]);
                     else confirmPinChange();
