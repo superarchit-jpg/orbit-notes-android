@@ -2,7 +2,7 @@ import * as SQLite from 'expo-sqlite';
 import type {Note} from './export';
 import type {TrashBatch} from './trash';
 export type Folder={id:string;name:string};
-export type LocalSnapshot={notes:Note[];folders:Folder[];trash:TrashBatch[];focused:string};
+export type LocalSnapshot={notes:Note[];folders:Folder[];trash:TrashBatch[];focused:string;mapPreferences?:MapPreferences};
 const DB_NAME='orbit-notes.db';
 let database:Promise<SQLite.SQLiteDatabase>|undefined;
 let writeQueue:Promise<void>=Promise.resolve();
@@ -26,6 +26,7 @@ export function assertSnapshot(s:LocalSnapshot):void{
  if(!s||!Array.isArray(s.notes)||!Array.isArray(s.folders)||!Array.isArray(s.trash)||typeof s.focused!=='string')throw new Error('Invalid notebook snapshot');
  const ids=new Set<string>();
  for(const n of s.notes){if(!n||typeof n.id!=='string'||ids.has(n.id)||typeof n.title!=='string'||typeof n.body!=='string'||typeof n.updatedAt!=='number'||(n.parentId!==null&&typeof n.parentId!=='string'))throw new Error('Invalid or duplicate note');ids.add(n.id);}
+ if(s.mapPreferences && (typeof s.mapPreferences!=='object'||!s.mapPreferences.colors||!s.mapPreferences.cardColors||!s.mapPreferences.noteColors))throw new Error('Invalid map appearance preferences');
  if(!ids.has('root'))throw new Error('Notebook root missing');
  for(const n of s.notes)if(n.parentId!==null&&!ids.has(n.parentId))throw new Error('Note parent missing');
  if(!ids.has(s.focused))throw new Error('Focused note missing');
