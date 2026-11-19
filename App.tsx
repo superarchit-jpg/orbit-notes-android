@@ -22,20 +22,25 @@ const initial:Note[]=[{id:'root',parentId:null,title:'My Notes',body:'',updatedA
 type Folder={id:string;name:string};
 const stamp=(t:number)=>new Date(t).toLocaleString();
 const id=()=>`${Date.now()}-${Math.random().toString(36).slice(2,8)}`;
+const LIGHT={background:'#fff8f5',surface:'#fffdfb',control:'#f5e9e4',text:'#362722',muted:'#755d55',border:'#e7cfc7',accent:'#b65e4d',canvas:'#fff9f6',node:'#fce7df',subnode:'#f7eee9',connector:'#bba69c'};
+const DARK={background:'#171414',surface:'#282222',control:'#403331',text:'#f9ece7',muted:'#c7aea5',border:'#69534c',accent:'#eda28f',canvas:'#211b1b',node:'#4a3734',subnode:'#3b3332',connector:'#a58c83'};
+const PaletteContext=React.createContext(LIGHT);
+const CARD_PALETTE=['#fffdfb','#fce7df','#fff3c9','#e8f3dd','#e6ecfc','#f5e6f4'];
 
-const Button=({label,onPress,primary=false,danger=false}:{label:string;onPress:()=>void;primary?:boolean;danger?:boolean})=><Pressable accessibilityRole="button" accessibilityLabel={label} onPress={onPress} style={[styles.button,primary&&styles.primary,danger&&styles.danger]}><Text style={[styles.buttonText,(primary||danger)&&{color:'white'}]}>{label==='🗑'?<Svg width={23} height={23} viewBox="0 0 24 24"><Line x1={4} y1={7} x2={20} y2={7} stroke="#dc2626" strokeWidth={1.8}/><Line x1={9} y1={4} x2={15} y2={4} stroke="#dc2626" strokeWidth={1.8}/><Rect x={6} y={7} width={12} height={14} rx={2} stroke="#dc2626" strokeWidth={1.8} fill="none"/><Line x1={10} y1={11} x2={10} y2={17} stroke="#dc2626" strokeWidth={1.5}/><Line x1={14} y1={11} x2={14} y2={17} stroke="#dc2626" strokeWidth={1.5}/></Svg>:label}</Text></Pressable>;
+const Button=({label,onPress,primary=false,danger=false}:{label:string;onPress:()=>void;primary?:boolean;danger?:boolean})=>{const palette=React.useContext(PaletteContext);return <Pressable accessibilityRole="button" accessibilityLabel={label} onPress={onPress} style={[styles.button,{backgroundColor:palette.control},primary&&styles.primary,danger&&styles.danger]}><Text style={[styles.buttonText,{color:palette.text},(primary||danger)&&{color:'white'}]}>{label==='🗑'?<Svg width={23} height={23} viewBox="0 0 24 24"><Line x1={4} y1={7} x2={20} y2={7} stroke="#dc2626" strokeWidth={1.8}/><Line x1={9} y1={4} x2={15} y2={4} stroke="#dc2626" strokeWidth={1.8}/><Rect x={6} y={7} width={12} height={14} rx={2} stroke="#dc2626" strokeWidth={1.8} fill="none"/><Line x1={10} y1={11} x2={10} y2={17} stroke="#dc2626" strokeWidth={1.5}/><Line x1={14} y1={11} x2={14} y2={17} stroke="#dc2626" strokeWidth={1.5}/></Svg>:label}</Text></Pressable>;}
 
 const Upright=({angle,children}:{angle:SharedValue<number>;children:React.ReactNode})=>{
   const style=useAnimatedStyle(()=>({transform:[{rotateZ:`${-angle.value}rad`}]}));
   return <Animated.View style={[{alignItems:'center',justifyContent:'center'},style]}>{children}</Animated.View>;
 };
 
-const IconButton=({label,onPress,danger=false,accessibilityLabel}:{label:string;onPress:()=>void;danger?:boolean;accessibilityLabel?:string})=><Pressable accessibilityRole="button" accessibilityLabel={accessibilityLabel||label} onPress={onPress} style={{minWidth:48,minHeight:48,paddingHorizontal:10,paddingVertical:10,alignItems:'center',justifyContent:'center'}}>{label==='🗑'?<Svg width={23} height={23} viewBox="0 0 24 24"><Line x1={4} y1={7} x2={20} y2={7} stroke="#dc2626" strokeWidth={1.8}/><Line x1={9} y1={4} x2={15} y2={4} stroke="#dc2626" strokeWidth={1.8}/><Rect x={6} y={7} width={12} height={14} rx={2} stroke="#dc2626" strokeWidth={1.8} fill="none"/><Line x1={10} y1={11} x2={10} y2={17} stroke="#dc2626" strokeWidth={1.5}/><Line x1={14} y1={11} x2={14} y2={17} stroke="#dc2626" strokeWidth={1.5}/></Svg>:<Text style={{fontSize:23,color:danger?'#dc2626':'#1e293b'}}>{label}</Text>}</Pressable>;
+const IconButton=({label,onPress,danger=false,accessibilityLabel}:{label:string;onPress:()=>void;danger?:boolean;accessibilityLabel?:string})=>{const palette=React.useContext(PaletteContext);return <Pressable accessibilityRole="button" accessibilityLabel={accessibilityLabel||label} onPress={onPress} style={{minWidth:48,minHeight:48,paddingHorizontal:10,paddingVertical:10,alignItems:'center',justifyContent:'center'}}>{label==='🗑'?<Svg width={23} height={23} viewBox="0 0 24 24"><Line x1={4} y1={7} x2={20} y2={7} stroke="#dc2626" strokeWidth={1.8}/><Line x1={9} y1={4} x2={15} y2={4} stroke="#dc2626" strokeWidth={1.8}/><Rect x={6} y={7} width={12} height={14} rx={2} stroke="#dc2626" strokeWidth={1.8} fill="none"/><Line x1={10} y1={11} x2={10} y2={17} stroke="#dc2626" strokeWidth={1.5}/><Line x1={14} y1={11} x2={14} y2={17} stroke="#dc2626" strokeWidth={1.5}/></Svg>:<Text style={{fontSize:23,color:danger?'#dc2626':palette.text}}>{label}</Text>}</Pressable>;}
 
 export default function App(){
 const [notes,setNotes]=useState<Note[]>(initial),[folders,setFolders]=useState<Folder[]>([]),[focused,setFocused]=useState('root'),[overview,setOverview]=useState(false),[menu,setMenu]=useState(true),[reader,setReader]=useState<string|null>(null),[editing,setEditing]=useState(false),[title,setTitle]=useState(''),[body,setBody]=useState(''),[folderName,setFolderName]=useState(''),[creatingFolder,setCreatingFolder]=useState(false),[selected,setSelected]=useState<string[]>([]),[folderFilter,setFolderFilter]=useState<string|null>(null),[loaded,setLoaded]=useState(false),[storageError,setStorageError]=useState<string|null>(null),[trash,setTrash]=useState<TrashBatch[]>([]),[showTrash,setShowTrash]=useState(false),[undoBatch,setUndoBatch]=useState<string|null>(null);
 
 const [mapPrefs,setMapPrefs]=useState(emptyMapPreferences);
+const palette=mapPrefs.theme==='dark'?DARK:LIGHT;
 const [showMiniMap,setShowMiniMap]=useState(false);
 const [nodeActions,setNodeActions]=useState<string|null>(null);
 const [draftChildId,setDraftChildId]=useState<string|null>(null);
@@ -578,8 +583,8 @@ const node=(n:Note,x:number,y:number,level:number)=>{
           borderRadius:size/2,
           left:touchMargin,
           top:touchMargin,
-          backgroundColor:mapPrefs.colors[n.id]|| (n.id===focused?'#b65e4d':level<=1?'#fce7df':'#f7eee9'),
-          borderColor:n.id===focused?'#a84e3d':'#d6b7ac'
+          backgroundColor:mapPrefs.colors[n.id]|| (n.id===focused?palette.accent:level<=1?palette.node:palette.subnode),
+          borderColor:n.id===focused?palette.accent:palette.border
         }
       ]}>
         <Upright angle={rotation}>
@@ -588,7 +593,7 @@ const node=(n:Note,x:number,y:number,level:number)=>{
             style={[
               styles.nodeTitle,
               {
-                color:n.id===focused&&!mapPrefs.colors[n.id]?'#ffffff':'#563f38',
+                color:n.id===focused&&!mapPrefs.colors[n.id]?'#ffffff':palette.text,
                 fontSize:level>=2?14:16
               }
             ]}
@@ -597,7 +602,7 @@ const node=(n:Note,x:number,y:number,level:number)=>{
           </Text>
           {Boolean(n.body.trim())&&(
             <Text style={{
-              color:n.id===focused&&!mapPrefs.colors[n.id]?'#fff0e9':'#986b60',
+              color:n.id===focused&&!mapPrefs.colors[n.id]?'#fff0e9':palette.muted,
               fontSize:15
             }}>≡</Text>
           )}
@@ -827,10 +832,11 @@ if(locked){
   );
 }
   return (
+  <PaletteContext.Provider value={palette}>
   <SafeAreaProvider>
     <GestureHandlerRootView style={{flex:1}}>
-      <SafeAreaView style={styles.screen}>
-        <StatusBar barStyle="dark-content"/>
+      <SafeAreaView style={[styles.screen,{backgroundColor:palette.background}]}>
+        <StatusBar barStyle={mapPrefs.theme==='dark'?'light-content':'dark-content'}/>
 
         <View style={[
           styles.header,
@@ -904,7 +910,7 @@ if(locked){
         )}
 
         <View
-          style={styles.canvas}
+          style={[styles.canvas,{backgroundColor:palette.canvas}]}
           onLayout={e=>{
             setCanvasW(e.nativeEvent.layout.width);
             setCanvasH(e.nativeEvent.layout.height);
@@ -926,7 +932,7 @@ if(locked){
               {lines.map(l=>{
                 const dx=l.x2-l.x1,dy=l.y2-l.y1;
                 const length=Math.hypot(dx,dy);
-                return <View key={l.id} pointerEvents="none" style={{position:'absolute',left:(l.x1+l.x2)/2-length/2,top:(l.y1+l.y2)/2-1,width:length,height:2,backgroundColor:'#bba69c',transform:[{rotate:`${Math.atan2(dy,dx)}rad`}]}}/>;
+                return <View key={l.id} pointerEvents="none" style={{position:'absolute',left:(l.x1+l.x2)/2-length/2,top:(l.y1+l.y2)/2-1,width:length,height:2,backgroundColor:palette.connector,transform:[{rotate:`${Math.atan2(dy,dx)}rad`}]}}/>;
               })}
               {visible.map(({note,x,y,level})=>
                 node(note,x,y,level)
@@ -942,8 +948,8 @@ if(locked){
                     style={{position:'absolute',left:ind.x-17,top:ind.y-17,width:34,height:34,
                       alignItems:'center',justifyContent:'center',zIndex:20}}>
                     <View pointerEvents="none" style={{width:22,height:22,borderRadius:11,
-                      borderWidth:1.5,borderColor:'#c69b8f',
-                      backgroundColor:mapPrefs.colors[ind.note.id]||'#fce7df'}}/>
+                      borderWidth:1.5,borderColor:palette.border,
+                      backgroundColor:mapPrefs.colors[ind.note.id]||palette.node}}/>
                   </Pressable>
                 </GestureDetector>
               )}
@@ -962,7 +968,7 @@ if(locked){
           <Button label={mapPrefs.collapsed[focused]?'Expand branch':'Collapse branch'} onPress={()=>setMapPrefs(p=>({...p,collapsed:{...p.collapsed,[focused]:!p.collapsed[focused]}}))}/>
           <Button label="Node color" onPress={()=>setMapPrefs(p=>{const palette=['#dbeafe','#dcfce7','#fef3c7','#fce7f3','#e9d5ff'];const current=p.colors[focused]||palette[0];return {...p,colors:{...p.colors,[focused]:palette[(palette.indexOf(current)+1)%palette.length]}};})}/>
         </ScrollView>}
-        {!menu&&showMiniMap&&<View style={{height:310,marginHorizontal:14,marginBottom:6,backgroundColor:'#f8eeea',borderRadius:12,overflow:'hidden',padding:6}}><Text style={styles.muted}>Map overview · {completeMap.length} notes</Text><Svg width="100%" height={270} viewBox="0 0 1000 540" preserveAspectRatio="xMidYMid meet">{miniLines.map(l=><Line key={l.id} x1={l.x1*miniBounds.scale+miniBounds.dx} y1={l.y1*miniBounds.scale+miniBounds.dy} x2={l.x2*miniBounds.scale+miniBounds.dx} y2={l.y2*miniBounds.scale+miniBounds.dy} stroke="#bba69c" strokeWidth={2}/>)}{completeMap.map(v=><Circle key={v.note.id} cx={v.x*miniBounds.scale+miniBounds.dx} cy={v.y*miniBounds.scale+miniBounds.dy} r={v.note.id===focused?5:3.5} fill={v.note.id===focused?'#b65e4d':'#a58b81'}/>)}</Svg></View>}
+        {!menu&&showMiniMap&&<View style={{height:310,marginHorizontal:14,marginBottom:6,backgroundColor:palette.control,borderRadius:12,overflow:'hidden',padding:6}}><Text style={styles.muted}>Map overview · {completeMap.length} notes</Text><Svg width="100%" height={270} viewBox="0 0 1000 540" preserveAspectRatio="xMidYMid meet">{miniLines.map(l=><Line key={l.id} x1={l.x1*miniBounds.scale+miniBounds.dx} y1={l.y1*miniBounds.scale+miniBounds.dy} x2={l.x2*miniBounds.scale+miniBounds.dx} y2={l.y2*miniBounds.scale+miniBounds.dy} stroke={palette.connector} strokeWidth={2}/>)}{completeMap.map(v=><Circle key={v.note.id} cx={v.x*miniBounds.scale+miniBounds.dx} cy={v.y*miniBounds.scale+miniBounds.dy} r={v.note.id===focused?5:3.5} fill={v.note.id===focused?palette.accent:palette.muted}/>)}</Svg></View>}
         {undoBatch&&(
           <View style={styles.toolbar}>
             <Button
@@ -1308,7 +1314,7 @@ if(locked){
           animationType="slide"
           onRequestClose={()=>BackHandler.exitApp()}
         >
-          <InsetSafeAreaView style={styles.screen} edges={['top','bottom']}>
+          <InsetSafeAreaView style={[styles.screen,{backgroundColor:palette.background}]} edges={['top','bottom']}>
             <View style={styles.header}>
               <IconButton
                 label="☰"
@@ -1643,6 +1649,7 @@ if(locked){
       </SafeAreaView>
     </GestureHandlerRootView>
   </SafeAreaProvider>
+  </PaletteContext.Provider>
 );
 }
 
