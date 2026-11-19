@@ -1,5 +1,5 @@
 import React,{useEffect,useMemo,useState} from 'react';
-import {Alert,AppState,BackHandler,Dimensions,Modal,Pressable,ScrollView,StatusBar,StyleSheet,Text,TextInput,View} from 'react-native';
+import {Alert,AppState,BackHandler,Dimensions,KeyboardAvoidingView,Modal,Platform,Pressable,ScrollView,StatusBar,StyleSheet,Text,TextInput,View} from 'react-native';
 import Svg,{Line,Circle,Rect} from 'react-native-svg';
 import {SafeAreaProvider,SafeAreaView as InsetSafeAreaView} from 'react-native-safe-area-context';
 import {Gesture,GestureDetector,GestureHandlerRootView} from 'react-native-gesture-handler';
@@ -14,6 +14,7 @@ import * as FileSystem from 'expo-file-system/legacy';
 import {saveEncryptedBackup,selectBackupFile,decryptSelectedBackup} from './backup';
 import {radialLayout,overviewLayout} from './layout';
 import {TrashBatch,deleteBranches,restoreBatch,pruneTrash} from './trash';
+import {formatSelection,parseRichLine,toggleChecklistLine} from './noteFormatting';
 
 const SafeAreaView=InsetSafeAreaView;
 const W=Dimensions.get('window').width,H=Dimensions.get('window').height;
@@ -45,6 +46,7 @@ const [showMiniMap,setShowMiniMap]=useState(false);
 const [nodeActions,setNodeActions]=useState<string|null>(null);
 const [draftChildId,setDraftChildId]=useState<string|null>(null);
 const [readerTapAt,setReaderTapAt]=useState(0);
+const [textSelection,setTextSelection]=useState({start:0,end:0});
 const [librarySearch,setLibrarySearch]=useState('');
 const [zoomPercent,setZoomPercent]=useState(100);
 const [librarySort,setLibrarySort]=useState<'modified'|'title'|'created'>('modified');
@@ -201,18 +203,37 @@ const beginEdit=(target:string)=>{
 
 const saveEdit=()=>{
   if(!reader)return;
-  setNotes(ns=>{const updated=Date.now();const target=ns.find(n=>n.id===reader);let parentId=target?.parentId;const ancestorIds=new Set<string>();while(parentId&&parentId!=='root'){ancestorIds.add(parentId);parentId=ns.find(n=>n.id===parentId)?.parentId;}return ns.map(n=>n.id===reader?{...n,title:title.trim(),body,updatedAt:updated}:ancestorIds.has(n.id)?{...n,updatedAt:updated}:n);});
+  if(draftChildId===reader&&!title.trim()&&!body.trim()){
+    setNotes(ns=>ns.filter(n=>n.id!==reader));
+  }else{
+    setNotes(ns=>{const updated=Date.now();const target=ns.find(n=>n.id===reader);let parentId=target?.parentId;const ancestorIds=new Set<string>();while(parentId&&parentId!=='root'){ancestorIds.add(parentId);parentId=ns.find(n=>n.id===parentId)?.parentId;}return ns.map(n=>n.id===reader?{...n,title:title.trim(),body,updatedAt:updated}:ancestorIds.has(n.id)?{...n,updatedAt:updated}:n);});
+  }
   setEditing(false);
   setDraftChildId(null);
   setReader(null);
 };
 
 const cancelReader=()=>{
+  if(editing){saveEdit();return;}
   if(draftChildId)setNotes(ns=>ns.filter(n=>n.id!==draftChildId));
   setDraftChildId(null);
   setReader(null);
   setEditing(false);
 };
+
+// Debounced local autosave preserves edits if Android suspends the app.
+useEffect(()=>{
+  if(!loaded||!editing||!reader)return;
+  const targetId=reader;
+  const timer=setTimeout(()=>{
+    setNotes(ns=>{
+      const old=ns.find(n=>n.id===targetId);
+      if(!old||old.title===title.trim()&&old.body===body)return ns;
+      return ns.map(n=>n.id===targetId?{...n,title:title.trim(),body,updatedAt:Date.now()}:n);
+    });
+  },500);
+  return ()=>clearTimeout(timer);
+},[loaded,editing,reader,title,body]);
 
 const addChild=(parentId:string)=>{
   const newId=id();
@@ -631,6 +652,18 @@ const mapPreview=(root:Note)=>{
     </Svg>
   );
 };
+const applyNoteFormat=(kind:'bold'|'italic'|'checklist')=>setBody(value=>formatSelection(value,textSelection.start,textSelection.end,kind));
+const noteBodyView=(value:string)=>value.split('\n').map((line,index)=>{
+  const checklist=/^[☐☑] /.test(line);
+  const content=checklist?line.slice(2):line;
+  return <View key={index} style={{flexDirection:'row',alignItems:'flex-start',gap:8,minHeight:28}}>
+    {checklist&&<Pressable accessibilityRole="checkbox" accessibilityState={{checked:line.startsWith('☑')}} accessibilityLabel="Toggle checklist item" onPress={()=>{
+      if(!reader)return;
+      setNotes(ns=>ns.map(n=>n.id===reader?{...n,body:toggleChecklistLine(n.body,index),updatedAt:Date.now()}:n));
+    }}><Text style={{color:palette.text,fontSize:21}}>{line.slice(0,1)}</Text></Pressable>}
+    <Text style={{fontSize:17,lineHeight:27,color:palette.text,flexShrink:1}}>{parseRichLine(content).map((run,i)=><Text key={i} style={{fontWeight:run.bold?'700':'400',fontStyle:run.italic?'italic':'normal'}}>{run.text}</Text>)}</Text>
+  </View>;
+});
 const listNotes=notes.filter(n=>n.parentId==='root');
 const shown=listNotes.filter(n=>(!folderFilter||n.folderId===folderFilter)&&n.title.toLowerCase().includes(librarySearch.toLowerCase())).sort((a,b)=>Number(mapPrefs.pinned.includes(b.id))-Number(mapPrefs.pinned.includes(a.id))||(librarySort==='title'?a.title.localeCompare(b.title):librarySort==='created'?Number(a.id.split('-')[0])-Number(b.id.split('-')[0]):b.updatedAt-a.updatedAt));
 
@@ -1264,29 +1297,27 @@ if(locked){
         <Modal
           visible={!!reader}
           animationType="slide"
-          onRequestClose={()=>setReader(null)}
+          onRequestClose={cancelReader}
         >
           <SafeAreaView style={styles.screen}>
             <View style={styles.header}>
-              <Text style={styles.logo}>
-                {editing?'Edit note':'Read note'}
-              </Text>
+              <IconButton label="←" accessibilityLabel="Back to map" onPress={cancelReader}/>
               <View style={styles.wrap}>
                 {editing&&(
                   <Button
-                    label="Save"
+                    label="Done"
                     primary
                     onPress={saveEdit}
                   />
                 )}
-                {!editing&&<IconButton label="+" onPress={()=>reader&&addChild(reader)}/>}
-                {!editing&&<IconButton label="✎" onPress={()=>reader&&beginEdit(reader)}/>}
-                <IconButton label="×" accessibilityLabel={editing?'Cancel editing':'Close note'} onPress={cancelReader}/>
+                {!editing&&<IconButton label="+" accessibilityLabel="Add child note" onPress={()=>reader&&addChild(reader)}/>}
+                {!editing&&<IconButton label="✎" accessibilityLabel="Edit note" onPress={()=>reader&&beginEdit(reader)}/>}
+                <IconButton label="×" accessibilityLabel={editing?'Save and close note':'Close note'} onPress={cancelReader}/>
               </View>
             </View>
 
             {editing?(
-              <View style={styles.editor}>
+              <KeyboardAvoidingView behavior={Platform.OS==='ios'?'padding':undefined} style={[styles.editor,{backgroundColor:mapPrefs.noteColors[reader||'']||palette.background}]}>
                 <View style={styles.editorField}>
                   <Text style={styles.editorLabel}>Note title</Text>
                   <TextInput
@@ -1305,17 +1336,30 @@ if(locked){
                     multiline
                     value={body}
                     onChangeText={setBody}
+                    onSelectionChange={e=>setTextSelection(e.nativeEvent.selection)}
                     placeholder="Write your note..."
                   />
                 </View>
-              </View>
+                <View style={{flexDirection:'row',gap:8,alignItems:'center',flexWrap:'wrap'}}>
+                  <Button label="B" onPress={()=>applyNoteFormat('bold')}/>
+                  <Button label="I" onPress={()=>applyNoteFormat('italic')}/>
+                  <Button label="☐ List" onPress={()=>applyNoteFormat('checklist')}/>
+                  <Button label="Note color" onPress={()=>{
+                    if(!reader)return;
+                    setMapPrefs(p=>{
+                      const current=p.noteColors[reader]||CARD_PALETTE[0];
+                      return {...p,noteColors:{...p.noteColors,[reader]:CARD_PALETTE[(CARD_PALETTE.indexOf(current)+1)%CARD_PALETTE.length]}};
+                    });
+                  }}/>
+                </View>
+              </KeyboardAvoidingView>
             ):(
-              <ScrollView contentContainerStyle={styles.editor}>
+              <ScrollView contentContainerStyle={[styles.editor,{backgroundColor:mapPrefs.noteColors[reader||'']||palette.background}]}>
                 <Pressable onPress={()=>{const now=Date.now();if(now-readerTapAt<360&&reader)beginEdit(reader);setReaderTapAt(now);}}>
                   <Text style={styles.readerTitle}>{activeReader?.title}</Text>
                 </Pressable>
                 <Pressable onPress={()=>{const now=Date.now();if(now-readerTapAt<360&&reader)beginEdit(reader);setReaderTapAt(now);}}>
-                  <Text style={styles.readBody}>{activeReader?.body||'This note is empty.'}</Text>
+                  {activeReader?.body?<View style={{marginVertical:15,gap:3}}>{noteBodyView(activeReader.body)}</View>:<Text style={[styles.readBody,{color:palette.muted}]}>This note is empty.</Text>}
                 </Pressable>
                  <Text style={styles.muted}>Updated {activeReader?stamp(activeReader.updatedAt):''}</Text>
 
