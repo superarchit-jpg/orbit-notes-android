@@ -90,6 +90,25 @@ const [textSelection,setTextSelection]=useState({start:0,end:0});
 const [librarySearch,setLibrarySearch]=useState('');
 const [zoomPercent,setZoomPercent]=useState(100);
 const [librarySort,setLibrarySort]=useState<'modified'|'title'|'created'>('modified');
+type DialogAction={text:string;style?:string;onPress?:()=>void};
+const [appDialog,setAppDialog]=useState<{title:string;message?:string;buttons?:DialogAction[]}|null>(null);
+const showDialog=(title:string,message?:string,buttons?:DialogAction[])=>setAppDialog({title,message,buttons});
+const renderAppDialog=()=>(
+ <Modal visible={!!appDialog} transparent animationType="fade" onRequestClose={()=>setAppDialog(null)}>
+   <View style={{flex:1,justifyContent:'center',padding:24,backgroundColor:'rgba(0,0,0,0.5)'}}>
+     <Pressable style={StyleSheet.absoluteFill} accessibilityLabel="Close dialog" onPress={()=>setAppDialog(null)}/>
+     <View style={{backgroundColor:palette.surface,borderRadius:28,padding:24,gap:18}}>
+       <Text style={{fontSize:22,fontWeight:'600',color:palette.text}}>{appDialog?.title}</Text>
+       {!!appDialog?.message&&<Text style={{fontSize:15,lineHeight:23,color:palette.muted}}>{appDialog.message}</Text>}
+       <View style={[styles.wrap,{justifyContent:'flex-end'}]}>
+         {(appDialog?.buttons?.length?appDialog.buttons:[{text:'OK'}]).map((action,index)=>(
+           <Button key={index} label={action.text} danger={action.style==='destructive'} primary={action.style!=='cancel'&&action.style!=='destructive'} onPress={()=>{setAppDialog(null);action.onPress?.();}}/>
+         ))}
+       </View>
+     </View>
+   </View>
+ </Modal>
+);
 const [sortMenu,setSortMenu]=useState(false);
 const [showArchive,setShowArchive]=useState(false),[selectedTrash,setSelectedTrash]=useState<string[]>([]),[retentionNotice,setRetentionNotice]=useState(false);
 const [foldersExpanded,setFoldersExpanded]=useState(false);
@@ -156,12 +175,12 @@ useEffect(()=>{
 
 useEffect(()=>{
   if(!loaded||storageError)return;
-  saveSnapshot({notes,folders,focused,trash}).catch(e=>Alert.alert('Save failed',String(e)));
+  saveSnapshot({notes,folders,focused,trash}).catch(e=>showDialog('Save failed',String(e)));
 },[notes,folders,focused,trash,loaded,storageError]);
 
 useEffect(()=>{
   if(!loaded||storageError)return;
-  saveMapPreferences(mapPrefs).catch(e=>Alert.alert('Map preferences save failed',String(e)));
+  saveMapPreferences(mapPrefs).catch(e=>showDialog('Map preferences save failed',String(e)));
 },[mapPrefs,loaded,storageError]);
 
 useEffect(()=>{
@@ -187,7 +206,7 @@ const unlock=async()=>{
   try{
     const status=await lockStatus();
     if(Date.now()<status.blockedUntil){
-      Alert.alert('Try again later','Too many incorrect PIN attempts.');
+      showDialog('Try again later','Too many incorrect PIN attempts.');
       return;
     }
     const valid=await checkPin(pinInput);
@@ -196,9 +215,9 @@ const unlock=async()=>{
     setBlockedUntil(next.blockedUntil);
     setPinInput('');
     if(valid)setLocked(false);
-    else Alert.alert('Incorrect PIN',next.blockedUntil>Date.now()?'Try again in one minute.':'Please try again.');
+    else showDialog('Incorrect PIN',next.blockedUntil>Date.now()?'Try again in one minute.':'Please try again.');
   }catch(e){
-    Alert.alert('Unlock error',String(e));
+    showDialog('Unlock error',String(e));
   }
 };
 
@@ -208,45 +227,45 @@ const enablePin=async()=>{
     else {await setPin(pinSetup,credentialType);setPinConfigured(true);setStoredCredentialType(credentialType);}
     setPinLockEnabledState(true);
     setPinSetup('');
-    Alert.alert('App lock enabled','Your existing PIN will be required after leaving the app.');
+    showDialog('App lock enabled','Your existing PIN will be required after leaving the app.');
   }catch(e){
-    Alert.alert('Cannot enable PIN lock',String(e));
+    showDialog('Cannot enable PIN lock',String(e));
   }
 };
 
-const disablePin=()=>Alert.alert('Disable app lock?','Your PIN will remain saved. You can enable the lock again without resetting it.',[
+const disablePin=()=>showDialog('Disable app lock?','Your PIN will remain saved. You can enable the lock again without resetting it.',[
   {text:'Cancel'},
   {text:'Disable',style:'destructive',onPress:async()=>{
     try{
       await setPinLockEnabled(false);
       setPinLockEnabledState(false);
       setLocked(false);
-    }catch(e){Alert.alert('Unable to disable lock',String(e));}
+    }catch(e){showDialog('Unable to disable lock',String(e));}
   }}
 ]);
 const confirmPinChange=async()=>{
   try{
     const status=await lockStatus();
-    if(Date.now()<status.blockedUntil){Alert.alert('Try again later','PIN changes are temporarily blocked.');return;}
+    if(Date.now()<status.blockedUntil){showDialog('Try again later','PIN changes are temporarily blocked.');return;}
     const valid=await checkPin(pinOld);
     await recordPinAttempt(valid);
-    if(!valid){Alert.alert('Incorrect PIN','Enter your current PIN to continue.');return;}
+    if(!valid){showDialog('Incorrect PIN','Enter your current PIN to continue.');return;}
     if(pinAction==='change'){
       await setPin(pinNew,credentialType);
       setStoredCredentialType(credentialType);
       // Updating a PIN does not alter the existing enabled/disabled choice.
       await setPinLockEnabled(pinLockEnabled);
-      Alert.alert('PIN changed','Your updated PIN is stored on this device.');
+      showDialog('PIN changed','Your updated PIN is stored on this device.');
     }else if(pinAction==='delete'){
       await removePin();
       setPinConfigured(false);
       setPinLockEnabledState(false);
       setLocked(false);
       setBiometrics(false);
-      Alert.alert('PIN deleted','App lock is no longer configured.');
+      showDialog('PIN deleted','App lock is no longer configured.');
     }
     setPinOld('');setPinNew('');setPinAction(null);
-  }catch(e){Alert.alert('PIN change failed',String(e));}
+  }catch(e){showDialog('PIN change failed',String(e));}
 };
 
 const current=notes.find(n=>n.id===focused)||notes[0];
@@ -347,7 +366,7 @@ const deleteSelected=()=>{
   if(!ids.length)return;
   const result=deleteBranches(notes,ids);
   if(!result.batch.notes.length)return;
-  Alert.alert('Move to Recently Deleted',`Move ${result.batch.notes.length} note(s), including descendants, to Recently Deleted?`,[
+  showDialog('Move to Recently Deleted',`Move ${result.batch.notes.length} note(s), including descendants, to Recently Deleted?`,[
     {text:'Cancel',style:'cancel'},
     {text:'Move',style:'destructive',onPress:()=>{
       setNotes(result.remaining);
@@ -364,7 +383,7 @@ const removeBranch=(target:string)=>{
   if(target==='root')return;
   const result=deleteBranches(notes,[target]);
   if(!result.batch.notes.length)return;
-  Alert.alert('Delete note?','This note and all its descendants will go to Recently Deleted.',[
+  showDialog('Delete note?','This note and all its descendants will go to Recently Deleted.',[
     {text:'Cancel'},
     {text:'Delete',style:'destructive',onPress:()=>{
       setNotes(result.remaining);
@@ -380,7 +399,7 @@ const reparent=(target:string,direction:'up'|'down')=>{
   if(direction==='up'){
     const oldParent=notes.find(n=>n.id===note.parentId);
     if(!oldParent?.parentId){
-      Alert.alert('Already at top level');
+      showDialog('Already at top level');
       return;
     }
     setNotes(ns=>ns.map(n=>n.id===target?{
@@ -391,10 +410,10 @@ const reparent=(target:string,direction:'up'|'down')=>{
 
   const candidates=notes.filter(n=>n.parentId===note.parentId&&n.id!==target);
   if(!candidates.length){
-    Alert.alert('No sibling level','Create another note at this level before moving this note under it.');
+    showDialog('No sibling level','Create another note at this level before moving this note under it.');
     return;
   }
-  Alert.alert('Move under which note?',undefined,[
+  showDialog('Move under which note?',undefined,[
     ...candidates.slice(0,12).map(n=>({
       text:n.title||'Untitled',
       onPress:()=>setNotes(ns=>ns.map(x=>x.id===target?{
@@ -437,7 +456,7 @@ useEffect(()=>{
 
 const acknowledgeTrashRetention=()=>{
   const expired=trash.filter(b=>Date.now()-b.deletedAt>=7*86400000).length;
-  Alert.alert('Activate seven-day retention?',`${expired} deleted batch(es) older than seven days will be permanently removed. Restore important notes first.`,[
+  showDialog('Activate seven-day retention?',`${expired} deleted batch(es) older than seven days will be permanently removed. Restore important notes first.`,[
     {text:'Not yet',style:'cancel'},
     {text:'Activate and remove expired',style:'destructive',onPress:()=>{
       setTrash(b=>pruneTrash(b));setMapPrefs(p=>({...p,trashRetentionAcknowledged:true}));
@@ -450,9 +469,9 @@ const restoreSelectedTrash=()=>{
   let updated=notes;
   for(const b of trash.filter(b=>selectedTrash.includes(b.id)))updated=restoreBatch(updated,b);
   setNotes(updated);setTrash(t=>t.filter(b=>!selectedTrash.includes(b.id)));setSelectedTrash([]);
- }catch(e){Alert.alert('Cannot restore selection',String(e));}
+ }catch(e){showDialog('Cannot restore selection',String(e));}
 };
-const removeSelectedTrash=()=>Alert.alert('Delete selected permanently?', 'This cannot be undone.',[
+const removeSelectedTrash=()=>showDialog('Delete selected permanently?', 'This cannot be undone.',[
  {text:'Cancel',style:'cancel'},
  {text:'Delete forever',style:'destructive',onPress:()=>{setTrash(t=>t.filter(b=>!selectedTrash.includes(b.id)));setSelectedTrash([]);}}
 ]);
@@ -463,7 +482,7 @@ const restore=(batch:TrashBatch)=>{
     setTrash(t=>t.filter(b=>b.id!==batch.id));
     setUndoBatch(null);
   }catch(e){
-    Alert.alert('Restore unavailable',String(e));
+    showDialog('Restore unavailable',String(e));
   }
 };
 
@@ -836,8 +855,8 @@ const confirmExport=async()=>{
       try{
         for(const root of roots)files.push({uri:await exportPDF(root,notes),name:root.title});
         const count=await saveMultiplePDFsToAndroid(files);
-        if(count){setExportKind(null);Alert.alert('PDFs saved',`${count} separate PDF files saved to the selected folder.`);}
-        else Alert.alert('Save cancelled','No files were saved.');
+        if(count){setExportKind(null);showDialog('PDFs saved',`${count} separate PDF files saved to the selected folder.`);}
+        else showDialog('Save cancelled','No files were saved.');
       }finally{
         for(const file of files){try{await FileSystem.deleteAsync(file.uri,{idempotent:true});}catch{}}
       }
@@ -853,18 +872,18 @@ const confirmExport=async()=>{
 
     if(destination){
       setExportKind(null);
-      Alert.alert(
+      showDialog(
         'Saved to device',
         `${safeExportName(finalExportName,kind)} was saved to your chosen Android folder.`
       );
     }else{
-      Alert.alert(
+      showDialog(
         'Save cancelled',
         'No file was saved to external storage.'
       );
     }
   }catch(e){
-    Alert.alert('Export failed',String(e));
+    showDialog('Export failed',String(e));
   }finally{
     if(tempUri){
       try{
@@ -878,9 +897,9 @@ const confirmExport=async()=>{
 const runBackup=async()=>{
   if(!backupMode||backupBusy)return;
 
-  if(backupMode==='restore'&&!backupFile){Alert.alert('Choose a backup','Select a backup file before entering its password.');return;}
+  if(backupMode==='restore'&&!backupFile){showDialog('Choose a backup','Select a backup file before entering its password.');return;}
   if(backupPassword.length<12){
-    Alert.alert(
+    showDialog(
       'Password required',
       'Use at least 12 characters. You will need this password to restore your backup.'
     );
@@ -899,7 +918,7 @@ const runBackup=async()=>{
       if(saved){
         setBackupMode(null);
         setBackupPassword('');
-        Alert.alert(
+        showDialog(
           'Backup saved',
           'Keep your backup password safe. There is no password recovery.'
         );
@@ -920,14 +939,14 @@ const runBackup=async()=>{
         setBackupFile(null);
         setBackupPassword('');
         setSettings(false);
-        Alert.alert(
+        showDialog(
           'Restore complete',
           'The local notebook was replaced by the selected backup.'
         );
       }
     }
   }catch(e){
-    Alert.alert('Backup operation failed',String(e));
+    showDialog('Backup operation failed',String(e));
   }finally{
     setBackupBusy(false);
   }
@@ -992,7 +1011,7 @@ if(locked){
             if(await authenticateBiometric()){
               setLocked(false);
             }else{
-              Alert.alert(
+              showDialog(
                 'Unlock unsuccessful',
                 'Use your PIN to unlock.'
               );
@@ -1005,6 +1024,7 @@ if(locked){
         No account or internet connection is required.
         If you forget your PIN, recovery is not currently supported.
       </Text>
+    {renderAppDialog()}
     </SafeAreaView>
     </PaletteContext.Provider>
   );
@@ -1282,7 +1302,7 @@ if(locked){
                   onPress={async()=>{
                     try{
                       if(!biometrics&&!await biometricAvailable()){
-                        Alert.alert(
+                        showDialog(
                           'Unavailable',
                           'Set up device biometrics first.'
                         );
@@ -1291,7 +1311,7 @@ if(locked){
                       await setBiometricEnabled(!biometrics);
                       setBiometrics(!biometrics);
                     }catch(e){
-                      Alert.alert('Biometrics',String(e));
+                      showDialog('Biometrics',String(e));
                     }
                   }}
                 />
@@ -1306,7 +1326,7 @@ if(locked){
                     <TextInput accessibilityLabel="New credential" secureTextEntry keyboardType={credentialType==='pin'?'number-pad':'default'} autoCapitalize="none" placeholder={credentialType==='pin'?'New 4–6 digit PIN':'New 6–12 character password'} value={pinNew} onChangeText={setPinNew} maxLength={12} style={[styles.input,{color:palette.text,borderColor:palette.border}]}/>
                   </View>}
                   <Button label={pinAction==='change'?'Save new PIN':'Confirm PIN deletion'} danger={pinAction==='delete'} primary={pinAction==='change'} onPress={()=>{
-                    if(pinAction==='delete')Alert.alert('Delete your stored PIN?','PIN and biometric unlock settings will be erased.',[{text:'Cancel'},{text:'Delete PIN',style:'destructive',onPress:confirmPinChange}]);
+                    if(pinAction==='delete')showDialog('Delete your stored PIN?','PIN and biometric unlock settings will be erased.',[{text:'Cancel'},{text:'Delete PIN',style:'destructive',onPress:confirmPinChange}]);
                     else confirmPinChange();
                   }}/>
                   <Button label="Cancel PIN action" onPress={()=>{setPinAction(null);setPinOld('');setPinNew('');}}/>
@@ -1386,7 +1406,7 @@ if(locked){
               {backupMode==='restore'&&<>
                 <Button label={backupFile?'Change backup file':'Select backup file'} onPress={async()=>{
                   try{const file=await selectBackupFile();if(file){setBackupFile(file);setBackupPassword('');}}
-                  catch(e){Alert.alert('Backup selection failed',String(e));}
+                  catch(e){showDialog('Backup selection failed',String(e));}
                 }}/>
                 {backupFile&&<Text style={styles.muted}>{backupFile.name}</Text>}
               </>}
@@ -1418,7 +1438,7 @@ if(locked){
                   primary
                   onPress={()=>{
                     if(backupMode==='restore'){
-                      Alert.alert(
+                      showDialog(
                         'Replace your notebook?',
                         'This will overwrite all current notes on this device.',
                         [
@@ -1681,7 +1701,7 @@ if(locked){
                       <IconButton label="✎" accessibilityLabel={`Rename label ${f.name}`} onPress={()=>{
                         setEditingFolderId(f.id);setFolderName(f.name);setCreatingFolder(true);setSidebar(false);
                       }}/>
-                      <IconButton label="🗑" accessibilityLabel={`Delete label ${f.name}`} onPress={()=>Alert.alert('Delete label?',`Maps in "${f.name}" will remain available under All maps.`,[
+                      <IconButton label="🗑" accessibilityLabel={`Delete label ${f.name}`} onPress={()=>showDialog('Delete label?',`Maps in "${f.name}" will remain available under All maps.`,[
                         {text:'Cancel',style:'cancel'},
                         {text:'Delete label',style:'destructive',onPress:()=>{
                           setNotes(ns=>ns.map(n=>n.folderId===f.id?{...n,folderId:null}:n));
@@ -1820,7 +1840,7 @@ if(locked){
                       <Button
                         label="Delete forever"
                         danger
-                        onPress={()=>Alert.alert(
+                        onPress={()=>showDialog(
                           'Delete permanently?',
                           'These notes cannot be recovered.',
                           [
@@ -1929,6 +1949,7 @@ if(locked){
             </View>
           </View>
         </Modal>
+      {renderAppDialog()}
       </SafeAreaView>
     </GestureHandlerRootView>
   </SafeAreaProvider>
