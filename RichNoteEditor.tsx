@@ -31,7 +31,7 @@ const RichNoteEditor=forwardRef<RichNoteEditorHandle,Props>(function RichNoteEdi
   const html=useMemo(()=>{
     const safeContent=JSON.stringify(markupToHtml(original.current)).replace(/</g,'\\u003c');
     const color=/^#[0-9a-fA-F]{6}$/.test(textColor)?textColor:'#202124',background=/^#[0-9a-fA-F]{6}$/.test(backgroundColor)?backgroundColor:'#ffffff';
-    return `<!doctype html><html><head><meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no"/>
+    return `<!doctype html><html><head><meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; img-src data:; connect-src 'none'; form-action 'none'"/><meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no"/>
 <style>
 html,body{margin:0;padding:0;background:${background};color:${color};font-family:Roboto,"Arial",sans-serif;font-size:17px;line-height:1.6;overflow-wrap:anywhere}
 #editor{min-height:95vh;padding:12px 6px;outline:none;white-space:normal}
@@ -65,6 +65,7 @@ function block(node){
 function serialize(){return Array.from(editor.childNodes).map(block).join('\\n').replace(/\\n{3,}/g,'\\n\\n');}
 function send(){window.ReactNativeWebView.postMessage(JSON.stringify({type:'change',text:serialize()}));}
 editor.addEventListener('input',send);
+editor.addEventListener('paste',event=>{event.preventDefault();const value=event.clipboardData?.getData('text/plain')||'';document.execCommand('insertText',false,value);});
 document.addEventListener('message',e=>command(e.data));
 window.addEventListener('message',e=>command(e.data));
 function command(raw){let m;try{m=JSON.parse(raw);}catch{return;}if(m.type!=='format')return;
