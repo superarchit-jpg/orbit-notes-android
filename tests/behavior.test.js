@@ -3,7 +3,7 @@ const {execFileSync}=require('node:child_process');
 const fs=require('node:fs');const os=require('node:os');const path=require('node:path');const assert=require('node:assert/strict');
 const temp=fs.mkdtempSync(path.join(os.tmpdir(),'orbit-tests-'));
 try{
- execFileSync('tsc',['layout.ts','trash.ts','mapGeometry.ts','--module','commonjs','--target','es2020','--outDir',temp,'--skipLibCheck','--noEmitOnError','false'],{stdio:'pipe'});
+ execFileSync('tsc',['layout.ts','trash.ts','mapGeometry.ts','noteFormatting.ts','--module','commonjs','--target','es2020','--outDir',temp,'--skipLibCheck','--noEmitOnError','false'],{stdio:'pipe'});
 }catch(e){if(!fs.existsSync(path.join(temp,'layout.js')))throw e;}
 const {radialLayout,overviewLayout}=require(path.join(temp,'layout.js'));
 const {deleteBranches,restoreBatch,pruneTrash}=require(path.join(temp,'trash.js'));
@@ -30,4 +30,12 @@ for(let i=1;i<deepPositions.length;i++){
  assert.ok(clearance>=29.99,`insufficient connector clearance at level ${child.level}: ${clearance}`);
 }
 console.log('PASS: GEO-03 deep-level connector clearance');
+const {formatSelection,parseRichLine,toggleChecklistLine,plainNoteText}=require(path.join(temp,'noteFormatting.js'));
+assert.equal(formatSelection('hello world',0,5,'bold'),'**hello** world');
+assert.equal(formatSelection('hello world',0,5,'italic'),'*hello* world');
+assert.equal(formatSelection('one\\ntwo',0,7,'checklist'),'☐ one\\n☐ two');
+assert.deepEqual(parseRichLine('hello **bold** and *italic*').filter(x=>x.bold||x.italic).map(x=>x.text),['bold','italic']);
+assert.equal(toggleChecklistLine('☐ one\\n☐ two',1),'☐ one\\n☑ two');
+assert.equal(plainNoteText('**bold** *italic*'),'bold italic');
+console.log('PASS: local rich-text helpers and checklist behavior');
 console.log('PASS: executable layout and trash tests');
