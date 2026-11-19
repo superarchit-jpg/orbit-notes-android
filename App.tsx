@@ -1125,25 +1125,7 @@ if(locked){
           </View>
         </Modal>
 
-        <Modal visible={colorTarget!==null} transparent animationType="slide" onRequestClose={()=>setColorTarget(null)}>
-          <View style={{flex:1,justifyContent:'flex-end',backgroundColor:'rgba(0,0,0,0.35)'}}>
-            <View style={{padding:20,gap:16,borderTopLeftRadius:24,borderTopRightRadius:24,backgroundColor:palette.surface}}>
-              <Text style={[styles.section,{color:palette.text}]}>Choose {colorTarget==='cards'?'card':'note'} color</Text>
-              <View style={{flexDirection:'row',flexWrap:'wrap',gap:14}}>
-                {CARD_PALETTE.map((color,index)=><Pressable key={color} accessibilityRole="button" accessibilityLabel={index===0?'Default color':`Color ${index+1}`} onPress={()=>{
-                  if(colorTarget==='cards'){
-                    setMapPrefs(p=>({...p,cardColors:{...p.cardColors,...Object.fromEntries(selected.map(id=>[id,color]))}}));
-                    setSelected([]);
-                  }else if(reader){
-                    setMapPrefs(p=>({...p,noteColors:{...p.noteColors,[reader]:color}}));
-                  }
-                  setColorTarget(null);
-                }} style={{width:46,height:46,borderRadius:23,backgroundColor:color,borderWidth:2,borderColor:palette.border}}/>)}
-              </View>
-              <Button label="Cancel" onPress={()=>setColorTarget(null)}/>
-            </View>
-          </View>
-        </Modal>
+
         <Modal
           visible={settings}
           animationType="slide"
@@ -1770,6 +1752,25 @@ if(locked){
               <Text style={{fontSize:32,color:'white'}}>+</Text>
             </Pressable>}
           </InsetSafeAreaView>
+        </Modal>
+        <Modal visible={colorTarget!==null} transparent animationType="slide" onRequestClose={()=>setColorTarget(null)}>
+          <View style={{flex:1,justifyContent:'flex-end',backgroundColor:'rgba(0,0,0,0.35)'}}>
+            <View style={{padding:20,gap:16,borderTopLeftRadius:24,borderTopRightRadius:24,backgroundColor:palette.surface}}>
+              <Text style={[styles.section,{color:palette.text}]}>Choose {colorTarget==='cards'?'card':'note'} color</Text>
+              <View style={{flexDirection:'row',flexWrap:'wrap',gap:14}}>
+                {CARD_PALETTE.map((color,index)=><Pressable key={color} accessibilityRole="button" accessibilityLabel={index===0?'Default color':`Color ${index+1}`} onPress={()=>{
+                  if(colorTarget==='cards'){
+                    setMapPrefs(p=>({...p,cardColors:{...p.cardColors,...Object.fromEntries(selected.map(id=>[id,color]))}}));
+                    setSelected([]);
+                  }else if(reader){
+                    setMapPrefs(p=>({...p,noteColors:{...p.noteColors,[reader]:color}}));
+                  }
+                  setColorTarget(null);
+                }} style={{width:46,height:46,borderRadius:23,backgroundColor:color,borderWidth:2,borderColor:palette.border}}/>)}
+              </View>
+              <Button label="Cancel" onPress={()=>setColorTarget(null)}/>
+            </View>
+          </View>
         </Modal>
       </SafeAreaView>
     </GestureHandlerRootView>
