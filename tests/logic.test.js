@@ -160,11 +160,11 @@ console.log('PASS: Stage 3 approved UX control wiring');
 for (const marker of [
   'accessibilityLabel="Note title"',
   'accessibilityLabel="Note content"',
-  "accessibilityLabel={editing?'Cancel editing':'Close note'}",
+  "accessibilityLabel={editing?'Save and close note':'Close note'}",
   'styles.editorField',
   'styles.editorLabel',
   'No deleted notes. Notes moved here will appear for recovery.',
-  'No maps in this folder',
+  'No maps in this label',
   'No maps match this search.'
 ]) {
   check(app.includes(marker), `Missing approved UX-06 change: ${marker}`);
@@ -175,6 +175,20 @@ check(
   'UX-06 must retain existing save, close and restore operations'
 );
 console.log('PASS: Stage 3 UX-06 editor and empty-state wiring');
+
+for (const marker of [
+  'const LIGHT=','const DARK=','PaletteContext.Provider',
+  "mapPrefs.theme==='dark'",'const mapPreview=(root:Note)=>',
+  "mapPrefs.viewMode==='grid'&&mapPreview(n)",
+  'Change selected card colors',
+  'Filter ${f.name}', 'Create new map',
+  'FadeInLeft.duration(220)', "No maps in this label",
+  'formatSelection(value,textSelection.start',
+  'parseRichLine(content)', 'toggleChecklistLine(n.body,index)',
+  "onRequestClose={cancelReader}", "label=\"Note color\""
+]) check(app.includes(marker), `Missing approved Keep redesign wiring: ${marker}`);
+check(!app.includes('label="Reminders"')&&!app.includes('label="Archive"'),'Unapproved NAV-06 sections must remain absent');
+console.log('PASS: approved Keep-inspired redesign wiring');
 
 // Upright labels during rotation
 check(
