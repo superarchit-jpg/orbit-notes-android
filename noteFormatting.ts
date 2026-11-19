@@ -19,21 +19,26 @@ export function formatSelection(body:string,start:number,end:number,action:Forma
   const selected=body.slice(a,b);
   return body.slice(0,a)+marker+selected+marker+body.slice(b);
 }
-export function plainNoteText(text:string):string{
-  return text.replace(/\*\*([^*]+)\*\*/g,'$1').replace(/\*([^*]+)\*/g,'$1').replace(/__([^_]+)__/g,'$1');
-}
+/** Render combinations of bold, italic and underline while preserving unmatched markers as plain text. */
 export function parseRichLine(line:string):RichRun[]{
-  const result:RichRun[]=[];
-  const regex=/(\*\*[^*]+\*\*|\*[^*]+\*|__[^_]+__)/g;
-  let last=0,match:RegExpExecArray|null;
-  while((match=regex.exec(line))!==null){
-    if(match.index>last)result.push({text:line.slice(last,match.index),bold:false,italic:false,underline:false});
-    const bold=match[0].startsWith('**');
-    const underline=match[0].startsWith('__');
-    result.push({text:match[0].slice(bold||underline?2:1,bold||underline?-2:-1),bold,italic:!bold&&!underline,underline});
-    last=regex.lastIndex;
+  const runs:RichRun[]=[];
+  let bold=false,italic=false,underline=false;
+  let buffer='';
+  const emit=()=>{if(buffer){runs.push({text:buffer,bold,italic,underline});buffer='';}};
+  for(let i=0;i<line.length;){
+    const marker=line.startsWith('**',i)?'**':line.startsWith('__',i)?'__':line[i]==='*'?'*':null;
+    if(!marker){buffer+=line[i++];continue;}
+    const isOpen=marker==='**'?bold:marker==='__'?underline:italic;
+    if(!isOpen&&line.indexOf(marker,i+marker.length)===-1){buffer+=marker;i+=marker.length;continue;}
+    emit();
+    if(marker==='**')bold=!bold;
+    else if(marker==='__')underline=!underline;
+    else italic=!italic;
+    i+=marker.length;
   }
-  if(last<line.length)result.push({text:line.slice(last),bold:false,italic:false,underline:false});
-  return result.length?result:[{text:'',bold:false,italic:false,underline:false}];
+  emit();
+  return runs.length?runs:[{text:'',bold:false,italic:false,underline:false}];
 }
-
+export function plainNoteText(text:string):string{
+  return text.split('\n').map(line=>parseRichLine(line).map(run=>run.text).join('')).join('\n');
+}
