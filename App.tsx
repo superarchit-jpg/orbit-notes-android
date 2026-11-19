@@ -1538,16 +1538,7 @@ if(locked){
             )}
           </SafeAreaView>
         </Modal> 
-        <Modal visible={retentionNotice} transparent animationType="fade" onRequestClose={()=>{setRetentionNotice(false);setMapPrefs(p=>({...p,trashRetentionWarningSeen:true}));}}>
-          <View style={{flex:1,justifyContent:'center',padding:24,backgroundColor:'rgba(0,0,0,0.55)'}}>
-            <View style={{backgroundColor:palette.surface,padding:22,borderRadius:24,gap:16}}>
-              <Text style={[styles.section,{color:palette.text}]}>Recently Deleted policy update</Text>
-              <Text style={{color:palette.text}}>Deleted notes will be kept for seven days. Existing deleted notes older than seven days may be removed permanently after you activate the policy. Review and restore important notes first.</Text>
-              <Button label="Review Recently Deleted" primary onPress={()=>{setRetentionNotice(false);setMapPrefs(p=>({...p,trashRetentionWarningSeen:true}));setShowTrash(true);setShowArchive(false);setMenu(true);}}/>
-              <Button label="Later — keep existing items" onPress={()=>{setRetentionNotice(false);setMapPrefs(p=>({...p,trashRetentionWarningSeen:true}));}}/>
-            </View>
-          </View>
-        </Modal>
+        
         
 
         <Modal
@@ -1945,6 +1936,16 @@ if(locked){
               <Text style={{fontSize:32,color:'white'}}>+</Text>
             </Pressable>}
           </InsetSafeAreaView>
+        </Modal>
+        <Modal visible={retentionNotice} transparent animationType="fade" onRequestClose={()=>{setRetentionNotice(false);setMapPrefs(p=>({...p,trashRetentionWarningSeen:true}));}}>
+          <View style={{flex:1,justifyContent:'center',padding:24,backgroundColor:'rgba(0,0,0,0.55)'}}>
+            <View style={{backgroundColor:palette.surface,padding:22,borderRadius:24,gap:16}}>
+              <Text style={[styles.section,{color:palette.text}]}>Recently Deleted policy update</Text>
+              <Text style={{color:palette.text}}>Deleted notes will be kept for seven days. Existing deleted notes older than seven days may be removed permanently after you activate the policy. Review and restore important notes first.</Text>
+              <Button label="Review Recently Deleted" primary onPress={()=>{setRetentionNotice(false);setMapPrefs(p=>({...p,trashRetentionWarningSeen:true}));setShowTrash(true);setShowArchive(false);setMenu(true);}}/>
+              <Button label="Later — keep existing items" onPress={()=>{setRetentionNotice(false);setMapPrefs(p=>({...p,trashRetentionWarningSeen:true}));}}/>
+            </View>
+          </View>
         </Modal>
         <Modal visible={colorTarget!==null} transparent animationType="slide" onRequestClose={()=>setColorTarget(null)}>
           <View style={{flex:1,justifyContent:'flex-end',backgroundColor:'rgba(0,0,0,0.35)'}}>
