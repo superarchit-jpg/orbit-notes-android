@@ -1039,7 +1039,7 @@ if(locked){
           {ancestors.filter(n=>n.id!=='root').map((n,i)=><Pressable key={n.id} accessibilityRole="button" accessibilityLabel={`Focus ${n.title||'Untitled'}`} onPress={()=>moveTo(n.id)} style={{padding:8}}><Text style={{color:n.id===focused?'#1d4ed8':'#475569',fontWeight:n.id===focused?'800':'500'}}>{i?'› ':''}{n.title||'Untitled'}</Text></Pressable>)}
         </ScrollView>
         {(nodeActions||mapMenu)&&<Pressable accessibilityLabel="Close menu" onPress={()=>{setNodeActions(null);setMapMenu(false);}} style={[StyleSheet.absoluteFill,{zIndex:20,elevation:10}]}/>}
-        {nodeActions&&<View style={[styles.bottomSheet,{backgroundColor:palette.surface,borderColor:palette.border}]}>
+        {nodeActions&&<View style={[styles.bottomSheet,{backgroundColor:palette.surface,borderColor:palette.border,borderTopLeftRadius:24,borderTopRightRadius:24,padding:16,gap:8}]}>
           <Text style={{fontWeight:'800',color:'#334155'}} numberOfLines={2}>{notes.find(n=>n.id===nodeActions)?.title||'Note actions'}</Text>
           <Button label="Read note" onPress={()=>{openReader(nodeActions);setNodeActions(null);}}/>
           <Button label="Edit note" onPress={()=>{beginEdit(nodeActions);setNodeActions(null);}}/>
@@ -1526,10 +1526,16 @@ if(locked){
                 accessibilityLabel="Open folders and tools"
                 onPress={()=>setSidebar(v=>!v)}
               />
-              <View style={{flex:1,flexDirection:'row',alignItems:'center',backgroundColor:palette.control,borderRadius:26,marginHorizontal:8,paddingHorizontal:12,minHeight:48}}>
-                <Text style={{fontSize:20,color:palette.muted,marginRight:8}}>⌕</Text>
-                <TextInput accessibilityLabel="Search map titles" placeholder="Search Orbit Notes" placeholderTextColor={palette.muted} value={librarySearch} onChangeText={setLibrarySearch} style={{flex:1,fontSize:15,color:palette.text,paddingVertical:7}}/>
-              </View>
+              {selected.length===0?(
+                <View style={{flex:1,flexDirection:'row',alignItems:'center',backgroundColor:palette.control,borderRadius:26,marginHorizontal:6,paddingHorizontal:12,minHeight:48}}>
+                  <Text style={{fontSize:20,color:palette.muted,marginRight:8}}>⌕</Text>
+                  <TextInput accessibilityLabel="Search map titles" placeholder="Search Orbit Notes" placeholderTextColor={palette.muted} value={librarySearch} onChangeText={setLibrarySearch} style={{flex:1,fontSize:15,color:palette.text,paddingVertical:7}}/>
+                </View>
+              ):(
+                <View style={{flex:1,paddingHorizontal:10,minHeight:48,justifyContent:'center'}}>
+                  <Text style={{fontSize:21,fontWeight:'600',color:palette.text}}>{selected.length} selected</Text>
+                </View>
+              )}
               <View style={{
                 flexDirection:'row',
                 alignItems:'center'
