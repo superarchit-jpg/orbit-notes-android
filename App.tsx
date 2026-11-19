@@ -3,7 +3,7 @@ import {Alert,AppState,BackHandler,Dimensions,Modal,Pressable,ScrollView,StatusB
 import Svg,{Line,Circle,Rect} from 'react-native-svg';
 import {SafeAreaProvider,SafeAreaView as InsetSafeAreaView} from 'react-native-safe-area-context';
 import {Gesture,GestureDetector,GestureHandlerRootView} from 'react-native-gesture-handler';
-import Animated,{runOnJS,useAnimatedReaction,useAnimatedStyle,useSharedValue,withTiming} from 'react-native-reanimated';
+import Animated,{FadeInLeft,FadeOutLeft,runOnJS,useAnimatedReaction,useAnimatedStyle,useSharedValue,withTiming} from 'react-native-reanimated';
 import type {SharedValue} from 'react-native-reanimated';
 import {loadSnapshot,saveSnapshot,loadMapPreferences,saveMapPreferences,emptyMapPreferences} from './storage';
 import {radialTree,fitMap,pointSegmentDistance} from './mapGeometry';
@@ -27,7 +27,7 @@ const DARK={background:'#171414',surface:'#282222',control:'#403331',text:'#f9ec
 const PaletteContext=React.createContext(LIGHT);
 const CARD_PALETTE=['#fffdfb','#fce7df','#fff3c9','#e8f3dd','#e6ecfc','#f5e6f4'];
 
-const Button=({label,onPress,primary=false,danger=false}:{label:string;onPress:()=>void;primary?:boolean;danger?:boolean})=>{const palette=React.useContext(PaletteContext);return <Pressable accessibilityRole="button" accessibilityLabel={label} onPress={onPress} style={[styles.button,{backgroundColor:palette.control},primary&&styles.primary,danger&&styles.danger]}><Text style={[styles.buttonText,{color:palette.text},(primary||danger)&&{color:'white'}]}>{label==='🗑'?<Svg width={23} height={23} viewBox="0 0 24 24"><Line x1={4} y1={7} x2={20} y2={7} stroke="#dc2626" strokeWidth={1.8}/><Line x1={9} y1={4} x2={15} y2={4} stroke="#dc2626" strokeWidth={1.8}/><Rect x={6} y={7} width={12} height={14} rx={2} stroke="#dc2626" strokeWidth={1.8} fill="none"/><Line x1={10} y1={11} x2={10} y2={17} stroke="#dc2626" strokeWidth={1.5}/><Line x1={14} y1={11} x2={14} y2={17} stroke="#dc2626" strokeWidth={1.5}/></Svg>:label}</Text></Pressable>;}
+const Button=({label,onPress,primary=false,danger=false,active=false}:{label:string;onPress:()=>void;primary?:boolean;danger?:boolean;active?:boolean})=>{const palette=React.useContext(PaletteContext);return <Pressable accessibilityRole="button" accessibilityLabel={label} onPress={onPress} style={[styles.button,{backgroundColor:active?palette.accent:palette.control},primary&&styles.primary,danger&&styles.danger]}><Text style={[styles.buttonText,{color:palette.text},(primary||danger||active)&&{color:'white'}]}>{label==='🗑'?<Svg width={23} height={23} viewBox="0 0 24 24"><Line x1={4} y1={7} x2={20} y2={7} stroke="#dc2626" strokeWidth={1.8}/><Line x1={9} y1={4} x2={15} y2={4} stroke="#dc2626" strokeWidth={1.8}/><Rect x={6} y={7} width={12} height={14} rx={2} stroke="#dc2626" strokeWidth={1.8} fill="none"/><Line x1={10} y1={11} x2={10} y2={17} stroke="#dc2626" strokeWidth={1.5}/><Line x1={14} y1={11} x2={14} y2={17} stroke="#dc2626" strokeWidth={1.5}/></Svg>:label}</Text></Pressable>;}
 
 const Upright=({angle,children}:{angle:SharedValue<number>;children:React.ReactNode})=>{
   const style=useAnimatedStyle(()=>({transform:[{rotateZ:`${-angle.value}rad`}]}));
@@ -1387,14 +1387,14 @@ if(locked){
                   setSelectionMenu(false);
                 }}/>
                 <Button
-                  label="Move to existing folder"
+                  label="Move to existing label"
                   onPress={()=>{
                     setMoveFolderMenu(true);
                     setSelectionMenu(false);
                   }}
                 />
                 <Button
-                  label="Move to new folder"
+                  label="Move to new label"
                   onPress={()=>{
                     setCreatingFolder(true);
                     setMoveFolderMenu(true);
@@ -1407,7 +1407,7 @@ if(locked){
                 />
                 {selected.some(id=>notes.some(n=>n.id===id&&n.folderId!==null))&&(
                   <Button
-                    label="Remove from folder"
+                    label="Remove from label"
                     danger
                     onPress={()=>{
                       setNotes(ns=>ns.map(n=>selected.includes(n.id)&&n.folderId!==null?{...n,folderId:null,updatedAt:Date.now()}:n));
@@ -1440,10 +1440,10 @@ if(locked){
             )}
 
             {sidebar&&(
-              <View style={styles.sidebar}>
+              <Animated.View entering={FadeInLeft.duration(220)} exiting={FadeOutLeft.duration(160)} style={[styles.sidebar,{backgroundColor:palette.surface,borderRightColor:palette.border}]}>
                 <View style={styles.header}>
                   <Text style={styles.section}>
-                    Folders & tools
+                    Orbit Notes
                   </Text>
                   <IconButton
                     label="×"
@@ -1455,18 +1455,20 @@ if(locked){
                   gap:10
                 }}>
                   <Button
-                    label="All maps"
+                    label="◈  All maps"
+                    active={!showTrash&&!folderFilter}
                     onPress={()=>{
                       setFolderFilter(null);
                       setShowTrash(false);
                       setSidebar(false);setFoldersExpanded(false);
                     }}
                   />
-                  <Button label={foldersExpanded?'Folders ▾':'Folders ▸'} onPress={()=>setFoldersExpanded(v=>!v)}/>
+                  <Button label={foldersExpanded?'▾  Labels':'›  Labels'} onPress={()=>setFoldersExpanded(v=>!v)}/>
                   {foldersExpanded&&folders.map(f=>(
                     <Button
                       key={f.id}
-                      label={f.name}
+                      label={`◩  ${f.name}`}
+                      active={!showTrash&&folderFilter===f.id}
                       onPress={()=>{
                         setFolderFilter(f.id);
                         setShowTrash(false);
@@ -1475,20 +1477,21 @@ if(locked){
                     />
                   ))}
                   {foldersExpanded&&<Button
-                    label="+ Create folder"
+                    label="+ Create label"
                     onPress={()=>setCreatingFolder(true)}
                   />}
                   <Button
-                    label="Recently Deleted"
+                    label="▤  Recently Deleted"
+                    active={showTrash}
                     onPress={()=>{
                       setShowTrash(true);
                       setSidebar(false);setFoldersExpanded(false);
                       setSelected([]);
                     }}
                   />
-                  <Button label="Settings & app lock" onPress={()=>{setSettings(true);setSidebar(false);setFoldersExpanded(false);}}/>
+                  <Button label="⚙  Settings & app lock" onPress={()=>{setSettings(true);setSidebar(false);setFoldersExpanded(false);}}/>
                 </ScrollView>
-              </View>
+              </Animated.View>
             )}
 
             {creatingFolder&&(
@@ -1503,7 +1506,7 @@ if(locked){
                   ]}
                   value={folderName}
                   onChangeText={setFolderName}
-                  placeholder="Folder name"
+                  placeholder="Label name"
                 />
                 <Button
                   label="Create"
@@ -1661,8 +1664,8 @@ if(locked){
                   {shown.length===0&&(
                     <View style={{alignItems:'center',paddingVertical:48,paddingHorizontal:20,gap:12}}>
                       <Text style={{fontSize:34,color:'#64748b'}}>◎</Text>
-                      <Text style={[styles.listTitle,{textAlign:'center'}]}>{librarySearch.trim()?'No matching maps':folderFilter?'No maps in this folder':'Your library is ready'}</Text>
-                      <Text style={[styles.muted,{textAlign:'center'}]}>{librarySearch.trim()?'No maps match this search. Try different words or clear the search.':folderFilter?'Create a map in this folder, or move an existing map here from the library.':'Create your first map to start building your notes.'}</Text>
+                      <Text style={[styles.listTitle,{textAlign:'center'}]}>{librarySearch.trim()?'No matching maps':folderFilter?'No maps in this label':'Your library is ready'}</Text>
+                      <Text style={[styles.muted,{textAlign:'center'}]}>{librarySearch.trim()?'No maps match this search. Try different words or clear the search.':folderFilter?'Create a map in this label, or move an existing map here from the library.':'Create your first map to start building your notes.'}</Text>
                       {librarySearch.trim()?<Button label="Clear search" onPress={()=>setLibrarySearch('')}/>:<Button label="Create map" primary onPress={newMap}/>}
                     </View>
                   )}
@@ -1771,8 +1774,8 @@ const styles=StyleSheet.create({
     top:60,
     bottom:0,
     left:0,
-    width:'47%',
-    backgroundColor:'#f8fafc',
+    width:'82%',
+    backgroundColor:'#fffdfb',
     zIndex:40,
     elevation:20,
     borderRightWidth:1,
