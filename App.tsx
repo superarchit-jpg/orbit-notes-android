@@ -1199,9 +1199,9 @@ if(locked){
           }}>
             <Pressable accessibilityLabel="Close export dialog" onPress={()=>{if(!exportBusy)setExportKind(null);}} style={StyleSheet.absoluteFill}/>
             <View style={{
-              backgroundColor:'white',
-              padding:22,
-              borderRadius:18,
+              backgroundColor:palette.surface,
+               padding:22,
+               borderRadius:26,
               gap:14
             }}>
               <Text style={styles.section}>
@@ -1398,9 +1398,9 @@ if(locked){
           }}>
             <Pressable accessibilityLabel="Close backup dialog" onPress={()=>{if(!backupBusy){setBackupMode(null);setBackupFile(null);setBackupPassword('');}}} style={StyleSheet.absoluteFill}/>
             <View style={{
-              backgroundColor:'white',
-              padding:20,
-              borderRadius:18,
+              backgroundColor:palette.surface,
+               padding:20,
+               borderRadius:26,
               gap:14
             }}>
               <Text style={styles.section}>
