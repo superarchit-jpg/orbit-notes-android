@@ -2,6 +2,7 @@
 import React,{forwardRef,useImperativeHandle,useMemo,useRef} from 'react';
 import {View} from 'react-native';
 import WebView from 'react-native-webview';
+import {parseRichLine} from './noteFormatting';
 
 export type RichEditorAction='bold'|'italic'|'underline'|'bullets'|'numbers';
 export type RichNoteEditorHandle={format:(action:RichEditorAction)=>void};
@@ -9,7 +10,13 @@ export type RichEditorState={bold:boolean;italic:boolean;underline:boolean;bulle
 type Props={initialText:string;onChangeText:(text:string)=>void;onFormatStateChange?:(state:RichEditorState)=>void;dark:boolean;textColor:string;backgroundColor:string};
 
 const escapeHtml=(value:string)=>value.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
-const inlineHtml=(line:string)=>escapeHtml(line).replace(/\*\*([^*]+)\*\*/g,'<strong>$1</strong>').replace(/__([^_]+)__/g,'<u>$1</u>').replace(/\*([^*]+)\*/g,'<em>$1</em>');
+const inlineHtml=(line:string)=>parseRichLine(line).map(run=>{
+  let html=escapeHtml(run.text);
+  if(run.underline)html='<u>'+html+'</u>';
+  if(run.italic)html='<em>'+html+'</em>';
+  if(run.bold)html='<strong>'+html+'</strong>';
+  return html;
+}).join('');
 export function markupToHtml(body:string):string{
   const parts:string[]=[];let mode:'ul'|'ol'|null=null;
   const close=()=>{if(mode){parts.push('</'+mode+'>');mode=null;}};
