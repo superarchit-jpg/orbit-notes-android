@@ -3,6 +3,7 @@ import * as LocalAuthentication from 'expo-local-authentication';
 import * as Crypto from 'expo-crypto';
 
 const KEY='orbit.lock.pin.v1';
+const ENABLED='orbit.lock.enabled.v1';
 const BIO='orbit.lock.biometric.v1';
 const LIMIT='orbit.lock.attempts.v1';
 const PEPPER='orbit.lock.pepper.v1';
@@ -11,18 +12,29 @@ export async function recordPinAttempt(success:boolean):Promise<{attempts:number
 
 const hash=async(pin:string,salt:string,pepper:string)=>Crypto.digestStringAsync(Crypto.CryptoDigestAlgorithm.SHA256,`${salt}:${pin}:${pepper}`);
 export async function hasPin(){return !!(await SecureStore.getItemAsync(KEY));}
+/** Legacy installs with a stored PIN and no enabled flag remain locked. */
+export async function isPinLockEnabled(){
+  if(!await hasPin())return false;
+  const enabled=await SecureStore.getItemAsync(ENABLED);
+  return enabled===null||enabled==='yes';
+}
+export async function setPinLockEnabled(enabled:boolean){
+  if(enabled&&!await hasPin())throw new Error('Configure a PIN before enabling app lock');
+  await SecureStore.setItemAsync(ENABLED,enabled?'yes':'no');
+}
 export async function setPin(pin:string){
   if(!/^\d{6,12}$/.test(pin))throw new Error('PIN must be 6–12 digits');
   const salt=Crypto.randomUUID();
   const pepper=Crypto.randomUUID()+Crypto.randomUUID();
   await SecureStore.setItemAsync(PEPPER,pepper);
   await SecureStore.setItemAsync(KEY,JSON.stringify({salt,digest:await hash(pin,salt,pepper)}));
+  await SecureStore.setItemAsync(ENABLED,'yes');
 }
 export async function checkPin(pin:string){
   const raw=await SecureStore.getItemAsync(KEY);if(!raw)return false;
   const {salt,digest}=JSON.parse(raw);const pepper=await SecureStore.getItemAsync(PEPPER);if(!pepper)return false;return (await hash(pin,salt,pepper))===digest;
 }
-export async function removePin(){await SecureStore.deleteItemAsync(KEY);await SecureStore.deleteItemAsync(BIO);await SecureStore.deleteItemAsync(LIMIT);await SecureStore.deleteItemAsync(PEPPER);}
+export async function removePin(){await SecureStore.deleteItemAsync(ENABLED);await SecureStore.deleteItemAsync(KEY);await SecureStore.deleteItemAsync(BIO);await SecureStore.deleteItemAsync(LIMIT);await SecureStore.deleteItemAsync(PEPPER);}
 export async function biometricEnabled(){return (await SecureStore.getItemAsync(BIO))==='yes';}
 export async function setBiometricEnabled(enabled:boolean){
   if(enabled && !(await biometricAvailable()))throw new Error('Biometrics not enrolled or unavailable');
