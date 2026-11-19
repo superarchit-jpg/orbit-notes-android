@@ -665,15 +665,22 @@ const activeReader=notes.find(n=>n.id===reader)||initial[0];
 const mapPreview=(root:Note)=>{
   const points=radialTree(root,notes,mapPrefs.offsets);
   const visiblePoints=points.slice(0,90);
-  const fit=fitMap(points,160,90,10);
+  // Thumbnail framing must not inherit the interactive canvas's minimum zoom.
+  const bounds=points.reduce((v,p)=>({
+    minX:Math.min(v.minX,p.x),maxX:Math.max(v.maxX,p.x),
+    minY:Math.min(v.minY,p.y),maxY:Math.max(v.maxY,p.y)
+  }),{minX:Infinity,maxX:-Infinity,minY:Infinity,maxY:-Infinity});
+  const thumbScale=Math.min(140/Math.max(1,bounds.maxX-bounds.minX),70/Math.max(1,bounds.maxY-bounds.minY),1);
+  const thumbX=80-(bounds.minX+bounds.maxX)*thumbScale/2;
+  const thumbY=45-(bounds.minY+bounds.maxY)*thumbScale/2;
   const byId=new Map(visiblePoints.map(v=>[v.note.id,v]));
   return (
     <Svg width="100%" height={90} viewBox="0 0 160 90" accessibilityLabel={`Preview of ${root.title||'untitled map'}`}>
       {visiblePoints.map(v=>{
         const parent=byId.get(v.note.parentId||'');
-        return parent?<Line key={v.note.id} x1={80+fit.x+parent.x*fit.scale} y1={45+fit.y+parent.y*fit.scale} x2={80+fit.x+v.x*fit.scale} y2={45+fit.y+v.y*fit.scale} stroke={palette.connector} strokeWidth={1.2}/>:null;
+        return parent?<Line key={v.note.id} x1={thumbX+parent.x*thumbScale} y1={thumbY+parent.y*thumbScale} x2={thumbX+v.x*thumbScale} y2={thumbY+v.y*thumbScale} stroke={palette.connector} strokeWidth={1.2}/>:null;
       })}
-      {visiblePoints.map(v=><Circle key={v.note.id} cx={80+fit.x+v.x*fit.scale} cy={45+fit.y+v.y*fit.scale} r={v.note.id===root.id?4:2.7} fill={mapPrefs.colors[v.note.id]|| (v.note.id===root.id?palette.accent:palette.node)} stroke={palette.border} strokeWidth={0.8}/>)}
+      {visiblePoints.map(v=><Circle key={v.note.id} cx={thumbX+v.x*thumbScale} cy={thumbY+v.y*thumbScale} r={v.note.id===root.id?4:2.7} fill={mapPrefs.colors[v.note.id]|| (v.note.id===root.id?palette.accent:palette.node)} stroke={palette.border} strokeWidth={0.8}/>)}
     </Svg>
   );
 };
