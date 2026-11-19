@@ -14,7 +14,7 @@ import * as FileSystem from 'expo-file-system/legacy';
 import {saveEncryptedBackup,selectBackupFile,decryptSelectedBackup} from './backup';
 import {radialLayout,overviewLayout} from './layout';
 import {TrashBatch,deleteBranches,restoreBatch,pruneTrash} from './trash';
-import {formatSelection,parseRichLine,toggleChecklistLine} from './noteFormatting';
+import {formatSelection,parseRichLine} from './noteFormatting';
 
 const SafeAreaView=InsetSafeAreaView;
 const W=Dimensions.get('window').width,H=Dimensions.get('window').height;
@@ -48,9 +48,12 @@ const ICON_PATHS:Record<string,string>={
   'gridView':'M5 6h14M5 12h14M5 18h14',
   'palette':'M12 3a9 9 0 1 0 0 18h1.2c1.1 0 1.9-.9 1.9-2 0-.7-.4-1.3-.8-1.8-.3-.4-.5-.8-.5-1.3 0-1.1.9-2 2-2H19A7 7 0 0 0 12 3zM6.9 12h.01M8.5 7.9h.01M13.4 6.8h.01M17.1 9.4h.01',
   'collapseBranch':'M5 12h14M12 5l7 7-7 7',
-  'expandBranch':'M12 5v14M5 12h14'
+  'expandBranch':'M12 5v14M5 12h14',
+  'bullets':'M9 6h12M9 12h12M9 18h12M4 6h.01M4 12h.01M4 18h.01',
+  'numbers':'M9 6h12M9 12h12M9 18h12M3 4h2v4M3 12h2l-2 3h2M3 17h2v4H3'
 };
 const MaterialIcon=({name,color}:{name:string;color:string})=>{
+  if(['bold','italic','underline'].includes(name))return <Text style={{fontSize:21,color,fontWeight:name==='bold'?'900':'600',fontStyle:name==='italic'?'italic':'normal',textDecorationLine:name==='underline'?'underline':'none'}}>{name==='bold'?'B':name==='italic'?'I':'U'}</Text>;
   const data=ICON_PATHS[name];
   return data?<Svg width={23} height={23} viewBox="0 0 24 24"><Path d={data} fill="none" stroke={color} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"/></Svg>:<Text style={{fontSize:name==='Fit'?14:22,color,fontWeight:'700'}}>{name}</Text>;
 };
@@ -700,18 +703,12 @@ const mapPreview=(root:Note)=>{
     </Svg>
   );
 };
-const applyNoteFormat=(kind:'bold'|'italic'|'checklist')=>setBody(value=>formatSelection(value,textSelection.start,textSelection.end,kind));
-const noteBodyView=(value:string)=>value.split('\n').map((line,index)=>{
-  const checklist=/^[☐☑] /.test(line);
-  const content=checklist?line.slice(2):line;
-  return <View key={index} style={{flexDirection:'row',alignItems:'flex-start',gap:8,minHeight:28}}>
-    {checklist&&<Pressable accessibilityRole="checkbox" accessibilityState={{checked:line.startsWith('☑')}} accessibilityLabel="Toggle checklist item" onPress={()=>{
-      if(!reader)return;
-      setNotes(ns=>ns.map(n=>n.id===reader?{...n,body:toggleChecklistLine(n.body,index),updatedAt:Date.now()}:n));
-    }}><Text style={{color:palette.text,fontSize:21}}>{line.slice(0,1)}</Text></Pressable>}
-    <Text style={{fontSize:17,lineHeight:27,color:palette.text,flexShrink:1}}>{parseRichLine(content).map((run,i)=><Text key={i} style={{fontWeight:run.bold?'700':'400',fontStyle:run.italic?'italic':'normal'}}>{run.text}</Text>)}</Text>
-  </View>;
-});
+const applyNoteFormat=(kind:'bold'|'italic'|'underline'|'bullets'|'numbers')=>setBody(value=>formatSelection(value,textSelection.start,textSelection.end,kind));
+const noteBodyView=(value:string)=>value.split('\n').map((line,index)=>(
+  <View key={index} style={{minHeight:28}}>
+    <Text style={{fontSize:17,lineHeight:27,color:palette.text}}>{parseRichLine(line).map((run,i)=><Text key={i} style={{fontWeight:run.bold?'700':'400',fontStyle:run.italic?'italic':'normal',textDecorationLine:run.underline?'underline':'none'}}>{run.text}</Text>)}</Text>
+  </View>
+));
 const listNotes=notes.filter(n=>n.parentId==='root');
 const shown=listNotes.filter(n=>(!folderFilter||n.folderId===folderFilter)&&n.title.toLowerCase().includes(librarySearch.toLowerCase())).sort((a,b)=>Number(mapPrefs.pinned.includes(b.id))-Number(mapPrefs.pinned.includes(a.id))||(librarySort==='title'?a.title.localeCompare(b.title):librarySort==='created'?Number(a.id.split('-')[0])-Number(b.id.split('-')[0]):b.updatedAt-a.updatedAt));
 
@@ -1394,9 +1391,11 @@ if(locked){
                   />
                 </View>
                 <View style={{flexDirection:'row',gap:8,alignItems:'center',flexWrap:'wrap'}}>
-                  <Button label="B" onPress={()=>applyNoteFormat('bold')}/>
-                  <Button label="I" onPress={()=>applyNoteFormat('italic')}/>
-                  <Button label="☐ List" onPress={()=>applyNoteFormat('checklist')}/>
+                  <IconButton label="bold" accessibilityLabel="Bold text" onPress={()=>applyNoteFormat('bold')}/>
+                  <IconButton label="italic" accessibilityLabel="Italic text" onPress={()=>applyNoteFormat('italic')}/>
+                  <IconButton label="underline" accessibilityLabel="Underline text" onPress={()=>applyNoteFormat('underline')}/>
+                  <IconButton label="bullets" accessibilityLabel="Bulleted list" onPress={()=>applyNoteFormat('bullets')}/>
+                  <IconButton label="numbers" accessibilityLabel="Numbered list" onPress={()=>applyNoteFormat('numbers')}/>
                   <IconButton label="palette" accessibilityLabel="Note color" onPress={()=>setColorTarget('note')}/>
                 </View>
               </KeyboardAvoidingView>
