@@ -16,6 +16,8 @@ const geometry = read('mapGeometry.ts');
 const trash = read('trash.ts');
 const app = read('App.tsx');
 const richEditor=read('RichNoteEditor.tsx');
+const security=read('appLock.ts');
+const store=read('storage.ts');
 const exp = read('export.ts');
 const localSave = read('localSave.ts');
 
@@ -244,6 +246,10 @@ for(const marker of ['archiveSelection','showArchive','selectedTrash','acknowled
   check(app.includes(marker),`Missing Stage 4 approved feature: ${marker}`);
 check(!app.includes("Updated {activeReader?stamp"),'Note reader must not show modification date');
 check(!app.includes("selected.includes(n.id)?'☑':'☐'"),'Card selection checkboxes must remain removed');
+check(store.includes('trashRetentionAcknowledged')&&store.includes('archived:'),'Archived status and retention consent must persist');
+check(richEditor.includes('contenteditable="true"')&&richEditor.includes('onShouldStartLoadWithRequest'),'Rich editor should format text directly and block remote navigation');
+check(richEditor.includes('insertOrderedList')&&richEditor.includes('insertUnorderedList'),'Native list continuation requires editable list elements');
+check(security.includes('export async function credentialKind')&&security.includes("kind==='password'")&&security.includes("kind==='pin'"),'Credential migration should preserve old PINs and support password mode');
 console.log('PASS: Stage 4 new feature guards');
 
 // Upright labels during rotation
