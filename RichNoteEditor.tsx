@@ -5,7 +5,8 @@ import WebView from 'react-native-webview';
 
 export type RichEditorAction='bold'|'italic'|'underline'|'bullets'|'numbers';
 export type RichNoteEditorHandle={format:(action:RichEditorAction)=>void};
-type Props={initialText:string;onChangeText:(text:string)=>void;dark:boolean;textColor:string;backgroundColor:string};
+export type RichEditorState={bold:boolean;italic:boolean;underline:boolean;bullets:boolean;numbers:boolean};
+type Props={initialText:string;onChangeText:(text:string)=>void;onFormatStateChange?:(state:RichEditorState)=>void;dark:boolean;textColor:string;backgroundColor:string};
 
 const escapeHtml=(value:string)=>value.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 const inlineHtml=(line:string)=>escapeHtml(line).replace(/\*\*([^*]+)\*\*/g,'<strong>$1</strong>').replace(/__([^_]+)__/g,'<u>$1</u>').replace(/\*([^*]+)\*/g,'<em>$1</em>');
@@ -22,10 +23,11 @@ export function markupToHtml(body:string):string{
   close();return parts.join('')||'<div><br></div>';
 }
 
-const RichNoteEditor=forwardRef<RichNoteEditorHandle,Props>(function RichNoteEditor({initialText,onChangeText,dark,textColor,backgroundColor},ref){
+const RichNoteEditor=forwardRef<RichNoteEditorHandle,Props>(function RichNoteEditor({initialText,onChangeText,onFormatStateChange,dark,textColor,backgroundColor},ref){
   const web=useRef<WebView>(null);
   const original=useRef(initialText);
   const callback=useRef(onChangeText);callback.current=onChangeText;
+  const stateCallback=useRef(onFormatStateChange);stateCallback.current=onFormatStateChange;
   const html=useMemo(()=>{
     const safeContent=JSON.stringify(markupToHtml(original.current)).replace(/</g,'\\u003c');
     const color=/^#[0-9a-fA-F]{6}$/.test(textColor)?textColor:'#202124',background=/^#[0-9a-fA-F]{6}$/.test(backgroundColor)?backgroundColor:'#ffffff';
@@ -38,7 +40,9 @@ html,body{margin:0;padding:0;background:${background};color:${color};font-family
 <script>(function(){
 const editor=document.getElementById('editor');editor.innerHTML=${safeContent};
 let selectionRange=null;
-document.addEventListener('selectionchange',()=>{const s=getSelection();if(s&&s.rangeCount&&editor.contains(s.anchorNode)){selectionRange=s.getRangeAt(0).cloneRange();}});
+document.execCommand('styleWithCSS',false,false);
+function sendState(){try{const keys={bold:'bold',italic:'italic',underline:'underline',bullets:'insertUnorderedList',numbers:'insertOrderedList'};const state={};Object.keys(keys).forEach(key=>{state[key]=!!document.queryCommandState(keys[key]);});window.ReactNativeWebView.postMessage(JSON.stringify({type:'formatState',state}));}catch{}}
+document.addEventListener('selectionchange',()=>{const s=getSelection();if(s&&s.rangeCount&&editor.contains(s.anchorNode)){selectionRange=s.getRangeAt(0).cloneRange();sendState();}});
 function inline(node){
  if(node.nodeType===3)return node.nodeValue||'';
  if(node.nodeType!==1)return '';
@@ -68,7 +72,7 @@ function command(raw){let m;try{m=JSON.parse(raw);}catch{return;}if(m.type!=='fo
  if(selectionRange){const s=getSelection();s.removeAllRanges();s.addRange(selectionRange);}
  const commands={bold:'bold',italic:'italic',underline:'underline',bullets:'insertUnorderedList',numbers:'insertOrderedList'};
  if(commands[m.action])document.execCommand(commands[m.action],false,null);
- send();
+ send();sendState();
 }
 })();</script></body></html>`;
   },[]);
@@ -76,7 +80,7 @@ function command(raw){let m;try{m=JSON.parse(raw);}catch{return;}if(m.type!=='fo
   return <View style={{flex:1,minHeight:160,overflow:'hidden',borderRadius:14,backgroundColor}}>
     <WebView ref={web} source={{html}} style={{flex:1,backgroundColor}} scrollEnabled keyboardDisplayRequiresUserAction={false}
       originWhitelist={['about:blank','data:*']} onShouldStartLoadWithRequest={request=>request.url==='about:blank'||request.url.startsWith('data:')}
-      onMessage={event=>{try{const message=JSON.parse(event.nativeEvent.data);if(message.type==='change'&&typeof message.text==='string')callback.current(message.text);}catch{}}}
+      onMessage={event=>{try{const message=JSON.parse(event.nativeEvent.data);if(message.type==='change'&&typeof message.text==='string')callback.current(message.text);if(message.type==='formatState'&&message.state)stateCallback.current?.(message.state);}catch{}}}
       javaScriptEnabled domStorageEnabled={false} allowFileAccess={false} setSupportMultipleWindows={false}
       mixedContentMode="never" accessibilityLabel="Note content"/>
   </View>;
