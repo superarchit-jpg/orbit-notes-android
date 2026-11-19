@@ -56,7 +56,7 @@ function block(node){
  const tag=node.tagName.toLowerCase();
  if(tag==='ul'||tag==='ol')return Array.from(node.children).map((n,i)=>(tag==='ul'?'• ':(i+1)+'. ')+Array.from(n.childNodes).map(inline).join('').replace(/\\n$/,'')).join('\\n');
  if(tag==='br')return '';
- return Array.from(node.childNodes).map(inline).join('');
+ return Array.from(node.childNodes).map(inline).join('').replace(/\\n$/,'');
 }
 function serialize(){return Array.from(editor.childNodes).map(block).join('\\n').replace(/\\n{3,}/g,'\\n\\n');}
 function send(){window.ReactNativeWebView.postMessage(JSON.stringify({type:'change',text:serialize()}));}
