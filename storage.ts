@@ -85,11 +85,12 @@ export type MapPreferences={
   noteColors:Record<string,string>;
   archived:string[];
   trashRetentionAcknowledged:boolean;
+  trashRetentionWarningSeen:boolean;
   themeMode?:'light'|'dark'|'system';
 };
 export const emptyMapPreferences=():MapPreferences=>({
   offsets:{},collapsed:{},colors:{},pinned:[],
-  theme:'light',viewMode:'grid',cardColors:{},noteColors:{},archived:[],trashRetentionAcknowledged:false,themeMode:'light'
+  theme:'light',viewMode:'grid',cardColors:{},noteColors:{},archived:[],trashRetentionAcknowledged:false,trashRetentionWarningSeen:false,themeMode:'light'
 });
 export async function loadMapPreferences():Promise<MapPreferences>{
   await writeQueue;
@@ -109,6 +110,7 @@ export async function loadMapPreferences():Promise<MapPreferences>{
       noteColors:parsed.noteColors&&typeof parsed.noteColors==='object'?parsed.noteColors:{},
       archived:Array.isArray(parsed.archived)?parsed.archived.filter((x):x is string=>typeof x==='string'):[],
       trashRetentionAcknowledged:parsed.trashRetentionAcknowledged===true,
+      trashRetentionWarningSeen:parsed.trashRetentionWarningSeen===true,
       themeMode:parsed.themeMode==='system'?'system':parsed.theme==='dark'?'dark':'light'
     };
   }catch{return emptyMapPreferences();}
