@@ -78,8 +78,15 @@ export type MapPreferences={
   collapsed:Record<string,boolean>;
   colors:Record<string,string>;
   pinned:string[];
+  theme:'light'|'dark';
+  viewMode:'grid'|'list';
+  cardColors:Record<string,string>;
+  noteColors:Record<string,string>;
 };
-export const emptyMapPreferences=():MapPreferences=>({offsets:{},collapsed:{},colors:{},pinned:[]});
+export const emptyMapPreferences=():MapPreferences=>({
+  offsets:{},collapsed:{},colors:{},pinned:[],
+  theme:'light',viewMode:'grid',cardColors:{},noteColors:{}
+});
 export async function loadMapPreferences():Promise<MapPreferences>{
   await writeQueue;
   const db=await getDatabase();
@@ -91,7 +98,11 @@ export async function loadMapPreferences():Promise<MapPreferences>{
       offsets:parsed.offsets&&typeof parsed.offsets==='object'?parsed.offsets:{},
       collapsed:parsed.collapsed&&typeof parsed.collapsed==='object'?parsed.collapsed:{},
       colors:parsed.colors&&typeof parsed.colors==='object'?parsed.colors:{},
-      pinned:Array.isArray(parsed.pinned)?parsed.pinned.filter((x):x is string=>typeof x==='string'):[]
+      pinned:Array.isArray(parsed.pinned)?parsed.pinned.filter((x):x is string=>typeof x==='string'):[],
+      theme:parsed.theme==='dark'?'dark':'light',
+      viewMode:parsed.viewMode==='list'?'list':'grid',
+      cardColors:parsed.cardColors&&typeof parsed.cardColors==='object'?parsed.cardColors:{},
+      noteColors:parsed.noteColors&&typeof parsed.noteColors==='object'?parsed.noteColors:{}
     };
   }catch{return emptyMapPreferences();}
 }
