@@ -1486,7 +1486,7 @@ if(locked){
                 {selected.length>0?(
                   <>
                     <IconButton
-                      label="☑"
+                      label="▣"
                       accessibilityLabel="Select all visible maps"
                       onPress={()=>setSelected(
                         shown.map(n=>n.id)
@@ -1546,6 +1546,7 @@ if(locked){
                   label="Export selected as PDF"
                   onPress={exportSelected}
                 />
+                <Button label={showArchive?'Unarchive selected maps':'Archive selected maps'} onPress={()=>archiveSelection(!showArchive)}/>
                 {selected.some(id=>notes.some(n=>n.id===id&&n.folderId!==null))&&(
                   <Button
                     label="Remove from label"
@@ -1583,9 +1584,9 @@ if(locked){
             {sidebar&&(
               <GestureDetector gesture={Gesture.Pan().activeOffsetX([-40,40]).onEnd(e=>{if(e.translationX<-55)runOnJS(setSidebar)(false);})}>
               <Animated.View entering={FadeInLeft.duration(220)} exiting={FadeOutLeft.duration(160)} style={[styles.sidebar,{backgroundColor:palette.surface,borderRightColor:palette.border}]}>
-                <View style={styles.header}>
-                  <Text style={[styles.section,{color:palette.text}]}>
-                    Orbit Notes
+                <View style={[styles.header,{paddingTop:Math.max(StatusBar.currentHeight||24,24),minHeight:88}]}>
+                   <Text style={[styles.section,{color:palette.text}]}>
+                     Orbit Notes
                   </Text>
                 </View>
                 <ScrollView contentContainerStyle={{
@@ -1594,11 +1595,11 @@ if(locked){
                 }}>
                   <Button
                     label="◈  All maps"
-                    active={!showTrash&&!folderFilter}
+                    active={!showArchive&&!showTrash&&!folderFilter}
                     onPress={()=>{
                       setFolderFilter(null);
-                      setShowTrash(false);
-                      setSidebar(false);setFoldersExpanded(false);
+                      setShowTrash(false);setShowArchive(false);
+                       setSidebar(false);setFoldersExpanded(false);
                     }}
                   />
                   <Button label={foldersExpanded?'▾  Labels':'›  Labels'} onPress={()=>setFoldersExpanded(v=>!v)}/>
@@ -1606,7 +1607,7 @@ if(locked){
                     <View key={f.id} style={{flexDirection:'row',alignItems:'center',gap:2}}>
                       <View style={{flex:1}}>
                         <Button label={`◩  ${f.name}`} active={!showTrash&&folderFilter===f.id} onPress={()=>{
-                          setFolderFilter(f.id);setShowTrash(false);setSidebar(false);setFoldersExpanded(false);
+                          setFolderFilter(f.id);setShowTrash(false);setShowArchive(false);setSidebar(false);setFoldersExpanded(false);
                         }}/>
                       </View>
                       <IconButton label="✎" accessibilityLabel={`Rename label ${f.name}`} onPress={()=>{
@@ -1626,12 +1627,14 @@ if(locked){
                     label="+ Create label"
                     onPress={()=>{setEditingFolderId(null);setFolderName('');setCreatingFolder(true);setSidebar(false);}}
                   />}
-                  <Button
+                  <View style={{height:1,backgroundColor:palette.border,marginVertical:5}}/>
+                   <Button label="▤  Archive" active={showArchive} onPress={()=>{setShowArchive(true);setShowTrash(false);setFolderFilter(null);setSelected([]);setSidebar(false);}}/>
+                   <Button
                     label="▤  Recently Deleted"
                     active={showTrash}
                     onPress={()=>{
-                      setShowTrash(true);
-                      setSidebar(false);setFoldersExpanded(false);
+                      setShowTrash(true);setShowArchive(false);
+                       setSidebar(false);setFoldersExpanded(false);
                       setSelected([]);
                     }}
                   />
@@ -1683,7 +1686,7 @@ if(locked){
 
             {!showTrash&&<View style={{paddingHorizontal:16,paddingVertical:6,gap:6}}>
               <View style={{flexDirection:'row',justifyContent:'space-between',alignItems:'center'}}>
-                <Text style={[styles.muted,{color:palette.muted,fontSize:13}]}>{shown.length} {shown.length===1?'map':'maps'}{selected.length>0?` · ${selected.length} selected`:''}</Text>
+                <Text style={[styles.muted,{color:palette.muted,fontSize:13}]}>{showArchive?'Archive · ':''}{shown.length} {shown.length===1?'map':'maps'}{selected.length>0?` · ${selected.length} selected`:''}</Text>
                 <Pressable accessibilityRole="button" accessibilityLabel="Sort maps" onPress={()=>setSortMenu(v=>!v)} style={{minHeight:42,flexDirection:'row',alignItems:'center',gap:6,paddingHorizontal:12,borderRadius:22,backgroundColor:palette.control}}>
                   <Text style={{color:palette.text,fontSize:13,fontWeight:'600'}}>{librarySort==='modified'?'Modified':librarySort==='title'?'Title':'Created'}</Text>
                   <Text style={{color:palette.text}}>⌄</Text>
@@ -1769,7 +1772,7 @@ if(locked){
                       accessibilityRole="button"
                       accessibilityLabel={`${n.title||'Untitled map'}${mapPrefs.pinned.includes(n.id)?', pinned':''}${selected.includes(n.id)?', selected':''}`}
                       accessibilityHint="Tap to open; long press to select"
-                      style={[styles.listRow,{backgroundColor:mapPrefs.cardColors[n.id]||palette.surface,borderColor:palette.border},mapPrefs.viewMode==='grid'&&{width:'100%',alignItems:'stretch',flexDirection:'column',padding:10}]}
+                      style={[styles.listRow,{backgroundColor:mapPrefs.cardColors[n.id]||palette.surface,borderColor:selected.includes(n.id)?palette.accent:palette.border,borderWidth:selected.includes(n.id)?3:1},mapPrefs.viewMode==='grid'&&{width:'100%',alignItems:'stretch',flexDirection:'column',padding:10}]}
                       onPress={()=>{
                         if(selected.length){
                           setSelected(v=>
@@ -1797,6 +1800,7 @@ if(locked){
                       <View style={{flex:1,width:'100%'}}>
                         <Text style={[styles.listTitle,{color:mapPrefs.cardColors[n.id]?'#362722':palette.text,paddingRight:mapPrefs.pinned.includes(n.id)?29:0}]} numberOfLines={2}>{n.title||'Untitled map'}</Text>
                         {mapPrefs.viewMode==='grid'&&mapPreview(n)}
+                         {n.folderId&&<Text style={{color:palette.muted,fontSize:11,marginTop:4}}>◩ {folders.find(f=>f.id===n.folderId)?.name||''}</Text>}
  
                       </View>
 
@@ -1808,11 +1812,7 @@ if(locked){
                             <Path d="M12 16v6" stroke={palette.accent} strokeWidth={2} strokeLinecap="round"/>
                           </Svg>
                         </Pressable>}
-                      {selected.length>0&&(
-                        <Text style={styles.checkbox}>
-                          {selected.includes(n.id)?'☑':'☐'}
-                        </Text>
-                      )}
+                      {showArchive&&selected.length===0&&<Pressable accessibilityRole="button" accessibilityLabel="Unarchive map" onPress={()=>archiveOne(n.id,false)}><Text style={{color:palette.accent,fontWeight:'700'}}>Unarchive</Text></Pressable>}
                     </Pressable>
                   ))}
                     </View>
@@ -1821,15 +1821,15 @@ if(locked){
                   {shown.length===0&&(
                     <View style={{alignItems:'center',paddingVertical:48,paddingHorizontal:20,gap:12}}>
                       <Text style={{fontSize:34,color:'#64748b'}}>◎</Text>
-                      <Text style={[styles.listTitle,{textAlign:'center'}]}>{librarySearch.trim()?'No matching maps':folderFilter?'No maps in this label':'Your library is ready'}</Text>
+                      <Text style={[styles.listTitle,{textAlign:'center'}]}>{librarySearch.trim()?'No matching maps':showArchive?'No archived maps':folderFilter?'No maps in this label':'Your library is ready'}</Text>
                       <Text style={[styles.muted,{color:palette.muted,textAlign:'center'}]}>{librarySearch.trim()?'No maps match this search. Try different words or clear the search.':folderFilter?'Create a map in this label, or move an existing map here from the library.':'Create your first map to start building your notes.'}</Text>
-                      {librarySearch.trim()?<Button label="Clear search" onPress={()=>setLibrarySearch('')}/>:<Button label="Create map" primary onPress={newMap}/>}
+                      {librarySearch.trim()?<Button label="Clear search" onPress={()=>setLibrarySearch('')}/>:!showArchive&&<Button label="Create map" primary onPress={newMap}/>}
                     </View>
                   )}
                 </>
               )}
             </ScrollView>
-            {!showTrash&&selected.length===0&&<Pressable accessibilityRole="button" accessibilityLabel="Create new map" onPress={newMap} style={{position:'absolute',right:22,bottom:26,width:60,height:60,borderRadius:20,backgroundColor:palette.accent,alignItems:'center',justifyContent:'center',elevation:5,zIndex:10}}>
+            {!showTrash&&!showArchive&&selected.length===0&&<Pressable accessibilityRole="button" accessibilityLabel="Create new map" onPress={newMap} style={{position:'absolute',right:22,bottom:26,width:60,height:60,borderRadius:20,backgroundColor:palette.accent,alignItems:'center',justifyContent:'center',elevation:5,zIndex:10}}>
               <Text style={{fontSize:32,color:'white'}}>+</Text>
             </Pressable>}
           </InsetSafeAreaView>
