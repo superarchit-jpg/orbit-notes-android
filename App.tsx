@@ -186,6 +186,8 @@ useEffect(()=>{
 
 useEffect(()=>{
   const sub=AppState.addEventListener('change',state=>{
+    // Android biometric prompts can temporarily deactivate the app; do not relock or cancel that prompt.
+    if(bioPromptInProgress.current)return;
     setAppActive(state==='active');
      if(state!=='active')bioPrompted.current=false;
      if(state!=='active'&&pinLockEnabled){
@@ -942,7 +944,8 @@ const runBackup=async()=>{
          if(restored.trash.length>0&&!restored.mapPreferences?.trashRetentionAcknowledged)setRetentionNotice(true);
          setShowArchive(false);setShowTrash(false);
         setFocused(restored.focused);
-        if(restored.mapPreferences)setMapPrefs({...emptyMapPreferences(),...restored.mapPreferences});
+        if(restored.mapPreferences)setMapPrefs({...emptyMapPreferences(),...restored.mapPreferences,...(restored.trash.length>0&&!restored.mapPreferences.trashRetentionAcknowledged?{trashRetentionAcknowledged:false}:{})});
+         else if(restored.trash.length>0)setMapPrefs(p=>({...p,trashRetentionAcknowledged:false,archived:[]}));
         setBackupMode(null);
         setBackupFile(null);
         setBackupPassword('');
