@@ -1,5 +1,5 @@
 import React,{useEffect,useMemo,useState} from 'react';
-import {Alert,AppState,BackHandler,Dimensions,KeyboardAvoidingView,Modal,Platform,Pressable,ScrollView,StatusBar,StyleSheet,Text,TextInput,View} from 'react-native';
+import {Alert,AppState,BackHandler,Dimensions,KeyboardAvoidingView,Appearance,Modal,Platform,Pressable,ScrollView,StatusBar,StyleSheet,Text,TextInput,View} from 'react-native';
 import Svg,{Line,Circle,Rect,Path} from 'react-native-svg';
 import {SafeAreaProvider,SafeAreaView as InsetSafeAreaView} from 'react-native-safe-area-context';
 import {Gesture,GestureDetector,GestureHandlerRootView} from 'react-native-gesture-handler';
@@ -44,11 +44,11 @@ const ICON_PATHS:Record<string,string>={
   '☷':'M5 6h14M5 12h14M5 18h14',
   '▦':'M3 3h8v8H3zM13 3h8v8h-8zM3 13h8v8H3zM13 13h8v8h-8z',
   'Fit':'M4 9V4h5M15 4h5v5M20 15v5h-5M9 20H4v-5',
-  'listView':'M4 4h6v6H4zM14 4h6v6h-6zM4 14h6v6H4zM14 14h6v6h-6z',
-  'gridView':'M5 6h14M5 12h14M5 18h14',
+  'listView':'M4 5h16M4 10h16M4 15h16M4 20h16',
+  'gridView':'M3 3h8v8H3zM13 3h8v8h-8zM3 13h8v8H3zM13 13h8v8h-8z',
   'palette':'M12 3a9 9 0 1 0 0 18h1.2c1.1 0 1.9-.9 1.9-2 0-.7-.4-1.3-.8-1.8-.3-.4-.5-.8-.5-1.3 0-1.1.9-2 2-2H19A7 7 0 0 0 12 3zM6.9 12h.01M8.5 7.9h.01M13.4 6.8h.01M17.1 9.4h.01',
   'collapseBranch':'M5 12h14M12 5l7 7-7 7',
-  'expandBranch':'M12 5v14M5 12h14',
+  'expandBranch':'M5 4l7 7 7-7M12 11v9M4 15v5h5M20 15v5h-5',
   'bullets':'M9 6h12M9 12h12M9 18h12M4 6h.01M4 12h.01M4 18h.01',
   'numbers':'M9 6h12M9 12h12M9 18h12M3 4h2v4M3 12h2l-2 3h2M3 17h2v4H3'
 };
@@ -74,7 +74,9 @@ const [notes,setNotes]=useState<Note[]>(initial),[folders,setFolders]=useState<F
 
 const [mapPrefs,setMapPrefs]=useState(emptyMapPreferences);
 const [colorTarget,setColorTarget]=useState<'cards'|'note'|null>(null);
-const palette=mapPrefs.theme==='dark'?DARK:LIGHT;
+const deviceTheme=Appearance.getColorScheme();
+const effectiveTheme=mapPrefs.themeMode==='system'?(deviceTheme==='dark'?'dark':'light'):mapPrefs.theme;
+const palette=effectiveTheme==='dark'?DARK:LIGHT;
 const [showMiniMap,setShowMiniMap]=useState(false);
 const [gestureHelp,setGestureHelp]=useState(false);
 const [nodeActions,setNodeActions]=useState<string|null>(null);
@@ -85,6 +87,7 @@ const [librarySearch,setLibrarySearch]=useState('');
 const [zoomPercent,setZoomPercent]=useState(100);
 const [librarySort,setLibrarySort]=useState<'modified'|'title'|'created'>('modified');
 const [sortMenu,setSortMenu]=useState(false);
+const [showArchive,setShowArchive]=useState(false),[selectedTrash,setSelectedTrash]=useState<string[]>([]),[retentionNotice,setRetentionNotice]=useState(false);
 const [foldersExpanded,setFoldersExpanded]=useState(false);
 const [editingFolderId,setEditingFolderId]=useState<string|null>(null);
 const [mapMenu,setMapMenu]=useState(false),[selectionMenu,setSelectionMenu]=useState(false),[sidebar,setSidebar]=useState(false),[moveFolderMenu,setMoveFolderMenu]=useState(false),[exportTarget,setExportTarget]=useState<string|null>(null);
@@ -109,7 +112,8 @@ useEffect(()=>{
           setFolders(existing.folders);
           setFocused('root');
           setMenu(true);
-          setTrash(pruneTrash(existing.trash));
+          setTrash(preferences.trashRetentionAcknowledged?pruneTrash(existing.trash):existing.trash);
+           if(!preferences.trashRetentionAcknowledged&&existing.trash.length>0)setRetentionNotice(true);
         }
       }else{
         const snapshot={notes:initial,folders:[],focused:'root',trash:[]};
@@ -330,7 +334,7 @@ const deleteSelected=()=>{
     {text:'Cancel',style:'cancel'},
     {text:'Move',style:'destructive',onPress:()=>{
       setNotes(result.remaining);
-      setTrash(t=>pruneTrash([result.batch,...t]));
+      setTrash(t=>mapPrefs.trashRetentionAcknowledged?pruneTrash([result.batch,...t]):[result.batch,...t]);
       setUndoBatch(result.batch.id);
       if(result.batch.notes.some(n=>n.id===focused))moveTo('root');
       setSelected([]);
@@ -347,7 +351,7 @@ const removeBranch=(target:string)=>{
     {text:'Cancel'},
     {text:'Delete',style:'destructive',onPress:()=>{
       setNotes(result.remaining);
-      setTrash(t=>pruneTrash([result.batch,...t]));
+      setTrash(t=>mapPrefs.trashRetentionAcknowledged?pruneTrash([result.batch,...t]):[result.batch,...t]);
       if(result.batch.notes.some(n=>n.id===focused))setFocused(current.parentId||'root');
     }}
   ]);
@@ -737,9 +741,17 @@ const noteBodyView=(value:string)=>value.split('\n').map((line,index)=>(
     <Text style={{fontSize:17,lineHeight:27,color:palette.text}}>{parseRichLine(line).map((run,i)=><Text key={i} style={{fontWeight:run.bold?'700':'400',fontStyle:run.italic?'italic':'normal',textDecorationLine:run.underline?'underline':'none'}}>{run.text}</Text>)}</Text>
   </View>
 ));
-const listNotes=notes.filter(n=>n.parentId==='root');
+const listNotes=notes.filter(n=>n.parentId==='root'&&(showArchive?mapPrefs.archived.includes(n.id):!mapPrefs.archived.includes(n.id)));
 const shown=listNotes.filter(n=>(!folderFilter||n.folderId===folderFilter)&&n.title.toLowerCase().includes(librarySearch.toLowerCase())).sort((a,b)=>Number(mapPrefs.pinned.includes(b.id))-Number(mapPrefs.pinned.includes(a.id))||(librarySort==='title'?a.title.localeCompare(b.title):librarySort==='created'?Number(a.id.split('-')[0])-Number(b.id.split('-')[0]):b.updatedAt-a.updatedAt));
 
+const archiveSelection=(archive:boolean)=>{
+  const targetIds=new Set(selected.filter(x=>x!=='root'));
+  setMapPrefs(p=>({...p,archived:archive?[...new Set([...p.archived,...targetIds])]:p.archived.filter(x=>!targetIds.has(x))}));
+  setSelected([]);setSelectionMenu(false);
+};
+const archiveOne=(id:string,archive:boolean)=>{
+  setMapPrefs(p=>({...p,archived:archive?[...new Set([...p.archived,id])]:p.archived.filter(x=>x!==id)}));
+};
 const moveSelection=(folderId:string|null)=>{
   setNotes(ns=>ns.map(n=>selected.includes(n.id)?{
     ...n,folderId,updatedAt:Date.now()
@@ -862,6 +874,7 @@ const runBackup=async()=>{
         setNotes(restored.notes);
         setFolders(restored.folders);
         setTrash(restored.trash);
+         setShowArchive(false);setShowTrash(false);
         setFocused(restored.focused);
         if(restored.mapPreferences)setMapPrefs({...emptyMapPreferences(),...restored.mapPreferences});
         setBackupMode(null);
@@ -1443,7 +1456,7 @@ if(locked){
                 <Pressable onPress={()=>{const now=Date.now();if(now-readerTapAt<360&&reader)beginEdit(reader);setReaderTapAt(now);}}>
                   {activeReader?.body?<View style={{marginVertical:15,gap:3}}>{noteBodyView(activeReader.body)}</View>:<Text style={[styles.readBody,{color:palette.muted}]}>This note is empty.</Text>}
                 </Pressable>
-                 <Text style={styles.muted}>Updated {activeReader?stamp(activeReader.updatedAt):''}</Text>
+                 
 
               </ScrollView>
             )}
