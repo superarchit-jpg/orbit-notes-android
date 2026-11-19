@@ -1,6 +1,6 @@
 import type {Note} from './export';
 export type TrashBatch={id:string;deletedAt:number;notes:Note[]};
-export const TRASH_RETENTION_MS=30*24*60*60*1000;
+export const TRASH_RETENTION_MS=7*24*60*60*1000;
 export function branchIds(notes:Note[],ids:string[]):Set<string>{
  const children=new Map<string,string[]>();for(const n of notes)if(n.parentId){const a=children.get(n.parentId)||[];a.push(n.id);children.set(n.parentId,a);}
  const all=new Set(ids.filter(x=>x!=='root'));const pending=[...all];while(pending.length){for(const id of children.get(pending.pop()!)||[])if(!all.has(id)){all.add(id);pending.push(id);}}return all;
