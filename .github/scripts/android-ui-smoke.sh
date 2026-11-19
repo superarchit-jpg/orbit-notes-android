@@ -18,6 +18,14 @@ for attempt in $(seq 1 25); do
   if adb shell uiautomator dump /sdcard/orbit-ui.xml >/tmp/orbit-dump.log 2>&1; then
     adb pull /sdcard/orbit-ui.xml /tmp/orbit-ui.xml >/tmp/orbit-pull.log 2>&1 || true
   fi
+  # A slow CI emulator can show a system-process ANR over the app.
+  # Select Wait, never Close app, then require the real library action.
+  if grep -q "System UI isn't responding" /tmp/orbit-ui.xml 2>/dev/null; then
+    echo "TEST-01: System UI ANR dialog detected (attempt $attempt); selecting Wait"
+    adb shell input keyevent 66 || true
+    sleep 2
+    continue
+  fi
   if grep -q 'Create map' /tmp/orbit-ui.xml 2>/dev/null; then
     FOUND=1
     break
