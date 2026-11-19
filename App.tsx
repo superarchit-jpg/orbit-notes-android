@@ -793,7 +793,7 @@ const runBackup=async()=>{
     if(backupMode==='save'){
       await saveSnapshot({notes,folders,focused,trash});
       const saved=await saveEncryptedBackup(
-        {notes,folders,focused,trash},
+        {notes,folders,focused,trash,mapPreferences:mapPrefs},
         backupPassword
       );
 
@@ -814,6 +814,7 @@ const runBackup=async()=>{
         setFolders(restored.folders);
         setTrash(restored.trash);
         setFocused(restored.focused);
+        if(restored.mapPreferences)setMapPrefs({...emptyMapPreferences(),...restored.mapPreferences});
         setBackupMode(null);
         setBackupFile(null);
         setBackupPassword('');
