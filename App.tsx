@@ -578,8 +578,8 @@ const node=(n:Note,x:number,y:number,level:number)=>{
           borderRadius:size/2,
           left:touchMargin,
           top:touchMargin,
-          backgroundColor:mapPrefs.colors[n.id]|| (n.id===focused?'#315fd6':level<=1?'#dbeafe':'#eef2ff'),
-          borderColor:n.id===focused?'#315fd6':'#93c5fd'
+          backgroundColor:mapPrefs.colors[n.id]|| (n.id===focused?'#b65e4d':level<=1?'#fce7df':'#f7eee9'),
+          borderColor:n.id===focused?'#a84e3d':'#d6b7ac'
         }
       ]}>
         <Upright angle={rotation}>
@@ -588,7 +588,7 @@ const node=(n:Note,x:number,y:number,level:number)=>{
             style={[
               styles.nodeTitle,
               {
-                color:n.id===focused&&!mapPrefs.colors[n.id]?'white':'#1e40af',
+                color:n.id===focused&&!mapPrefs.colors[n.id]?'#ffffff':'#563f38',
                 fontSize:level>=2?14:16
               }
             ]}
@@ -597,7 +597,7 @@ const node=(n:Note,x:number,y:number,level:number)=>{
           </Text>
           {Boolean(n.body.trim())&&(
             <Text style={{
-              color:n.id===focused&&!mapPrefs.colors[n.id]?'#dbeafe':'#2563eb',
+              color:n.id===focused&&!mapPrefs.colors[n.id]?'#fff0e9':'#986b60',
               fontSize:15
             }}>≡</Text>
           )}
@@ -926,7 +926,7 @@ if(locked){
               {lines.map(l=>{
                 const dx=l.x2-l.x1,dy=l.y2-l.y1;
                 const length=Math.hypot(dx,dy);
-                return <View key={l.id} pointerEvents="none" style={{position:'absolute',left:(l.x1+l.x2)/2-length/2,top:(l.y1+l.y2)/2-1,width:length,height:2,backgroundColor:'#94a3b8',transform:[{rotate:`${Math.atan2(dy,dx)}rad`}]}}/>;
+                return <View key={l.id} pointerEvents="none" style={{position:'absolute',left:(l.x1+l.x2)/2-length/2,top:(l.y1+l.y2)/2-1,width:length,height:2,backgroundColor:'#bba69c',transform:[{rotate:`${Math.atan2(dy,dx)}rad`}]}}/>;
               })}
               {visible.map(({note,x,y,level})=>
                 node(note,x,y,level)
@@ -942,8 +942,8 @@ if(locked){
                     style={{position:'absolute',left:ind.x-17,top:ind.y-17,width:34,height:34,
                       alignItems:'center',justifyContent:'center',zIndex:20}}>
                     <View pointerEvents="none" style={{width:22,height:22,borderRadius:11,
-                      borderWidth:1.5,borderColor:'#60a5fa',
-                      backgroundColor:mapPrefs.colors[ind.note.id]||'#dbeafe'}}/>
+                      borderWidth:1.5,borderColor:'#c69b8f',
+                      backgroundColor:mapPrefs.colors[ind.note.id]||'#fce7df'}}/>
                   </Pressable>
                 </GestureDetector>
               )}
@@ -962,7 +962,7 @@ if(locked){
           <Button label={mapPrefs.collapsed[focused]?'Expand branch':'Collapse branch'} onPress={()=>setMapPrefs(p=>({...p,collapsed:{...p.collapsed,[focused]:!p.collapsed[focused]}}))}/>
           <Button label="Node color" onPress={()=>setMapPrefs(p=>{const palette=['#dbeafe','#dcfce7','#fef3c7','#fce7f3','#e9d5ff'];const current=p.colors[focused]||palette[0];return {...p,colors:{...p.colors,[focused]:palette[(palette.indexOf(current)+1)%palette.length]}};})}/>
         </ScrollView>}
-        {!menu&&showMiniMap&&<View style={{height:310,marginHorizontal:14,marginBottom:6,backgroundColor:'#e2e8f0',borderRadius:12,overflow:'hidden',padding:6}}><Text style={styles.muted}>Map overview · {completeMap.length} notes</Text><Svg width="100%" height={270} viewBox="0 0 1000 540" preserveAspectRatio="xMidYMid meet">{miniLines.map(l=><Line key={l.id} x1={l.x1*miniBounds.scale+miniBounds.dx} y1={l.y1*miniBounds.scale+miniBounds.dy} x2={l.x2*miniBounds.scale+miniBounds.dx} y2={l.y2*miniBounds.scale+miniBounds.dy} stroke="#94a3b8" strokeWidth={2}/>)}{completeMap.map(v=><Circle key={v.note.id} cx={v.x*miniBounds.scale+miniBounds.dx} cy={v.y*miniBounds.scale+miniBounds.dy} r={v.note.id===focused?5:3.5} fill={v.note.id===focused?'#2563eb':'#64748b'}/>)}</Svg></View>}
+        {!menu&&showMiniMap&&<View style={{height:310,marginHorizontal:14,marginBottom:6,backgroundColor:'#f8eeea',borderRadius:12,overflow:'hidden',padding:6}}><Text style={styles.muted}>Map overview · {completeMap.length} notes</Text><Svg width="100%" height={270} viewBox="0 0 1000 540" preserveAspectRatio="xMidYMid meet">{miniLines.map(l=><Line key={l.id} x1={l.x1*miniBounds.scale+miniBounds.dx} y1={l.y1*miniBounds.scale+miniBounds.dy} x2={l.x2*miniBounds.scale+miniBounds.dx} y2={l.y2*miniBounds.scale+miniBounds.dy} stroke="#bba69c" strokeWidth={2}/>)}{completeMap.map(v=><Circle key={v.note.id} cx={v.x*miniBounds.scale+miniBounds.dx} cy={v.y*miniBounds.scale+miniBounds.dy} r={v.note.id===focused?5:3.5} fill={v.note.id===focused?'#b65e4d':'#a58b81'}/>)}</Svg></View>}
         {undoBatch&&(
           <View style={styles.toolbar}>
             <Button
@@ -1694,8 +1694,8 @@ const styles=StyleSheet.create({
   canvas:{
     flex:1,
     overflow:'hidden',
-    backgroundColor:'#f1f5f9'
-  },
+    backgroundColor:'#fff9f6'
+  }
   world:{
     position:'absolute',
     width:0,
