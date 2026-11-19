@@ -15,6 +15,7 @@ import {saveEncryptedBackup,selectBackupFile,decryptSelectedBackup} from './back
 import {radialLayout,overviewLayout} from './layout';
 import {TrashBatch,deleteBranches,restoreBatch,pruneTrash} from './trash';
 import {formatSelection,parseRichLine} from './noteFormatting';
+import RichNoteEditor,{RichNoteEditorHandle} from './RichNoteEditor';
 
 const SafeAreaView=InsetSafeAreaView;
 const W=Dimensions.get('window').width,H=Dimensions.get('window').height;
@@ -75,6 +76,7 @@ const [notes,setNotes]=useState<Note[]>(initial),[folders,setFolders]=useState<F
 
 const [mapPrefs,setMapPrefs]=useState(emptyMapPreferences);
 const bioPromptInProgress=useRef(false),bioPrompted=useRef(false);
+const richEditorRef=useRef<RichNoteEditorHandle|null>(null);
 const [colorTarget,setColorTarget]=useState<'cards'|'note'|null>(null);
 const deviceTheme=useColorScheme();
 const effectiveTheme=mapPrefs.themeMode==='system'?(deviceTheme==='dark'?'dark':'light'):mapPrefs.theme;
@@ -771,7 +773,7 @@ const mapPreview=(root:Note)=>{
     </Svg>
   );
 };
-const applyNoteFormat=(kind:'bold'|'italic'|'underline'|'bullets'|'numbers')=>setBody(value=>formatSelection(value,textSelection.start,textSelection.end,kind));
+const applyNoteFormat=(kind:'bold'|'italic'|'underline'|'bullets'|'numbers')=>{if(richEditorRef.current)richEditorRef.current.format(kind);else setBody(value=>formatSelection(value,textSelection.start,textSelection.end,kind));};
 const noteBodyView=(value:string)=>value.split('\n').map((line,index)=>(
   <View key={index} style={{minHeight:28}}>
     <Text style={{fontSize:17,lineHeight:27,color:palette.text}}>{parseRichLine(line).map((run,i)=><Text key={i} style={{fontWeight:run.bold?'700':'400',fontStyle:run.italic?'italic':'normal',textDecorationLine:run.underline?'underline':'none'}}>{run.text}</Text>)}</Text>
@@ -1474,15 +1476,8 @@ if(locked){
                 </View>
                 <View style={[styles.editorField,{flex:1}]}>
                   <Text style={styles.editorLabel}>Note content</Text>
-                  <TextInput
-                    accessibilityLabel="Note content"
-                    style={[styles.input,{flex:1,textAlignVertical:'top',backgroundColor:palette.surface,color:mapPrefs.noteColors[reader||'']?'#362722':palette.text,borderColor:palette.border}]}
-                    multiline
-                    value={body}
-                    onChangeText={setBody}
-                    onSelectionChange={e=>setTextSelection(e.nativeEvent.selection)}
-                    placeholder="Write your note..."
-                  />
+                  <RichNoteEditor key={reader||'note'} ref={richEditorRef} initialText={body} onChangeText={setBody}
+                     dark={effectiveTheme==='dark'} textColor={mapPrefs.noteColors[reader||'']?'#362722':palette.text} backgroundColor={palette.surface}/>
                 </View>
                 <View style={{flexDirection:'row',gap:8,alignItems:'center',flexWrap:'wrap'}}>
                   <IconButton label="bold" accessibilityLabel="Bold text" onPress={()=>applyNoteFormat('bold')}/>
