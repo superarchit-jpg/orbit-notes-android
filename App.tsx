@@ -1260,28 +1260,33 @@ if(locked){
                 )}
                 {!editing&&<IconButton label="+" onPress={()=>reader&&addChild(reader)}/>}
                 {!editing&&<IconButton label="✎" onPress={()=>reader&&beginEdit(reader)}/>}
-                <IconButton label="×" onPress={cancelReader}/>
+                <IconButton label="×" accessibilityLabel={editing?'Cancel editing':'Close note'} onPress={cancelReader}/>
               </View>
             </View>
 
             {editing?(
               <View style={styles.editor}>
-                <TextInput
-                  style={styles.input}
-                  value={title}
-                  onChangeText={setTitle}
-                  placeholder="Heading"
-                />
-                <TextInput
-                  style={[
-                    styles.input,
-                    {flex:1,textAlignVertical:'top'}
-                  ]}
-                  multiline
-                  value={body}
-                  onChangeText={setBody}
-                  placeholder="Write your note..."
-                />
+                <View style={styles.editorField}>
+                  <Text style={styles.editorLabel}>Note title</Text>
+                  <TextInput
+                    accessibilityLabel="Note title"
+                    style={styles.input}
+                    value={title}
+                    onChangeText={setTitle}
+                    placeholder="Heading"
+                  />
+                </View>
+                <View style={[styles.editorField,{flex:1}]}>
+                  <Text style={styles.editorLabel}>Note content</Text>
+                  <TextInput
+                    accessibilityLabel="Note content"
+                    style={[styles.input,{flex:1,textAlignVertical:'top'}]}
+                    multiline
+                    value={body}
+                    onChangeText={setBody}
+                    placeholder="Write your note..."
+                  />
+                </View>
               </View>
             ):(
               <ScrollView contentContainerStyle={styles.editor}>
@@ -1528,7 +1533,7 @@ if(locked){
 
                   {trash.length===0&&(
                     <Text style={styles.muted}>
-                      Nothing here.
+                      No deleted notes. Notes moved here will appear for recovery.
                     </Text>
                   )}
 
@@ -1625,8 +1630,8 @@ if(locked){
                   {shown.length===0&&(
                     <View style={{alignItems:'center',paddingVertical:48,paddingHorizontal:20,gap:12}}>
                       <Text style={{fontSize:34,color:'#64748b'}}>◎</Text>
-                      <Text style={[styles.listTitle,{textAlign:'center'}]}>{librarySearch.trim()?'No matching maps':folderFilter?'This folder is empty':'Your library is ready'}</Text>
-                      <Text style={[styles.muted,{textAlign:'center'}]}>{librarySearch.trim()?'Try a different search term.':folderFilter?'Create a map or move an existing map into this folder.':'Create your first map to start building your notes.'}</Text>
+                      <Text style={[styles.listTitle,{textAlign:'center'}]}>{librarySearch.trim()?'No matching maps':folderFilter?'No maps in this folder':'Your library is ready'}</Text>
+                      <Text style={[styles.muted,{textAlign:'center'}]}>{librarySearch.trim()?'No maps match this search. Try different words or clear the search.':folderFilter?'Create a map in this folder, or move an existing map here from the library.':'Create your first map to start building your notes.'}</Text>
                       {librarySearch.trim()?<Button label="Clear search" onPress={()=>setLibrarySearch('')}/>:<Button label="Create map" primary onPress={newMap}/>}
                     </View>
                   )}
@@ -1743,9 +1748,18 @@ const styles=StyleSheet.create({
     color:'#64748b'
   },
   editor:{
-    padding:20,
+    paddingHorizontal:20,
+    paddingVertical:24,
     flex:1,
-    gap:16
+    gap:20
+  },
+  editorField:{
+    gap:8
+  },
+  editorLabel:{
+    fontSize:14,
+    fontWeight:'700',
+    color:'#334155'
   },
   input:{
     borderWidth:1,
