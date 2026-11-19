@@ -29,7 +29,7 @@ const DARK={background:'#17191f',surface:'#252830',control:'#363b46',text:'#e6e9
 const PaletteContext=React.createContext(LIGHT);
 const CARD_PALETTE=['#fffdfb','#fce7df','#fff3c9','#e8f3dd','#e6ecfc','#f5e6f4'];
 
-const Button=({label,onPress,primary=false,danger=false,active=false}:{label:string;onPress:()=>void;primary?:boolean;danger?:boolean;active?:boolean})=>{const palette=React.useContext(PaletteContext);return <Pressable accessibilityRole="button" accessibilityLabel={label} onPress={onPress} style={[styles.button,{backgroundColor:active?palette.accent:palette.control},primary&&styles.primary,danger&&styles.danger]}><Text style={[styles.buttonText,{color:palette.text},(primary||danger||active)&&{color:'white'}]}>{label==='🗑'?<Svg width={23} height={23} viewBox="0 0 24 24"><Line x1={4} y1={7} x2={20} y2={7} stroke="#dc2626" strokeWidth={1.8}/><Line x1={9} y1={4} x2={15} y2={4} stroke="#dc2626" strokeWidth={1.8}/><Rect x={6} y={7} width={12} height={14} rx={2} stroke="#dc2626" strokeWidth={1.8} fill="none"/><Line x1={10} y1={11} x2={10} y2={17} stroke="#dc2626" strokeWidth={1.5}/><Line x1={14} y1={11} x2={14} y2={17} stroke="#dc2626" strokeWidth={1.5}/></Svg>:label}</Text></Pressable>;}
+const Button=({label,onPress,primary=false,danger=false,active=false}:{label:string;onPress:()=>void;primary?:boolean;danger?:boolean;active?:boolean})=>{const palette=React.useContext(PaletteContext);return <Pressable accessibilityRole="button" accessibilityLabel={label} onPress={onPress} style={[styles.button,{backgroundColor:active?palette.accent:palette.control},primary&&{backgroundColor:palette.accent},danger&&styles.danger]}><Text style={[styles.buttonText,{color:palette.text},(primary||danger||active)&&{color:'white'}]}>{label==='🗑'?<Svg width={23} height={23} viewBox="0 0 24 24"><Line x1={4} y1={7} x2={20} y2={7} stroke="#dc2626" strokeWidth={1.8}/><Line x1={9} y1={4} x2={15} y2={4} stroke="#dc2626" strokeWidth={1.8}/><Rect x={6} y={7} width={12} height={14} rx={2} stroke="#dc2626" strokeWidth={1.8} fill="none"/><Line x1={10} y1={11} x2={10} y2={17} stroke="#dc2626" strokeWidth={1.5}/><Line x1={14} y1={11} x2={14} y2={17} stroke="#dc2626" strokeWidth={1.5}/></Svg>:label}</Text></Pressable>;}
 
 const ICON_PATHS:Record<string,string>={
   '☰':'M4 6h16M4 12h16M4 18h16',
@@ -111,7 +111,7 @@ const renderAppDialog=()=>(
 );
 const [sortMenu,setSortMenu]=useState(false);
 const [showArchive,setShowArchive]=useState(false),[selectedTrash,setSelectedTrash]=useState<string[]>([]),[retentionNotice,setRetentionNotice]=useState(false);
-const [foldersExpanded,setFoldersExpanded]=useState(false);
+const [foldersExpanded,setFoldersExpanded]=useState(true);
 const [editingFolderId,setEditingFolderId]=useState<string|null>(null);
 const [mapMenu,setMapMenu]=useState(false),[selectionMenu,setSelectionMenu]=useState(false),[sidebar,setSidebar]=useState(false),[moveFolderMenu,setMoveFolderMenu]=useState(false),[exportTarget,setExportTarget]=useState<string|null>(null);
 
@@ -464,6 +464,13 @@ const acknowledgeTrashRetention=()=>{
     }}
   ]);
 };
+useEffect(()=>{
+ if(!loaded||!mapPrefs.trashRetentionAcknowledged)return;
+ setTrash(previous=>{
+   const next=pruneTrash(previous);
+   return next.length===previous.length?previous:next;
+ });
+},[loaded,mapPrefs.trashRetentionAcknowledged,appActive]);
 const restoreSelectedTrash=()=>{
  try{
   let updated=notes;
@@ -1549,7 +1556,7 @@ if(locked){
               {selected.length===0?(
                 <View style={{flex:1,flexDirection:'row',alignItems:'center',backgroundColor:palette.control,borderRadius:26,marginHorizontal:6,paddingHorizontal:12,minHeight:48}}>
                   <Text style={{fontSize:20,color:palette.muted,marginRight:8}}>⌕</Text>
-                  <TextInput accessibilityLabel="Search map titles" placeholder="Search Orbit Notes" placeholderTextColor={palette.muted} value={librarySearch} onChangeText={setLibrarySearch} style={{flex:1,fontSize:15,color:palette.text,paddingVertical:7}}/>
+                  <TextInput accessibilityLabel="Search map titles" placeholder="Search Orbit Notes" placeholderTextColor={palette.muted} value={librarySearch} onChangeText={setLibrarySearch} style={{flex:1,fontSize:15,color:palette.text,paddingVertical:7,fontFamily:'sans-serif'}}/>
                 </View>
               ):(
                 <View style={{flex:1,paddingHorizontal:10,minHeight:48,justifyContent:'center'}}>
@@ -1716,9 +1723,9 @@ if(locked){
                     onPress={()=>{setEditingFolderId(null);setFolderName('');setCreatingFolder(true);setSidebar(false);}}
                   />}
                   <View style={{height:1,backgroundColor:palette.border,marginVertical:5}}/>
-                   <Button label="▤  Archive" active={showArchive} onPress={()=>{setShowArchive(true);setShowTrash(false);setFolderFilter(null);setSelected([]);setSidebar(false);}}/>
+                   <Button label="📥  Archive" active={showArchive} onPress={()=>{setShowArchive(true);setShowTrash(false);setFolderFilter(null);setSelected([]);setSidebar(false);}}/>
                    <Button
-                    label="▤  Recently Deleted"
+                    label="🗑  Recently Deleted"
                     active={showTrash}
                     onPress={()=>{
                       setShowTrash(true);setShowArchive(false);
