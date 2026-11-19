@@ -44,5 +44,12 @@ assert.equal(plainNoteText('__underlined__'),'underlined');
 // Previous checklist text remains readable but is not interactive.
 assert.equal(parseRichLine('☐ existing unchecked note')[0].text,'☐ existing unchecked note');
 assert.equal(plainNoteText('**bold** *italic*'),'bold italic');
+assert.deepEqual(parseRichLine('**bold *and italic* still bold**').filter(run=>run.text).map(run=>({text:run.text,bold:run.bold,italic:run.italic})),[
+ {text:'bold ',bold:true,italic:false},
+ {text:'and italic',bold:true,italic:true},
+ {text:' still bold',bold:true,italic:false}
+]);
+assert.equal(plainNoteText('literal **unclosed'),'literal **unclosed');
+assert.equal(plainNoteText('**bold *and italic* still bold**'),'bold and italic still bold');
 console.log('PASS: local rich-text helpers and checklist behavior');
 console.log('PASS: executable layout and trash tests');
