@@ -65,6 +65,7 @@ export default function App(){
 const [notes,setNotes]=useState<Note[]>(initial),[folders,setFolders]=useState<Folder[]>([]),[focused,setFocused]=useState('root'),[overview,setOverview]=useState(false),[menu,setMenu]=useState(true),[reader,setReader]=useState<string|null>(null),[editing,setEditing]=useState(false),[title,setTitle]=useState(''),[body,setBody]=useState(''),[folderName,setFolderName]=useState(''),[creatingFolder,setCreatingFolder]=useState(false),[selected,setSelected]=useState<string[]>([]),[folderFilter,setFolderFilter]=useState<string|null>(null),[loaded,setLoaded]=useState(false),[storageError,setStorageError]=useState<string|null>(null),[trash,setTrash]=useState<TrashBatch[]>([]),[showTrash,setShowTrash]=useState(false),[undoBatch,setUndoBatch]=useState<string|null>(null);
 
 const [mapPrefs,setMapPrefs]=useState(emptyMapPreferences);
+const [colorTarget,setColorTarget]=useState<'cards'|'note'|null>(null);
 const palette=mapPrefs.theme==='dark'?DARK:LIGHT;
 const [showMiniMap,setShowMiniMap]=useState(false);
 const [nodeActions,setNodeActions]=useState<string|null>(null);
@@ -1117,6 +1118,25 @@ if(locked){
           </View>
         </Modal>
 
+        <Modal visible={colorTarget!==null} transparent animationType="slide" onRequestClose={()=>setColorTarget(null)}>
+          <View style={{flex:1,justifyContent:'flex-end',backgroundColor:'rgba(0,0,0,0.35)'}}>
+            <View style={{padding:20,gap:16,borderTopLeftRadius:24,borderTopRightRadius:24,backgroundColor:palette.surface}}>
+              <Text style={[styles.section,{color:palette.text}]}>Choose {colorTarget==='cards'?'card':'note'} color</Text>
+              <View style={{flexDirection:'row',flexWrap:'wrap',gap:14}}>
+                {CARD_PALETTE.map((color,index)=><Pressable key={color} accessibilityRole="button" accessibilityLabel={index===0?'Default color':`Color ${index+1}`} onPress={()=>{
+                  if(colorTarget==='cards'){
+                    setMapPrefs(p=>({...p,cardColors:{...p.cardColors,...Object.fromEntries(selected.map(id=>[id,color]))}}));
+                    setSelected([]);
+                  }else if(reader){
+                    setMapPrefs(p=>({...p,noteColors:{...p.noteColors,[reader]:color}}));
+                  }
+                  setColorTarget(null);
+                }} style={{width:46,height:46,borderRadius:23,backgroundColor:color,borderWidth:2,borderColor:palette.border}}/>)}
+              </View>
+              <Button label="Cancel" onPress={()=>setColorTarget(null)}/>
+            </View>
+          </View>
+        </Modal>
         <Modal
           visible={settings}
           animationType="slide"
@@ -1357,7 +1377,7 @@ if(locked){
                   <Text style={styles.editorLabel}>Note title</Text>
                   <TextInput
                     accessibilityLabel="Note title"
-                    style={[styles.input,{backgroundColor:palette.surface,color:palette.text,borderColor:palette.border}]}
+                    style={[styles.input,{backgroundColor:palette.surface,color:mapPrefs.noteColors[reader||'']?'#362722':palette.text,borderColor:palette.border}]}
                     value={title}
                     onChangeText={setTitle}
                     placeholder="Heading"
@@ -1367,7 +1387,7 @@ if(locked){
                   <Text style={styles.editorLabel}>Note content</Text>
                   <TextInput
                     accessibilityLabel="Note content"
-                    style={[styles.input,{flex:1,textAlignVertical:'top',backgroundColor:palette.surface,color:palette.text,borderColor:palette.border}]}
+                    style={[styles.input,{flex:1,textAlignVertical:'top',backgroundColor:palette.surface,color:mapPrefs.noteColors[reader||'']?'#362722':palette.text,borderColor:palette.border}]}
                     multiline
                     value={body}
                     onChangeText={setBody}
@@ -1379,13 +1399,7 @@ if(locked){
                   <Button label="B" onPress={()=>applyNoteFormat('bold')}/>
                   <Button label="I" onPress={()=>applyNoteFormat('italic')}/>
                   <Button label="☐ List" onPress={()=>applyNoteFormat('checklist')}/>
-                  <Button label="Note color" onPress={()=>{
-                    if(!reader)return;
-                    setMapPrefs(p=>{
-                      const current=p.noteColors[reader]||CARD_PALETTE[0];
-                      return {...p,noteColors:{...p.noteColors,[reader]:CARD_PALETTE[(CARD_PALETTE.indexOf(current)+1)%CARD_PALETTE.length]}};
-                    });
-                  }}/>
+                  <Button label="Note color" onPress={()=>setColorTarget('note')}/>
                 </View>
               </KeyboardAvoidingView>
             ):(
@@ -1458,13 +1472,7 @@ if(locked){
             {(selectionMenu||moveFolderMenu||sidebar||sortMenu)&&<Pressable accessibilityLabel="Close menu" onPress={()=>{setSelectionMenu(false);setMoveFolderMenu(false);setSidebar(false);setSortMenu(false);}} style={[StyleSheet.absoluteFill,{zIndex:20,elevation:10}]}/>}
             {selectionMenu&&selected.length>0&&(
               <View style={[styles.bottomSheet,{backgroundColor:palette.surface,borderColor:palette.border}]}>
-                <Button label="Change selected card colors" onPress={()=>{
-                  setMapPrefs(p=>({...p,cardColors:{...p.cardColors,...Object.fromEntries(selected.map(id=>{
-                    const cur=p.cardColors[id]||CARD_PALETTE[0];
-                    return [id,CARD_PALETTE[(CARD_PALETTE.indexOf(cur)+1)%CARD_PALETTE.length]];
-                  }))}}));
-                  setSelectionMenu(false);
-                }}/>
+                <Button label="Change selected card colors" onPress={()=>{setColorTarget('cards');setSelectionMenu(false);}}/>
                 <Button
                   label="Move to existing label"
                   onPress={()=>{
