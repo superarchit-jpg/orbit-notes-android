@@ -43,7 +43,9 @@ const ICON_PATHS:Record<string,string>={
   '☑':'M3 3h18v18H3zM7 12l3 3 7-7',
   '☷':'M5 6h14M5 12h14M5 18h14',
   '▦':'M3 3h8v8H3zM13 3h8v8h-8zM3 13h8v8H3zM13 13h8v8h-8z',
-  'Fit':'M4 9V4h5M15 4h5v5M20 15v5h-5M9 20H4v-5'
+  'Fit':'M4 9V4h5M15 4h5v5M20 15v5h-5M9 20H4v-5',
+  'listView':'M4 4h6v6H4zM14 4h6v6h-6zM4 14h6v6H4zM14 14h6v6h-6z',
+  'gridView':'M5 6h14M5 12h14M5 18h14'
 };
 const MaterialIcon=({name,color}:{name:string;color:string})=>{
   const data=ICON_PATHS[name];
@@ -673,17 +675,18 @@ const activeReader=notes.find(n=>n.id===reader)||initial[0];
 const mapPreview=(root:Note)=>{
   const points=radialTree(root,notes,mapPrefs.offsets);
   const visiblePoints=points.slice(0,90);
+  const thumbnailHeight=Math.min(244,Math.max(142,110+Math.ceil(Math.log2(points.length+1))*24));
   // Thumbnail framing must not inherit the interactive canvas's minimum zoom.
   const bounds=points.reduce((v,p)=>({
     minX:Math.min(v.minX,p.x),maxX:Math.max(v.maxX,p.x),
     minY:Math.min(v.minY,p.y),maxY:Math.max(v.maxY,p.y)
   }),{minX:Infinity,maxX:-Infinity,minY:Infinity,maxY:-Infinity});
-  const thumbScale=Math.min(140/Math.max(1,bounds.maxX-bounds.minX),70/Math.max(1,bounds.maxY-bounds.minY),1);
+  const thumbScale=Math.min(140/Math.max(1,bounds.maxX-bounds.minX),(thumbnailHeight-22)/Math.max(1,bounds.maxY-bounds.minY),1);
   const thumbX=80-(bounds.minX+bounds.maxX)*thumbScale/2;
-  const thumbY=45-(bounds.minY+bounds.maxY)*thumbScale/2;
+  const thumbY=thumbnailHeight/2-(bounds.minY+bounds.maxY)*thumbScale/2;
   const byId=new Map(visiblePoints.map(v=>[v.note.id,v]));
   return (
-    <Svg width="100%" height={90} viewBox="0 0 160 90" accessibilityLabel={`Preview of ${root.title||'untitled map'}`}>
+    <Svg width="100%" height={thumbnailHeight} viewBox={`0 0 160 ${thumbnailHeight}`} accessibilityLabel={`Preview of ${root.title||'untitled map'}`}>
       {visiblePoints.map(v=>{
         const parent=byId.get(v.note.parentId||'');
         return parent?<Line key={v.note.id} x1={thumbX+parent.x*thumbScale} y1={thumbY+parent.y*thumbScale} x2={thumbX+v.x*thumbScale} y2={thumbY+v.y*thumbScale} stroke={palette.connector} strokeWidth={1.2}/>:null;
@@ -1464,7 +1467,7 @@ if(locked){
                     />
                   </>
                 ):(
-                  <IconButton label={mapPrefs.viewMode==='grid'?'☷':'▦'} accessibilityLabel={mapPrefs.viewMode==='grid'?'Switch to list view':'Switch to card view'} onPress={()=>setMapPrefs(p=>({...p,viewMode:p.viewMode==='grid'?'list':'grid'}))}/>
+                  <IconButton label={mapPrefs.viewMode==='grid'?'gridView':'listView'} accessibilityLabel={mapPrefs.viewMode==='grid'?'Switch to list view':'Switch to card view'} onPress={()=>setMapPrefs(p=>({...p,viewMode:p.viewMode==='grid'?'list':'grid'}))}/>
                 )}
               </View>
             </View>
@@ -1634,10 +1637,13 @@ if(locked){
 
             {!showTrash&&<View style={{paddingHorizontal:16,paddingVertical:6,gap:6}}>
               <View style={{flexDirection:'row',justifyContent:'space-between',alignItems:'center'}}>
-                <Text style={styles.muted}>{shown.length} {shown.length===1?'map':'maps'}{selected.length>0?` · ${selected.length} selected`:''}</Text>
-                <Button label={librarySort==='modified'?'Sort: Modified ▾':librarySort==='title'?'Sort: Title ▾':'Sort: Created ▾'} onPress={()=>setSortMenu(v=>!v)}/>
+                <Text style={[styles.muted,{color:palette.muted,fontSize:13}]}>{shown.length} {shown.length===1?'map':'maps'}{selected.length>0?` · ${selected.length} selected`:''}</Text>
+                <Pressable accessibilityRole="button" accessibilityLabel="Sort maps" onPress={()=>setSortMenu(v=>!v)} style={{minHeight:42,flexDirection:'row',alignItems:'center',gap:6,paddingHorizontal:12,borderRadius:22,backgroundColor:palette.control}}>
+                  <Text style={{color:palette.text,fontSize:13,fontWeight:'600'}}>{librarySort==='modified'?'Modified':librarySort==='title'?'Title':'Created'}</Text>
+                  <Text style={{color:palette.text}}>⌄</Text>
+                </Pressable>
               </View>
-              {sortMenu&&<View style={{flexDirection:'row',flexWrap:'wrap',gap:6,zIndex:30,elevation:15,backgroundColor:'#f8fafc'}}>
+              {sortMenu&&<View style={{gap:6,backgroundColor:palette.surface,borderRadius:16,padding:10,borderWidth:1,borderColor:palette.border}}>
                 {(['modified','title','created'] as const).map(option=>(
                   <Button key={option} label={`${librarySort===option?'✓ ':''}${option==='modified'?'Last modified':option==='title'?'Title A–Z':'Date created'}`} onPress={()=>{setLibrarySort(option);setSortMenu(false);}}/>
                 ))}
@@ -1649,10 +1655,11 @@ if(locked){
               </Pressable>)}
             </ScrollView>}
             <ScrollView contentContainerStyle={{
-              padding:16,
-              gap:12,
+              padding:12,
+              gap:10,
               flexDirection:!showTrash&&mapPrefs.viewMode==='grid'?'row':'column',
-              flexWrap:!showTrash&&mapPrefs.viewMode==='grid'?'wrap':'nowrap',
+              flexWrap:'nowrap',
+              alignItems:'flex-start',
               justifyContent:'space-between'
             }}>
               {showTrash?(
@@ -1708,13 +1715,15 @@ if(locked){
                 </View>
               ):(
                 <>
-                  {shown.map(n=>(
+                  {(mapPrefs.viewMode==='grid'?[0,1]:[0]).map(column=>(
+                    <View key={column} style={{width:mapPrefs.viewMode==='grid'?'48.5%':'100%',gap:10}}>
+                    {shown.filter((_,index)=>mapPrefs.viewMode!=='grid'||index%2===column).map(n=>(
                     <Pressable
                       key={n.id}
                       accessibilityRole="button"
                       accessibilityLabel={`${n.title||'Untitled map'}${mapPrefs.pinned.includes(n.id)?', pinned':''}${selected.includes(n.id)?', selected':''}`}
                       accessibilityHint="Tap to open; long press to select"
-                      style={[styles.listRow,{backgroundColor:mapPrefs.cardColors[n.id]||palette.surface,borderColor:palette.border},mapPrefs.viewMode==='grid'&&{width:'48%',minHeight:164,alignItems:'stretch',flexDirection:'column',padding:12}]}
+                      style={[styles.listRow,{backgroundColor:mapPrefs.cardColors[n.id]||palette.surface,borderColor:palette.border},mapPrefs.viewMode==='grid'&&{width:'100%',alignItems:'stretch',flexDirection:'column',padding:10}]}
                       onPress={()=>{
                         if(selected.length){
                           setSelected(v=>
@@ -1742,9 +1751,7 @@ if(locked){
                       <View style={{flex:1,width:'100%'}}>
                         <Text style={[styles.listTitle,{color:mapPrefs.cardColors[n.id]?'#362722':palette.text,paddingRight:mapPrefs.pinned.includes(n.id)?29:0}]} numberOfLines={2}>{n.title||'Untitled map'}</Text>
                         {mapPrefs.viewMode==='grid'&&mapPreview(n)}
-                        <Text style={[styles.muted,{color:mapPrefs.cardColors[n.id]?'#755d55':palette.muted}]}>
-                          {new Date(n.updatedAt).toLocaleDateString('en-GB',{day:'2-digit',month:'2-digit',year:'2-digit'})} {new Date(n.updatedAt).toLocaleTimeString('en-IN',{hour:'2-digit',minute:'2-digit',hour12:true}).toLowerCase()}
-                        </Text>
+ 
                       </View>
 
                       {selected.length===0&&mapPrefs.pinned.includes(n.id)&&
@@ -1761,6 +1768,8 @@ if(locked){
                         </Text>
                       )}
                     </Pressable>
+                  ))}
+                    </View>
                   ))}
 
                   {shown.length===0&&(
