@@ -22,12 +22,7 @@ for attempt in $(seq 1 25); do
   # Select Wait, never Close app, then require the real library action.
   if grep -q "System UI isn't responding" /tmp/orbit-ui.xml 2>/dev/null; then
     echo "TEST-01: System UI ANR dialog detected (attempt $attempt); selecting Wait"
-    WAIT_BOUNDS="$(grep -oE 'resource-id="android:id/aerr_wait"[^>]*bounds="\[[0-9]+,[0-9]+\]\[[0-9]+,[0-9]+\]"' /tmp/orbit-ui.xml | grep -oE 'bounds="[^"]+"' | head -n 1 || true)"
-    if [[ "$WAIT_BOUNDS" =~ \[([0-9]+),([0-9]+)\]\[([0-9]+),([0-9]+)\] ]]; then
-      adb shell input tap "$(( (BASH_REMATCH[1] + BASH_REMATCH[3]) / 2 ))" "$(( (BASH_REMATCH[2] + BASH_REMATCH[4]) / 2 ))"
-    else
-      echo "TEST-01: Wait button not found; preserving failure for diagnosis"
-    fi
+    adb shell input keyevent 66 || true
     sleep 2
     continue
   fi
