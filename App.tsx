@@ -616,6 +616,21 @@ const node=(n:Note,x:number,y:number,level:number)=>{
 const centerX=canvasW/2,centerY=canvasH/2;
 
 const activeReader=notes.find(n=>n.id===reader)||initial[0];
+const mapPreview=(root:Note)=>{
+  const points=radialTree(root,notes,mapPrefs.offsets);
+  const visiblePoints=points.slice(0,90);
+  const fit=fitMap(points,160,90,10);
+  const byId=new Map(visiblePoints.map(v=>[v.note.id,v]));
+  return (
+    <Svg width="100%" height={90} viewBox="0 0 160 90" accessibilityLabel={`Preview of ${root.title||'untitled map'}`}>
+      {visiblePoints.map(v=>{
+        const parent=byId.get(v.note.parentId||'');
+        return parent?<Line key={v.note.id} x1={80+fit.x+parent.x*fit.scale} y1={45+fit.y+parent.y*fit.scale} x2={80+fit.x+v.x*fit.scale} y2={45+fit.y+v.y*fit.scale} stroke={palette.connector} strokeWidth={1.2}/>:null;
+      })}
+      {visiblePoints.map(v=><Circle key={v.note.id} cx={80+fit.x+v.x*fit.scale} cy={45+fit.y+v.y*fit.scale} r={v.note.id===root.id?4:2.7} fill={mapPrefs.colors[v.note.id]|| (v.note.id===root.id?palette.accent:palette.node)} stroke={palette.border} strokeWidth={0.8}/>)}
+    </Svg>
+  );
+};
 const listNotes=notes.filter(n=>n.parentId==='root');
 const shown=listNotes.filter(n=>(!folderFilter||n.folderId===folderFilter)&&n.title.toLowerCase().includes(librarySearch.toLowerCase())).sort((a,b)=>Number(mapPrefs.pinned.includes(b.id))-Number(mapPrefs.pinned.includes(a.id))||(librarySort==='title'?a.title.localeCompare(b.title):librarySort==='created'?Number(a.id.split('-')[0])-Number(b.id.split('-')[0]):b.updatedAt-a.updatedAt));
 
@@ -1321,7 +1336,10 @@ if(locked){
                 accessibilityLabel="Open folders and tools"
                 onPress={()=>setSidebar(v=>!v)}
               />
-              <TextInput accessibilityLabel="Search map titles" placeholder="Search maps" value={librarySearch} onChangeText={setLibrarySearch} style={{flex:1,marginHorizontal:8,paddingHorizontal:10,paddingVertical:7,backgroundColor:'#e2e8f0',borderRadius:9,fontSize:13}}/>
+              <View style={{flex:1,flexDirection:'row',alignItems:'center',backgroundColor:palette.control,borderRadius:26,marginHorizontal:8,paddingHorizontal:12,minHeight:48}}>
+                <Text style={{fontSize:20,color:palette.muted,marginRight:8}}>⌕</Text>
+                <TextInput accessibilityLabel="Search map titles" placeholder="Search Orbit Notes" placeholderTextColor={palette.muted} value={librarySearch} onChangeText={setLibrarySearch} style={{flex:1,fontSize:15,color:palette.text,paddingVertical:7}}/>
+              </View>
               <View style={{
                 flexDirection:'row',
                 alignItems:'center'
@@ -1353,14 +1371,7 @@ if(locked){
                     />
                   </>
                 ):(
-                  <>
-                    <IconButton
-                      label="+"
-                      accessibilityLabel="Create new map"
-                      onPress={newMap}
-                    />
-
-                  </>
+                  <IconButton label={mapPrefs.viewMode==='grid'?'☷':'▦'} accessibilityLabel={mapPrefs.viewMode==='grid'?'Switch to list view':'Switch to card view'} onPress={()=>setMapPrefs(p=>({...p,viewMode:p.viewMode==='grid'?'list':'grid'}))}/>
                 )}
               </View>
             </View>
@@ -1368,6 +1379,13 @@ if(locked){
             {(selectionMenu||moveFolderMenu||sidebar||sortMenu)&&<Pressable accessibilityLabel="Close menu" onPress={()=>{setSelectionMenu(false);setMoveFolderMenu(false);setSidebar(false);setSortMenu(false);}} style={[StyleSheet.absoluteFill,{zIndex:20,elevation:10}]}/>}
             {selectionMenu&&selected.length>0&&(
               <View style={styles.popup}>
+                <Button label="Change selected card colors" onPress={()=>{
+                  setMapPrefs(p=>({...p,cardColors:{...p.cardColors,...Object.fromEntries(selected.map(id=>{
+                    const cur=p.cardColors[id]||CARD_PALETTE[0];
+                    return [id,CARD_PALETTE[(CARD_PALETTE.indexOf(cur)+1)%CARD_PALETTE.length]];
+                  }))}}));
+                  setSelectionMenu(false);
+                }}/>
                 <Button
                   label="Move to existing folder"
                   onPress={()=>{
@@ -1527,9 +1545,17 @@ if(locked){
                 ))}
               </View>}
             </View>}
+            {!showTrash&&<ScrollView horizontal showsHorizontalScrollIndicator={false} style={{flexGrow:0}} contentContainerStyle={{paddingHorizontal:16,paddingVertical:6,gap:8,alignItems:'center'}}>
+              {[{id:null,name:'All maps'},...folders.map(f=>({id:f.id,name:f.name}))].map(f=><Pressable key={f.id||'all'} accessibilityRole="button" accessibilityLabel={`Filter ${f.name}`} onPress={()=>{setFolderFilter(f.id);setShowTrash(false);}} style={{backgroundColor:folderFilter===f.id?palette.accent:palette.control,borderRadius:20,paddingHorizontal:16,paddingVertical:10,minHeight:42,justifyContent:'center'}}>
+                <Text style={{color:folderFilter===f.id?'white':palette.text,fontWeight:'600',fontSize:14}}>{f.name}</Text>
+              </Pressable>)}
+            </ScrollView>}
             <ScrollView contentContainerStyle={{
               padding:16,
-              gap:12
+              gap:12,
+              flexDirection:!showTrash&&mapPrefs.viewMode==='grid'?'row':'column',
+              flexWrap:!showTrash&&mapPrefs.viewMode==='grid'?'wrap':'nowrap',
+              justifyContent:'space-between'
             }}>
               {showTrash?(
                 <View style={{gap:12,backgroundColor:'#fff1f2',borderColor:'#fecdd3',borderWidth:1,borderRadius:16,padding:12}}>
@@ -1590,7 +1616,7 @@ if(locked){
                       accessibilityRole="button"
                       accessibilityLabel={`${n.title||'Untitled map'}${mapPrefs.pinned.includes(n.id)?', pinned':''}${selected.includes(n.id)?', selected':''}`}
                       accessibilityHint="Tap to open; long press to select"
-                      style={styles.listRow}
+                      style={[styles.listRow,{backgroundColor:mapPrefs.cardColors[n.id]||palette.surface,borderColor:palette.border},mapPrefs.viewMode==='grid'&&{width:'48%',minHeight:164,alignItems:'stretch',flexDirection:'column',padding:12}]}
                       onPress={()=>{
                         if(selected.length){
                           setSelected(v=>
@@ -1615,11 +1641,10 @@ if(locked){
                         )
                       }
                     >
-                      <View style={{flex:1}}>
-                        <Text style={styles.listTitle}>
-                          {n.title||'Untitled map'}
-                        </Text>
-                        <Text style={styles.muted}>
+                      <View style={{flex:1,width:'100%'}}>
+                        <Text style={[styles.listTitle,{color:palette.text}]} numberOfLines={2}>{n.title||'Untitled map'}</Text>
+                        {mapPrefs.viewMode==='grid'&&mapPreview(n)}
+                        <Text style={[styles.muted,{color:palette.muted}]}>
                           {new Date(n.updatedAt).toLocaleDateString('en-GB',{day:'2-digit',month:'2-digit',year:'2-digit'})} {new Date(n.updatedAt).toLocaleTimeString('en-IN',{hour:'2-digit',minute:'2-digit',hour12:true}).toLowerCase()}
                         </Text>
                       </View>
@@ -1644,6 +1669,9 @@ if(locked){
                 </>
               )}
             </ScrollView>
+            {!showTrash&&selected.length===0&&<Pressable accessibilityRole="button" accessibilityLabel="Create new map" onPress={newMap} style={{position:'absolute',right:22,bottom:26,width:60,height:60,borderRadius:20,backgroundColor:palette.accent,alignItems:'center',justifyContent:'center',elevation:5,zIndex:10}}>
+              <Text style={{fontSize:32,color:'white'}}>+</Text>
+            </Pressable>}
           </InsetSafeAreaView>
         </Modal>
       </SafeAreaView>
