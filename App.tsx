@@ -24,8 +24,8 @@ const initial:Note[]=[{id:'root',parentId:null,title:'My Notes',body:'',updatedA
 type Folder={id:string;name:string};
 const stamp=(t:number)=>new Date(t).toLocaleString();
 const id=()=>`${Date.now()}-${Math.random().toString(36).slice(2,8)}`;
-const LIGHT={background:'#fff8f5',surface:'#fffdfb',control:'#f5e9e4',text:'#362722',muted:'#755d55',border:'#e7cfc7',accent:'#b65e4d',canvas:'#fff9f6',node:'#fce7df',subnode:'#f7eee9',connector:'#bba69c'};
-const DARK={background:'#171414',surface:'#282222',control:'#403331',text:'#f9ece7',muted:'#c7aea5',border:'#69534c',accent:'#eda28f',canvas:'#211b1b',node:'#4a3734',subnode:'#3b3332',connector:'#a58c83'};
+const LIGHT={background:'#f8f9ff',surface:'#ffffff',control:'#e9edf5',text:'#202124',muted:'#60656b',border:'#dadce0',accent:'#495f8e',canvas:'#f8f9ff',node:'#e5eaf5',subnode:'#f0f2f8',connector:'#a0a9b9'};
+const DARK={background:'#17191f',surface:'#252830',control:'#363b46',text:'#e6e9f0',muted:'#b7bdca',border:'#505562',accent:'#aac5fb',canvas:'#1d2027',node:'#3c475d',subnode:'#353b49',connector:'#8692a6'};
 const PaletteContext=React.createContext(LIGHT);
 const CARD_PALETTE=['#fffdfb','#fce7df','#fff3c9','#e8f3dd','#e6ecfc','#f5e6f4'];
 
@@ -1014,7 +1014,7 @@ if(locked){
   <SafeAreaProvider>
     <GestureHandlerRootView style={{flex:1}}>
       <SafeAreaView style={[styles.screen,{backgroundColor:palette.background}]}>
-        <StatusBar barStyle={mapPrefs.theme==='dark'?'light-content':'dark-content'}/>
+        <StatusBar barStyle={effectiveTheme==='dark'?'light-content':'dark-content'}/>
 
         <View style={[
           styles.header,
@@ -1763,7 +1763,7 @@ if(locked){
               justifyContent:'space-between'
             }}>
               {showTrash?(
-                <View style={{gap:12,backgroundColor:'#fff1f2',borderColor:'#fecdd3',borderWidth:1,borderRadius:16,padding:12}}>
+                <View style={{gap:12,backgroundColor:palette.surface,borderColor:palette.border,borderWidth:1,borderRadius:16,padding:12}}>
                   <Text style={[styles.section,{color:'#9f1239'}]}>
                     Recently Deleted
                   </Text>
@@ -1881,7 +1881,7 @@ if(locked){
 
                   {shown.length===0&&(
                     <View style={{alignItems:'center',paddingVertical:48,paddingHorizontal:20,gap:12}}>
-                      <Text style={{fontSize:34,color:'#64748b'}}>◎</Text>
+                      <Text style={{fontSize:34,color:palette.muted}}>◎</Text>
                       <Text style={[styles.listTitle,{textAlign:'center'}]}>{librarySearch.trim()?'No matching maps':showArchive?'No archived maps':folderFilter?'No maps in this label':'Your library is ready'}</Text>
                       <Text style={[styles.muted,{color:palette.muted,textAlign:'center'}]}>{librarySearch.trim()?'No maps match this search. Try different words or clear the search.':folderFilter?'Create a map in this label, or move an existing map here from the library.':'Create your first map to start building your notes.'}</Text>
                       {librarySearch.trim()?<Button label="Clear search" onPress={()=>setLibrarySearch('')}/>:!showArchive&&<Button label="Create map" primary onPress={newMap}/>}
