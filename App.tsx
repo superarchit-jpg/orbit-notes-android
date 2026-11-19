@@ -373,6 +373,7 @@ const deleteSelected=()=>{
     {text:'Cancel',style:'cancel'},
     {text:'Move',style:'destructive',onPress:()=>{
       setNotes(result.remaining);
+       setMapPrefs(p=>({...p,archived:p.archived.filter(item=>!result.batch.notes.some(n=>n.id===item))}));
       setTrash(t=>mapPrefs.trashRetentionAcknowledged?pruneTrash([result.batch,...t]):[result.batch,...t]);
       setUndoBatch(result.batch.id);
       if(result.batch.notes.some(n=>n.id===focused))moveTo('root');
@@ -390,6 +391,7 @@ const removeBranch=(target:string)=>{
     {text:'Cancel'},
     {text:'Delete',style:'destructive',onPress:()=>{
       setNotes(result.remaining);
+       setMapPrefs(p=>({...p,archived:p.archived.filter(item=>!result.batch.notes.some(n=>n.id===item))}));
       setTrash(t=>mapPrefs.trashRetentionAcknowledged?pruneTrash([result.batch,...t]):[result.batch,...t]);
       if(result.batch.notes.some(n=>n.id===focused))setFocused(current.parentId||'root');
     }}
