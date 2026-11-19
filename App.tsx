@@ -1068,12 +1068,13 @@ if(locked){
         </ScrollView>
         {(nodeActions||mapMenu)&&<Pressable accessibilityLabel="Close menu" onPress={()=>{setNodeActions(null);setMapMenu(false);}} style={[StyleSheet.absoluteFill,{zIndex:20,elevation:10}]}/>}
         {nodeActions&&<View style={[styles.bottomSheet,{backgroundColor:palette.surface,borderColor:palette.border,borderTopLeftRadius:24,borderTopRightRadius:24,padding:16,gap:8}]}>
-          <Text style={{fontWeight:'800',color:'#334155'}} numberOfLines={2}>{notes.find(n=>n.id===nodeActions)?.title||'Note actions'}</Text>
+          <Text style={{fontWeight:'700',color:palette.text}} numberOfLines={2}>{notes.find(n=>n.id===nodeActions)?.title||'Note actions'}</Text>
           <Button label="Read note" onPress={()=>{openReader(nodeActions);setNodeActions(null);}}/>
           <Button label="Edit note" onPress={()=>{beginEdit(nodeActions);setNodeActions(null);}}/>
           <Button label="Add child" onPress={()=>{addChild(nodeActions);setNodeActions(null);}}/>
           <Button label="Move up a level" onPress={()=>{reparent(nodeActions,'up');setNodeActions(null);}}/>
           <Button label="Move down a level" onPress={()=>{reparent(nodeActions,'down');setNodeActions(null);}}/>
+          {notes.find(n=>n.id===nodeActions)?.parentId==='root'&&<Button label={mapPrefs.archived.includes(nodeActions)?'Unarchive map':'Archive map'} onPress={()=>{archiveOne(nodeActions,!mapPrefs.archived.includes(nodeActions));setNodeActions(null);setMenu(true);setShowArchive(false);}}/>}
           <Button label="Delete branch" danger onPress={()=>{removeBranch(nodeActions);setNodeActions(null);}}/>
           <Button label="Cancel" onPress={()=>setNodeActions(null)}/>
         </View>}
@@ -1091,7 +1092,8 @@ if(locked){
               label="Export as PDF"
               onPress={()=>{setMapMenu(false);exportOne('pdf');}}
             />
-            <Button label="Gesture help" onPress={()=>{setGestureHelp(true);setMapMenu(false);}}/>
+            {current.parentId==='root'&&<Button label={mapPrefs.archived.includes(current.id)?'Unarchive map':'Archive map'} onPress={()=>{archiveOne(current.id,!mapPrefs.archived.includes(current.id));setMapMenu(false);setMenu(true);setShowArchive(false);}}/>}
+             <Button label="Gesture help" onPress={()=>{setGestureHelp(true);setMapMenu(false);}}/>
           </View>
         )}
 
