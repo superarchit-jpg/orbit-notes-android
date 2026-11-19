@@ -909,7 +909,7 @@ if(locked){
           {ancestors.filter(n=>n.id!=='root').map((n,i)=><Pressable key={n.id} accessibilityRole="button" accessibilityLabel={`Focus ${n.title||'Untitled'}`} onPress={()=>moveTo(n.id)} style={{padding:8}}><Text style={{color:n.id===focused?'#1d4ed8':'#475569',fontWeight:n.id===focused?'800':'500'}}>{i?'› ':''}{n.title||'Untitled'}</Text></Pressable>)}
         </ScrollView>
         {(nodeActions||mapMenu)&&<Pressable accessibilityLabel="Close menu" onPress={()=>{setNodeActions(null);setMapMenu(false);}} style={[StyleSheet.absoluteFill,{zIndex:20,elevation:10}]}/>}
-        {nodeActions&&<View style={[styles.popup,{top:115,right:12,maxWidth:220}]}>
+        {nodeActions&&<View style={[styles.bottomSheet,{backgroundColor:palette.surface,borderColor:palette.border}]}>
           <Text style={{fontWeight:'800',color:'#334155'}} numberOfLines={2}>{notes.find(n=>n.id===nodeActions)?.title||'Note actions'}</Text>
           <Button label="Read note" onPress={()=>{openReader(nodeActions);setNodeActions(null);}}/>
           <Button label="Edit note" onPress={()=>{beginEdit(nodeActions);setNodeActions(null);}}/>
@@ -920,7 +920,7 @@ if(locked){
           <Button label="Cancel" onPress={()=>setNodeActions(null)}/>
         </View>}
         {mapMenu&&(
-          <View style={styles.popup}>
+          <View style={[styles.bottomSheet,{backgroundColor:palette.surface,borderColor:palette.border}]}>
             <Button
               label={overview?'Focus mode':'Overview'}
               onPress={()=>{
@@ -1005,18 +1005,20 @@ if(locked){
             </Animated.View>
             </View>
           </GestureDetector>
-
+          {!menu&&showMiniMap&&<View style={{position:'absolute',right:14,bottom:96,width:174,height:130,backgroundColor:palette.surface,borderColor:palette.border,borderWidth:1,borderRadius:16,overflow:'hidden',padding:8,elevation:3,zIndex:8}}><Text style={styles.muted}>Map overview · {completeMap.length} notes</Text><Svg width="100%" height={102} viewBox="0 0 1000 540" preserveAspectRatio="xMidYMid meet">{miniLines.map(l=><Line key={l.id} x1={l.x1*miniBounds.scale+miniBounds.dx} y1={l.y1*miniBounds.scale+miniBounds.dy} x2={l.x2*miniBounds.scale+miniBounds.dx} y2={l.y2*miniBounds.scale+miniBounds.dy} stroke={palette.connector} strokeWidth={2}/>)}{completeMap.map(v=><Circle key={v.note.id} cx={v.x*miniBounds.scale+miniBounds.dx} cy={v.y*miniBounds.scale+miniBounds.dy} r={v.note.id===focused?5:3.5} fill={v.note.id===focused?palette.accent:palette.muted}/>)}</Svg></View>}
+          {!menu&&<Pressable accessibilityRole="button" accessibilityLabel="Add child note" onPress={()=>{setMapPrefs(p=>({...p,collapsed:{...p.collapsed,[focused]:false}}));addChild(focused);}} style={{position:'absolute',right:18,bottom:17,width:58,height:58,borderRadius:19,backgroundColor:palette.accent,alignItems:'center',justifyContent:'center',elevation:6,zIndex:9}}>
+            <Text style={{color:'white',fontSize:32}}>+</Text>
+          </Pressable>}
         </View>
 
         {!menu&&<ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{flexDirection:'row',alignItems:'center',gap:8,paddingHorizontal:12,paddingVertical:6}}>
-          <Button label="+ Add child" onPress={()=>{setMapPrefs(p=>({...p,collapsed:{...p.collapsed,[focused]:false}}));addChild(focused);}}/>
-           <Button label="−" onPress={()=>{scale.value=withTiming(Math.max(preferredFit*1.1*0.1,preferredFit*1.1*(Math.round(scale.value/(preferredFit*1.1)*10)-1)/10));}}/>
+                     <Button label="−" onPress={()=>{scale.value=withTiming(Math.max(preferredFit*1.1*0.1,preferredFit*1.1*(Math.round(scale.value/(preferredFit*1.1)*10)-1)/10));}}/>
           <Button label="+" onPress={()=>{scale.value=withTiming(Math.min(preferredFit*1.1*2,preferredFit*1.1*(Math.round(scale.value/(preferredFit*1.1)*10)+1)/10));}}/>
           <Text accessibilityLabel={`Zoom ${zoomPercent} percent`} style={{fontSize:12,fontWeight:"700",color:"#334155",minWidth:46,textAlign:"center",textAlignVertical:"center",alignSelf:"center",includeFontPadding:false}}>{zoomPercent}%</Text>
           <Button label={mapPrefs.collapsed[focused]?'Expand branch':'Collapse branch'} onPress={()=>setMapPrefs(p=>({...p,collapsed:{...p.collapsed,[focused]:!p.collapsed[focused]}}))}/>
           <Button label="Node color" onPress={()=>setMapPrefs(p=>{const palette=['#dbeafe','#dcfce7','#fef3c7','#fce7f3','#e9d5ff'];const current=p.colors[focused]||palette[0];return {...p,colors:{...p.colors,[focused]:palette[(palette.indexOf(current)+1)%palette.length]}};})}/>
         </ScrollView>}
-        {!menu&&showMiniMap&&<View style={{height:310,marginHorizontal:14,marginBottom:6,backgroundColor:palette.control,borderRadius:12,overflow:'hidden',padding:6}}><Text style={styles.muted}>Map overview · {completeMap.length} notes</Text><Svg width="100%" height={270} viewBox="0 0 1000 540" preserveAspectRatio="xMidYMid meet">{miniLines.map(l=><Line key={l.id} x1={l.x1*miniBounds.scale+miniBounds.dx} y1={l.y1*miniBounds.scale+miniBounds.dy} x2={l.x2*miniBounds.scale+miniBounds.dx} y2={l.y2*miniBounds.scale+miniBounds.dy} stroke={palette.connector} strokeWidth={2}/>)}{completeMap.map(v=><Circle key={v.note.id} cx={v.x*miniBounds.scale+miniBounds.dx} cy={v.y*miniBounds.scale+miniBounds.dy} r={v.note.id===focused?5:3.5} fill={v.note.id===focused?palette.accent:palette.muted}/>)}</Svg></View>}
+
         {undoBatch&&(
           <View style={styles.toolbar}>
             <Button
@@ -1422,7 +1424,7 @@ if(locked){
 
             {(selectionMenu||moveFolderMenu||sidebar||sortMenu)&&<Pressable accessibilityLabel="Close menu" onPress={()=>{setSelectionMenu(false);setMoveFolderMenu(false);setSidebar(false);setSortMenu(false);}} style={[StyleSheet.absoluteFill,{zIndex:20,elevation:10}]}/>}
             {selectionMenu&&selected.length>0&&(
-              <View style={styles.popup}>
+              <View style={[styles.bottomSheet,{backgroundColor:palette.surface,borderColor:palette.border}]}>
                 <Button label="Change selected card colors" onPress={()=>{
                   setMapPrefs(p=>({...p,cardColors:{...p.cardColors,...Object.fromEntries(selected.map(id=>{
                     const cur=p.cardColors[id]||CARD_PALETTE[0];
@@ -1465,7 +1467,7 @@ if(locked){
             )}
 
             {moveFolderMenu&&(
-              <View style={styles.popup}>
+              <View style={[styles.bottomSheet,{backgroundColor:palette.surface,borderColor:palette.border}]}>
                 {folders.map(f=>(
                   <Button
                     key={f.id}
@@ -1729,6 +1731,21 @@ if(locked){
 }
 
 const styles=StyleSheet.create({
+  bottomSheet:{
+    position:'absolute',
+    bottom:10,
+    left:12,
+    right:12,
+    zIndex:32,
+    elevation:18,
+    backgroundColor:'#fffdfb',
+    padding:14,
+    borderRadius:22,
+    gap:10,
+    maxHeight:'75%',
+    borderWidth:1,
+    borderColor:'#e7cfc7'
+  },
   screen:{
     flex:1,
     backgroundColor:'#f8fafc'
