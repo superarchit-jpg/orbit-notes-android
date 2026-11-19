@@ -844,9 +844,9 @@ if(storageError){
   return (
     <SafeAreaView style={[
       styles.screen,
-      {justifyContent:'center',padding:24,gap:12}
+      {justifyContent:'center',padding:24,gap:12,backgroundColor:palette.background}
     ]}>
-      <Text style={styles.section}>Unable to open local notebook</Text>
+      <Text style={[styles.section,{color:palette.text}]}>Unable to open local notebook</Text>
       <Text style={styles.muted}>{storageError}</Text>
       <Text style={styles.muted}>
         Orbit Notes has stopped writes to protect existing data.
@@ -858,20 +858,21 @@ if(storageError){
 
 if(!loaded){
   return (
-    <SafeAreaView style={styles.screen}>
-      <Text style={styles.logo}>Loading Orbit Notes…</Text>
+    <SafeAreaView style={[styles.screen,{backgroundColor:palette.background}]}>
+      <Text style={[styles.logo,{color:palette.text}]}>Loading Orbit Notes…</Text>
     </SafeAreaView>
   );
 }
 
 if(locked){
   return (
+    <PaletteContext.Provider value={palette}>
     <SafeAreaView style={[
       styles.screen,
-      {justifyContent:'center',padding:28,gap:18}
+      {justifyContent:'center',padding:28,gap:18,backgroundColor:palette.background}
     ]}>
-      <Text style={styles.logo}>◉ Orbit Notes</Text>
-      <Text style={styles.section}>Unlock your private notebook</Text>
+      <Text style={[styles.logo,{color:palette.text}]}>◉ Orbit Notes</Text>
+      <Text style={[styles.section,{color:palette.text}]}>Unlock your private notebook</Text>
 
       <TextInput
         secureTextEntry
@@ -880,7 +881,8 @@ if(locked){
         value={pinInput}
         onChangeText={setPinInput}
         placeholder="Enter app PIN"
-        style={styles.input}
+        placeholderTextColor={palette.muted}
+        style={[styles.input,{backgroundColor:palette.surface,color:palette.text,borderColor:palette.border}]}
       />
 
       <Button
@@ -910,6 +912,7 @@ if(locked){
         If you forget your PIN, recovery is not currently supported.
       </Text>
     </SafeAreaView>
+    </PaletteContext.Provider>
   );
 }
   return (
