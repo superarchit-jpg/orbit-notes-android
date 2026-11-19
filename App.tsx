@@ -1250,7 +1250,7 @@ if(locked){
                     else confirmPinChange();
                   }}/>
                   <Button label="Cancel PIN action" onPress={()=>{setPinAction(null);setPinOld('');setPinNew('');}}/>
-                </View>
+                </View>}
               </>
             )}
 
