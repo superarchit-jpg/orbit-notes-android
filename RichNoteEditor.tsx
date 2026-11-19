@@ -28,7 +28,7 @@ const RichNoteEditor=forwardRef<RichNoteEditorHandle,Props>(function RichNoteEdi
   const callback=useRef(onChangeText);callback.current=onChangeText;
   const html=useMemo(()=>{
     const safeContent=JSON.stringify(markupToHtml(original.current)).replace(/</g,'\\u003c');
-    const color=JSON.stringify(textColor),background=JSON.stringify(backgroundColor);
+    const color=/^#[0-9a-fA-F]{6}$/.test(textColor)?textColor:'#202124',background=/^#[0-9a-fA-F]{6}$/.test(backgroundColor)?backgroundColor:'#ffffff';
     return `<!doctype html><html><head><meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no"/>
 <style>
 html,body{margin:0;padding:0;background:${background};color:${color};font-family:Roboto,"Arial",sans-serif;font-size:17px;line-height:1.6;overflow-wrap:anywhere}
