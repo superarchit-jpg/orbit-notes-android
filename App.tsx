@@ -15,7 +15,7 @@ import {saveEncryptedBackup,selectBackupFile,decryptSelectedBackup} from './back
 import {radialLayout,overviewLayout} from './layout';
 import {TrashBatch,deleteBranches,restoreBatch,pruneTrash} from './trash';
 import {formatSelection,parseRichLine} from './noteFormatting';
-import RichNoteEditor,{RichNoteEditorHandle} from './RichNoteEditor';
+import RichNoteEditor,{RichNoteEditorHandle,RichEditorState} from './RichNoteEditor';
 
 const SafeAreaView=InsetSafeAreaView;
 const W=Dimensions.get('window').width,H=Dimensions.get('window').height;
@@ -64,9 +64,9 @@ const Upright=({angle,children}:{angle:SharedValue<number>;children:React.ReactN
   return <Animated.View style={[{alignItems:'center',justifyContent:'center'},style]}>{children}</Animated.View>;
 };
 
-const IconButton=({label,onPress,danger=false,accessibilityLabel}:{label:string;onPress:()=>void;danger?:boolean;accessibilityLabel?:string})=>{
+const IconButton=({label,onPress,danger=false,active=false,accessibilityLabel}:{label:string;onPress:()=>void;danger?:boolean;active?:boolean;accessibilityLabel?:string})=>{
   const palette=React.useContext(PaletteContext);
-  return <Pressable accessibilityRole="button" accessibilityLabel={accessibilityLabel||label} onPress={onPress} style={{paddingHorizontal:12,paddingVertical:10,minWidth:48,minHeight:48,alignItems:'center',justifyContent:'center'}}>
+  return <Pressable accessibilityRole="button" accessibilityLabel={accessibilityLabel||label} accessibilityState={{selected:active}} onPress={onPress} style={{paddingHorizontal:12,paddingVertical:10,minWidth:48,minHeight:48,alignItems:'center',justifyContent:'center',borderRadius:16,backgroundColor:active?palette.control:'transparent'}}>
     <MaterialIcon name={label} color={danger?'#dc2626':palette.text}/>
   </Pressable>;
 };
@@ -77,6 +77,7 @@ const [notes,setNotes]=useState<Note[]>(initial),[folders,setFolders]=useState<F
 const [mapPrefs,setMapPrefs]=useState(emptyMapPreferences);
 const bioPromptInProgress=useRef(false),bioPrompted=useRef(false);
 const richEditorRef=useRef<RichNoteEditorHandle|null>(null);
+const [editorFormats,setEditorFormats]=useState<RichEditorState>({bold:false,italic:false,underline:false,bullets:false,numbers:false});
 const [colorTarget,setColorTarget]=useState<'cards'|'note'|null>(null);
 const deviceTheme=useColorScheme();
 const effectiveTheme=mapPrefs.themeMode==='system'?(deviceTheme==='dark'?'dark':'light'):mapPrefs.theme;
@@ -1490,7 +1491,7 @@ if(locked){
             </View>
 
             {editing?(
-              <KeyboardAvoidingView behavior={Platform.OS==='ios'?'padding':undefined} style={[styles.editor,{backgroundColor:mapPrefs.noteColors[reader||'']||palette.background}]}>
+              <KeyboardAvoidingView behavior={Platform.OS==='ios'?'padding':'height'} style={[styles.editor,{backgroundColor:mapPrefs.noteColors[reader||'']||palette.background}]}>
                 <View style={styles.editorField}>
                   <Text style={styles.editorLabel}>Note title</Text>
                   <TextInput
@@ -1503,15 +1504,15 @@ if(locked){
                 </View>
                 <View style={[styles.editorField,{flex:1}]}>
                   <Text style={styles.editorLabel}>Note content</Text>
-                  <RichNoteEditor key={reader||'note'} ref={richEditorRef} initialText={body} onChangeText={setBody}
+                  <RichNoteEditor key={reader||'note'} ref={richEditorRef} initialText={body} onChangeText={setBody} onFormatStateChange={setEditorFormats}
                      dark={effectiveTheme==='dark'} textColor={mapPrefs.noteColors[reader||'']?'#362722':palette.text} backgroundColor={palette.surface}/>
                 </View>
                 <View style={{flexDirection:'row',gap:8,alignItems:'center',flexWrap:'wrap'}}>
-                  <IconButton label="bold" accessibilityLabel="Bold text" onPress={()=>applyNoteFormat('bold')}/>
-                  <IconButton label="italic" accessibilityLabel="Italic text" onPress={()=>applyNoteFormat('italic')}/>
-                  <IconButton label="underline" accessibilityLabel="Underline text" onPress={()=>applyNoteFormat('underline')}/>
-                  <IconButton label="bullets" accessibilityLabel="Bulleted list" onPress={()=>applyNoteFormat('bullets')}/>
-                  <IconButton label="numbers" accessibilityLabel="Numbered list" onPress={()=>applyNoteFormat('numbers')}/>
+                  <IconButton label="bold" active={editorFormats.bold} accessibilityLabel="Bold text" onPress={()=>applyNoteFormat('bold')}/>
+                  <IconButton label="italic" active={editorFormats.italic} accessibilityLabel="Italic text" onPress={()=>applyNoteFormat('italic')}/>
+                  <IconButton label="underline" active={editorFormats.underline} accessibilityLabel="Underline text" onPress={()=>applyNoteFormat('underline')}/>
+                  <IconButton label="bullets" active={editorFormats.bullets} accessibilityLabel="Bulleted list" onPress={()=>applyNoteFormat('bullets')}/>
+                  <IconButton label="numbers" active={editorFormats.numbers} accessibilityLabel="Numbered list" onPress={()=>applyNoteFormat('numbers')}/>
                   <IconButton label="palette" accessibilityLabel="Note color" onPress={()=>setColorTarget('note')}/>
                 </View>
               </KeyboardAvoidingView>
