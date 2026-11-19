@@ -22,12 +22,23 @@ export async function setPinLockEnabled(enabled:boolean){
   if(enabled&&!await hasPin())throw new Error('Configure a PIN before enabling app lock');
   await SecureStore.setItemAsync(ENABLED,enabled?'yes':'no');
 }
-export async function setPin(pin:string){
-  if(!/^\d{6,12}$/.test(pin))throw new Error('PIN must be 6–12 digits');
+export type CredentialKind='pin'|'password';
+export async function credentialKind():Promise<CredentialKind>{
+  const raw=await SecureStore.getItemAsync(KEY);
+  if(!raw)return 'pin';
+  try{return JSON.parse(raw).kind==='password'?'password':'pin';}catch{return 'pin';}
+}
+export function validateCredential(value:string,kind:CredentialKind):void{
+  if(kind==='pin'&&!/^\d{4,6}$/.test(value))throw new Error('PIN must contain 4–6 digits');
+  if(kind==='password'&&(!/^[\x21-\x7e]{6,12}$/.test(value)||!/[A-Za-z]/.test(value)||!/[0-9]/.test(value)))
+    throw new Error('Password must contain 6–12 letters and numbers (at least one of each)');
+}
+export async function setPin(pin:string,kind:CredentialKind='pin'){
+  validateCredential(pin,kind);
   const salt=Crypto.randomUUID();
   const pepper=Crypto.randomUUID()+Crypto.randomUUID();
   await SecureStore.setItemAsync(PEPPER,pepper);
-  await SecureStore.setItemAsync(KEY,JSON.stringify({salt,digest:await hash(pin,salt,pepper)}));
+  await SecureStore.setItemAsync(KEY,JSON.stringify({salt,digest:await hash(pin,salt,pepper),kind}));
   await SecureStore.setItemAsync(ENABLED,'yes');
 }
 export async function checkPin(pin:string){
