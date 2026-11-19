@@ -175,9 +175,9 @@ const moveTo=(target:string)=>{
   if(!point)return;
   setFocused(target);
   const angle=rotation.value;
-   tx.value=withTiming(-preferredFit*1.1*(point.x*Math.cos(angle)-point.y*Math.sin(angle)),{duration:560});
-  ty.value=withTiming(-preferredFit*1.1*(point.x*Math.sin(angle)+point.y*Math.cos(angle)),{duration:560});
-  scale.value=withTiming(preferredFit*1.1,{duration:560});
+   tx.value=withTiming(-scale.value*(point.x*Math.cos(angle)-point.y*Math.sin(angle)),{duration:560});
+  ty.value=withTiming(-scale.value*(point.x*Math.sin(angle)+point.y*Math.cos(angle)),{duration:560});
+  
 };
 
 const openReader=(target:string)=>{
@@ -299,7 +299,7 @@ const newMap=()=>{
   setFocused(newId);
   tx.value=withTiming(0);
   ty.value=withTiming(0);
-  scale.value=withTiming(preferredFit);
+  scale.value=withTiming(preferredFit*1.1);
   beginNew(newId);
 };
 
@@ -423,10 +423,11 @@ const visible=useMemo(()=>{
 const [canvasW,setCanvasW]=useState(W);
 const [canvasH,setCanvasH]=useState(H-180);
 
-// The user-preferred fit is one zoom-out step (1/1.2) from the
-// previous fitted view. The 110% view is now labelled 100%.
-const preferredFit=useMemo(()=>{const points=visible.length<=2?[...visible,{x:-313.5,y:0},{x:313.5,y:0}]:visible;const fit=fitMap(points,Math.max(1,canvasW),Math.max(1,canvasH)).scale;return Number.isFinite(fit)&&fit>0?fit*(1.75/1.2)*1.1:1;},[visible,canvasW,canvasH]);
-useEffect(()=>{if(!menu&&Number.isFinite(preferredFit))scale.value=withTiming(preferredFit*1.1,{duration:300});},[menu,focused,preferredFit]);
+// Fixed 100% reference: changes in node count or focus must not redefine zoom.
+// Retain the former sparse-map reference for the initial view.
+const preferredFit=useMemo(()=>{const fit=fitMap([{x:-313.5,y:0},{x:313.5,y:0}],Math.max(1,canvasW),Math.max(1,canvasH)).scale;return Number.isFinite(fit)&&fit>0?fit*(1.75/1.2)*1.1:1;},[canvasW,canvasH]);
+// Only reset zoom when entering a map, not after a node change.
+useEffect(()=>{if(!menu)scale.value=withTiming(preferredFit*1.1,{duration:300});},[menu]);
 useAnimatedReaction(
   ()=>Number.isFinite(scale.value)&&Number.isFinite(preferredFit)&&preferredFit>0?Math.round(Math.max(10,Math.min(200,scale.value/(preferredFit*1.1)*100))):100,
   (value,previous)=>{if(value!==previous)runOnJS(setZoomPercent)(value);}
@@ -449,9 +450,9 @@ const miniBounds=useMemo(()=>{
 const focusPoint=visible.find(x=>x.note.id===focused)||visible[0];
 const fitCurrentMap=()=>{
   const fit=fitMap(visible,canvasW,canvasH);
-  tx.value=withTiming(fit.x);
-  ty.value=withTiming(fit.y);
-  scale.value=withTiming(preferredFit*1.1);
+  tx.value=withTiming(fit.x*1.1);
+  ty.value=withTiming(fit.y*1.1);
+  scale.value=withTiming(fit.scale*1.1);
   rotation.value=withTiming(0);
 };
 const parentPoint:{x:number;y:number}={x:0,y:0};
@@ -854,9 +855,8 @@ if(locked){
             <IconButton
               label="⌖"
               onPress={()=>{
-                tx.value=withTiming(-preferredFit*1.1*(focusPoint?.x||0));
-                ty.value=withTiming(-preferredFit*1.1*(focusPoint?.y||0));
-                scale.value=withTiming(preferredFit*1.1);
+                tx.value=withTiming(-scale.value*(focusPoint?.x||0));
+                ty.value=withTiming(-scale.value*(focusPoint?.y||0));
                 rotation.value=withTiming(0);
               }}
             />
@@ -1589,7 +1589,7 @@ if(locked){
                           setFocused(n.id);
                           tx.value=withTiming(0);
                           ty.value=withTiming(0);
-                          scale.value=withTiming(preferredFit);
+                          scale.value=withTiming(preferredFit*1.1);
                           setMenu(false);
                           setSidebar(false);setFoldersExpanded(false);
                         }
