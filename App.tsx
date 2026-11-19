@@ -41,6 +41,7 @@ const ICON_PATHS:Record<string,string>={
   '☆':'M12 2l3.1 6.4 7.1 1.1-5.1 5 .9 7-6-3.3-6 3.3.9-7-5.1-5 7.1-1.1L12 2z',
   '★':'M12 2l3.1 6.4 7.1 1.1-5.1 5 .9 7-6-3.3-6 3.3.9-7-5.1-5 7.1-1.1L12 2z',
   '☑':'M3 3h18v18H3zM7 12l3 3 7-7',
+  'selectAll':'M5 5h14v14H5zM8 12l3 3 5-6',
   '☷':'M5 6h14M5 12h14M5 18h14',
   '▦':'M3 3h8v8H3zM13 3h8v8h-8zM3 13h8v8H3zM13 13h8v8h-8z',
   'Fit':'M4 9V4h5M15 4h5v5M20 15v5h-5M9 20H4v-5',
@@ -1507,7 +1508,7 @@ if(locked){
                 {selected.length>0?(
                   <>
                     <IconButton
-                      label="▣"
+                      label="selectAll"
                       accessibilityLabel="Select all visible maps"
                       onPress={()=>setSelected(
                         shown.map(n=>n.id)
