@@ -160,7 +160,7 @@ console.log('PASS: Stage 3 approved UX control wiring');
 for (const marker of [
   'accessibilityLabel="Note title"',
   'accessibilityLabel="Note content"',
-  "accessibilityLabel={editing?'Save and close note':'Close note'}",
+  "accessibilityLabel={draftChildId===reader?'Discard new child note':'Close note'}",
   'styles.editorField',
   'styles.editorLabel',
   'No deleted notes. Notes moved here will appear for recovery.',
@@ -189,6 +189,25 @@ for (const marker of [
 ]) check(app.includes(marker), `Missing approved Keep redesign wiring: ${marker}`);
 check(!app.includes('label="Reminders"')&&!app.includes('label="Archive"'),'Unapproved NAV-06 sections must remain absent');
 console.log('PASS: approved Keep-inspired redesign wiring');
+
+// Targeted device feedback regression: pinned cards and new child draft lifecycle.
+check(
+  app.includes("selected.every(id=>mapPrefs.pinned.includes(id))?'Unpin selected maps':'Pin selected maps'") &&
+  app.includes('accessibilityLabel="Unpin map"') &&
+  app.includes("selected.length===0&&mapPrefs.pinned.includes(n.id)") &&
+  app.includes("fill={palette.accent}") &&
+  !app.includes("label={mapPrefs.pinned.includes(n.id)?'★':'☆'}"),
+  'Pinned maps need a visible corner pin; unpinned maps use selection actions'
+);
+check(
+  app.includes('const closeReaderWithCross=()=>') &&
+  app.includes('onPress={closeReaderWithCross}') &&
+  app.includes('if(draftChildId&&draftChildId===reader)') &&
+  !app.includes("draftChildId===reader&&!title.trim()&&!body.trim()") &&
+  app.includes('if(editing){saveEdit();return;}'),
+  'New children must persist on Done or Back and disappear only on explicit cross'
+);
+console.log('PASS: pinned map and child note persistence regression');
 
 // Upright labels during rotation
 check(
