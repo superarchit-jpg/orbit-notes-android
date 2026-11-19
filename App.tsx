@@ -887,6 +887,12 @@ if(locked){
               label="Export as PDF"
               onPress={()=>{setMapMenu(false);exportOne('pdf');}}
             />
+            <Button label="Gesture help" onPress={()=>{
+              setMapMenu(false);
+              Alert.alert('Map gesture guide',
+                'Tap: focus a node.\nDouble-tap: read a note.\nTriple-tap: edit a note.\nLong-press: note actions.\nDrag around a branch: rotate its children.\nTwo fingers: pinch to zoom or rotate the map.\nFit: frame the visible map.',
+                [{text:'Close'}]);
+            }}/>
             <Button
               label="App lock & settings"
               onPress={()=>{
@@ -1301,6 +1307,7 @@ if(locked){
             <View style={styles.header}>
               <IconButton
                 label="☰"
+                accessibilityLabel="Open folders and tools"
                 onPress={()=>setSidebar(v=>!v)}
               />
               <TextInput accessibilityLabel="Search map titles" placeholder="Search maps" value={librarySearch} onChangeText={setLibrarySearch} style={{flex:1,marginHorizontal:8,paddingHorizontal:10,paddingVertical:7,backgroundColor:'#e2e8f0',borderRadius:9,fontSize:13}}/>
@@ -1312,21 +1319,25 @@ if(locked){
                   <>
                     <IconButton
                       label="☑"
+                      accessibilityLabel="Select all visible maps"
                       onPress={()=>setSelected(
                         shown.map(n=>n.id)
                       )}
                     />
                     <IconButton
                       label="×"
+                      accessibilityLabel="Clear map selection"
                       onPress={()=>setSelected([])}
                     />
                     <IconButton
                       label="🗑"
+                      accessibilityLabel="Move selected maps to Recently Deleted"
                       danger
                       onPress={deleteSelected}
                     />
                     <IconButton
                       label="⋮"
+                      accessibilityLabel="More selection actions"
                       onPress={()=>setSelectionMenu(v=>!v)}
                     />
                   </>
@@ -1334,6 +1345,7 @@ if(locked){
                   <>
                     <IconButton
                       label="+"
+                      accessibilityLabel="Create new map"
                       onPress={newMap}
                     />
 
@@ -1706,9 +1718,11 @@ const styles=StyleSheet.create({
     zIndex:30,
     elevation:15,
     backgroundColor:'white',
-    padding:10,
-    borderRadius:12,
-    gap:8,
+    padding:12,
+    borderRadius:16,
+    gap:10,
+    minWidth:190,
+    maxWidth:260,
     borderWidth:1,
     borderColor:'#cbd5e1'
   },
