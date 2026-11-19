@@ -1097,26 +1097,30 @@ if(locked){
           animationType="slide"
           onRequestClose={()=>setSettings(false)}
         >
-          <SafeAreaView style={[
-            styles.screen,
-            {padding:20,gap:18}
-          ]}>
+          <SafeAreaView style={[styles.screen,{backgroundColor:palette.background}]}>
+            <ScrollView contentContainerStyle={{padding:20,gap:18,paddingBottom:42}}>
             <View style={styles.header}>
-              <Text style={styles.logo}>Privacy & App Lock</Text>
+              <Text style={[styles.logo,{color:palette.text}]}>Privacy & App Lock</Text>
               <Button
                 label="Done"
                 onPress={()=>setSettings(false)}
               />
             </View>
 
-            <Text style={styles.muted}>
+            <Text style={[styles.muted,{color:palette.muted}]}>
               All notes remain on this device. No cloud services
               or online accounts.
             </Text>
 
+            <View style={{backgroundColor:palette.surface,borderColor:palette.border,borderWidth:1,borderRadius:20,padding:16,gap:12}}>
+              <Text style={[styles.section,{color:palette.text}]}>Appearance</Text>
+              <Button label={mapPrefs.theme==='dark'?'☾  Dark theme':'☼  Light theme'} onPress={()=>setMapPrefs(p=>({...p,theme:p.theme==='dark'?'light':'dark'}))}/>
+              <Text style={[styles.muted,{color:palette.muted}]}>Your choice is saved on this device.</Text>
+            </View>
+            <View style={{backgroundColor:palette.surface,borderColor:palette.border,borderWidth:1,borderRadius:20,padding:16,gap:12}}>
             {!pinConfigured?(
               <>
-                <Text style={styles.section}>
+                <Text style={[styles.section,{color:palette.text}]}>
                   Enable optional PIN lock
                 </Text>
                 <TextInput
@@ -1126,7 +1130,7 @@ if(locked){
                   value={pinSetup}
                   onChangeText={setPinSetup}
                   placeholder="Choose a 6–12 digit PIN"
-                  style={styles.input}
+                  style={[styles.input,{backgroundColor:palette.background,color:palette.text,borderColor:palette.border}]}
                 />
                 <Button
                   label="Enable PIN lock"
@@ -1136,7 +1140,7 @@ if(locked){
               </>
             ):(
               <>
-                <Text style={styles.section}>
+                <Text style={[styles.section,{color:palette.text}]}>
                   App lock enabled
                 </Text>
                 <Button
@@ -1174,10 +1178,12 @@ if(locked){
               </>
             )}
 
-            <Text style={styles.section}>
+            </View>
+            <View style={{backgroundColor:palette.surface,borderColor:palette.border,borderWidth:1,borderRadius:20,padding:16,gap:12}}>
+            <Text style={[styles.section,{color:palette.text}]}>
               Personal encrypted backup
             </Text>
-            <Text style={styles.muted}>
+            <Text style={[styles.muted,{color:palette.muted}]}>
               Backups are encrypted with your password and saved
               to a folder you choose. Restore replaces the current
               notebook. No cloud or sharing.
@@ -1200,11 +1206,13 @@ if(locked){
                 }}
               />
             </View>
-            <Text style={styles.muted}>
+            <Text style={[styles.muted,{color:palette.muted}]}>
               Security note: this app lock is an access gate, not
               full database encryption. Device encryption and
               OS screen lock remain important.
             </Text>
+            </View>
+            </ScrollView>
           </SafeAreaView>
         </Modal>
 
