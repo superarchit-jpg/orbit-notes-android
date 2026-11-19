@@ -1613,7 +1613,17 @@ if(locked){
               </View>
             )}
 
-            {moveFolderMenu&&(
+            {sortMenu&&<View style={[styles.bottomSheet,{backgroundColor:palette.surface,borderColor:palette.border,padding:18,borderTopLeftRadius:24,borderTopRightRadius:24,gap:8}]}>
+                <Text style={[styles.section,{color:palette.text,marginBottom:5}]}>Sort maps</Text>
+                {(['modified','title','created'] as const).map(option=>(
+                  <Pressable key={option} accessibilityRole="button" accessibilityState={{selected:librarySort===option}} onPress={()=>{setLibrarySort(option);setSortMenu(false);}} style={{minHeight:50,flexDirection:'row',alignItems:'center',gap:14,paddingHorizontal:14,borderRadius:14,backgroundColor:librarySort===option?palette.control:palette.surface}}>
+                    <Text style={{fontSize:19,color:palette.accent}}>{librarySort===option?'◉':'○'}</Text>
+                    <Text style={{color:palette.text,fontSize:15}}>{option==='modified'?'Last modified':option==='title'?'Title A–Z':'Date created'}</Text>
+                  </Pressable>
+                ))}
+                <Button label="Cancel" onPress={()=>setSortMenu(false)}/>
+              </View>}
+              {moveFolderMenu&&(
               <View style={[styles.bottomSheet,{backgroundColor:palette.surface,borderColor:palette.border}]}>
                 {folders.map(f=>(
                   <Button
@@ -1738,16 +1748,13 @@ if(locked){
             {!showTrash&&<View style={{paddingHorizontal:16,paddingVertical:6,gap:6}}>
               <View style={{flexDirection:'row',justifyContent:'space-between',alignItems:'center'}}>
                 <Text style={[styles.muted,{color:palette.muted,fontSize:13}]}>{showArchive?'Archive · ':''}{shown.length} {shown.length===1?'map':'maps'}{selected.length>0?` · ${selected.length} selected`:''}</Text>
-                <Pressable accessibilityRole="button" accessibilityLabel="Sort maps" onPress={()=>setSortMenu(v=>!v)} style={{minHeight:42,flexDirection:'row',alignItems:'center',gap:6,paddingHorizontal:12,borderRadius:22,backgroundColor:palette.control}}>
-                  <Text style={{color:palette.text,fontSize:13,fontWeight:'600'}}>{librarySort==='modified'?'Modified':librarySort==='title'?'Title':'Created'}</Text>
-                  <Text style={{color:palette.text}}>⌄</Text>
-                </Pressable>
+                <Pressable accessibilityRole="button" accessibilityLabel="Sort maps" onPress={()=>setSortMenu(v=>!v)} style={{minHeight:44,flexDirection:'row',alignItems:'center',gap:7,paddingHorizontal:14,borderRadius:22,backgroundColor:palette.control}}>
+                   <Text style={{color:palette.text,fontSize:14}}>⇅</Text>
+                   <Text style={{color:palette.text,fontSize:13,fontWeight:'600'}}>{librarySort==='modified'?'Last modified':librarySort==='title'?'Title A–Z':'Date created'}</Text>
+                   <Text style={{color:palette.muted}}>⌄</Text>
+                 </Pressable>
               </View>
-              {sortMenu&&<View style={{gap:6,backgroundColor:palette.surface,borderRadius:16,padding:10,borderWidth:1,borderColor:palette.border}}>
-                {(['modified','title','created'] as const).map(option=>(
-                  <Button key={option} label={`${librarySort===option?'✓ ':''}${option==='modified'?'Last modified':option==='title'?'Title A–Z':'Date created'}`} onPress={()=>{setLibrarySort(option);setSortMenu(false);}}/>
-                ))}
-              </View>}
+              
             </View>}
             {!showTrash&&<ScrollView horizontal showsHorizontalScrollIndicator={false} style={{flexGrow:0}} contentContainerStyle={{paddingHorizontal:16,paddingVertical:6,gap:8,alignItems:'center'}}>
               {[{id:null,name:'All maps'},...folders.map(f=>({id:f.id,name:f.name}))].map(f=><Pressable key={f.id||'all'} accessibilityRole="button" accessibilityLabel={`Filter ${f.name}`} onPress={()=>{setFolderFilter(f.id);setShowTrash(false);}} style={{backgroundColor:folderFilter===f.id?palette.accent:palette.control,borderRadius:20,paddingHorizontal:16,paddingVertical:10,minHeight:42,justifyContent:'center'}}>
