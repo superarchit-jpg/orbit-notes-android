@@ -1306,6 +1306,7 @@ if(locked){
                 {pinLockEnabled&&<Button
                   label="Lock now"
                   onPress={()=>{
+                    bioPrompted.current=false;
                     setSettings(false);
                     setLocked(true);
                   }}
