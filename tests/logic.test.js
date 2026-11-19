@@ -187,7 +187,7 @@ for (const marker of [
   'Filter ${f.name}', 'Create new map',
   'FadeInLeft.duration(220)', "No maps in this label",
   'formatSelection(value,textSelection.start',
-  'parseRichLine(line)', 'label="bullets" accessibilityLabel="Bulleted list"',
+  'parseRichLine(line)', 'label="bullets" active={editorFormats.bullets} accessibilityLabel="Bulleted list"',
   "onRequestClose={cancelReader}", 'label="palette" accessibilityLabel="Note color"'
 ]) check(app.includes(marker), `Missing approved Keep redesign wiring: ${marker}`);
 check(!app.includes('label="Reminders"')&&app.includes('showArchive'),'Archive must be explicitly separated from active library and Reminders must remain absent');
@@ -229,8 +229,8 @@ for(const marker of [
   'const confirmPinChange=async()=>',
   "label=\"Delete stored PIN\"",
   "isPinLockEnabled()",
-  'label="numbers" accessibilityLabel="Numbered list"',
-  'label="underline" accessibilityLabel="Underline text"'
+  'label="numbers" active={editorFormats.numbers} accessibilityLabel="Numbered list"',
+  'label="underline" active={editorFormats.underline} accessibilityLabel="Underline text"'
 ]) check(app.includes(marker),`Missing approved recording improvement: ${marker}`);
 for(const obsolete of [
   'label="Reset rotation"',
