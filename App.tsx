@@ -1137,7 +1137,7 @@ if(locked){
           <Button label="Cancel" onPress={()=>setNodeActions(null)}/>
         </View>}
         {mapMenu&&(
-          <View style={[styles.bottomSheet,{backgroundColor:palette.surface,borderColor:palette.border}]}>
+          <View style={[styles.popup,{top:undefined,bottom:72,right:12,width:226,backgroundColor:palette.surface,borderColor:palette.border}]}>
             <ActionRow label="Export" icon="exportIcon" onPress={()=>{setMapMenu(false);exportOne('pdf');}}/>
             {current.parentId==='root'&&<ActionRow icon={mapPrefs.archived.includes(current.id)?'unarchive':'archive'} label={mapPrefs.archived.includes(current.id)?'Unarchive':'Archive'} onPress={()=>{archiveOne(current.id,!mapPrefs.archived.includes(current.id));setMapMenu(false);setMenu(true);setShowArchive(false);}}/>}
             <ActionRow label="Help" icon="helpIcon" onPress={()=>{setGestureHelp(true);setMapMenu(false);}}/>
@@ -1613,10 +1613,16 @@ if(locked){
         >
           <GestureHandlerRootView style={{flex:1}}><InsetSafeAreaView style={[styles.screen,{backgroundColor:palette.background}]} edges={['top','bottom']}>
             <View style={[styles.header,{gap:2}]}>
-              <IconButton label={selected.length?'×':'☰'} accessibilityLabel={selected.length?'Clear selection':'Open sidebar'} onPress={()=>selected.length?setSelected([]):setSidebar(v=>!v)}/>
+              <IconButton label={selected.length||showTrash&&selectedTrash.length?'×':'☰'} accessibilityLabel={selected.length||showTrash&&selectedTrash.length?'Clear selection':'Open sidebar'} onPress={()=>{if(showTrash&&selectedTrash.length)setSelectedTrash([]);else if(selected.length)setSelected([]);else setSidebar(v=>!v);}}/>
               {selected.length>0&&<Text accessibilityLabel={selected.length+' maps selected'} style={{fontSize:18,fontWeight:'600',color:palette.text,minWidth:24}}>{selected.length}</Text>}
               {showTrash?(
-                <Text style={{flex:1,color:palette.text,fontSize:21,fontWeight:'600'}}>Deleted</Text>
+                <View style={{flex:1,flexDirection:'row',alignItems:'center',justifyContent:'space-between'}}>
+                  <Text style={{color:palette.text,fontSize:21,fontWeight:'600'}}>{selectedTrash.length?selectedTrash.length+' selected':'Deleted'}</Text>
+                  <View style={{flexDirection:'row',alignItems:'center'}}>
+                    {selectedTrash.length>0&&<IconButton label="restoreIcon" accessibilityLabel="Restore selected deleted maps" onPress={restoreSelectedTrash}/>}
+                    <IconButton label="⋮" accessibilityLabel="Deleted items menu" onPress={()=>setTrashMenu(v=>!v)}/>
+                  </View>
+                </View>
               ):selected.length===0&&showArchive?(
                 <Text style={{flex:1,color:palette.text,fontSize:21,fontWeight:'600'}}>Archive</Text>
               ):selected.length===0?(
@@ -1641,9 +1647,15 @@ if(locked){
               )}
             </View>
 
-            {(selectionMenu||moveFolderMenu||sidebar||sortMenu)&&<Pressable accessibilityLabel="Close menu" onPress={()=>{setSelectionMenu(false);setMoveFolderMenu(false);setSidebar(false);setSortMenu(false);}} style={[StyleSheet.absoluteFill,{zIndex:20,elevation:10,backgroundColor:sidebar?'rgba(0,0,0,0.32)':'transparent'}]}/>}
+            {(selectionMenu||moveFolderMenu||sidebar||sortMenu||trashMenu)&&<Pressable accessibilityLabel="Close menu" onPress={()=>{setSelectionMenu(false);setMoveFolderMenu(false);setSidebar(false);setSortMenu(false);setTrashMenu(false);}} style={[StyleSheet.absoluteFill,{zIndex:20,elevation:10,backgroundColor:sidebar?'rgba(0,0,0,0.32)':'transparent'}]}/>}
+            {trashMenu&&showTrash&&<View style={[styles.popup,{backgroundColor:palette.surface,borderColor:palette.border,top:56,right:12,zIndex:32,paddingVertical:6}]}>
+              <ActionRow label={selectedTrash.length?'Delete forever':'Empty bin'} icon="🗑" danger onPress={()=>{setTrashMenu(false);if(selectedTrash.length)removeSelectedTrash();else if(trash.length)showDialog('Empty Deleted?','Permanently delete all items in Deleted?',[
+                {text:'Cancel',style:'cancel'},
+                {text:'Empty Deleted',style:'destructive',onPress:()=>{setTrash([]);setSelectedTrash([]);}}
+              ]);}}/>
+            </View>}
             {selectionMenu&&selected.length>0&&(
-              <View style={[styles.bottomSheet,{backgroundColor:palette.surface,borderColor:palette.border}]}>
+              <View style={[styles.popup,{top:56,right:12,left:undefined,bottom:undefined,width:236,backgroundColor:palette.surface,borderColor:palette.border,zIndex:32}]}>
                 <ActionRow icon={showArchive?'unarchive':'archive'} label={showArchive?'Unarchive':'Archive'} onPress={()=>archiveSelection(!showArchive)}/>
                 <ActionRow label="Export" icon="exportIcon" onPress={()=>{setSelectionMenu(false);exportSelected();}}/>
                 <View style={{height:1,backgroundColor:palette.border,marginVertical:4}}/>
@@ -1814,43 +1826,26 @@ if(locked){
             }}>
               {showTrash?(
                 <View style={{width:'100%',gap:12,padding:8}}>
-                  <Text style={[styles.section,{color:palette.text}]}>Recently Deleted</Text>
-                  <Text style={{color:palette.muted,fontSize:13}}>Items in the bin are permanently deleted after seven days.</Text>
-                  {!mapPrefs.trashRetentionAcknowledged&&(
+                  {!mapPrefs.trashRetentionAcknowledged&&trash.length>0&&(
                     <View style={{gap:8,padding:12,borderColor:palette.border,borderWidth:1,borderRadius:14}}>
                       <Text style={{color:palette.text}}>Review existing deleted items before activating the seven-day retention policy.</Text>
                       <Button label="Apply seven-day retention" onPress={acknowledgeTrashRetention}/>
                     </View>
                   )}
-                  <View style={{flexDirection:'row',justifyContent:'flex-end',alignItems:'center',gap:8}}>
-                    {selectedTrash.length>0&&<IconButton label="restoreIcon" accessibilityLabel="Restore selected deleted maps" onPress={restoreSelectedTrash}/>}
-                    <IconButton label="⋮" accessibilityLabel="Deleted items menu" onPress={()=>setTrashMenu(v=>!v)}/>
-                  </View>
-                  {trashMenu&&<View style={{backgroundColor:palette.surface,borderRadius:16,padding:8}}>
-                    {selectedTrash.length?(
-                      <Button label="Delete forever" danger onPress={()=>{setTrashMenu(false);removeSelectedTrash();}}/>
-                    ):(
-                      <Button label="Empty bin" danger onPress={()=>{setTrashMenu(false);if(trash.length)showDialog('Empty bin?','Permanently delete all items in Recently Deleted?',[
-                        {text:'Cancel',style:'cancel'},
-                        {text:'Empty bin',style:'destructive',onPress:()=>{setTrash([]);setSelectedTrash([]);}}
-                      ]);}}/>
-                    )}
-                  </View>}
                   {trash.length===0?(
-                    <View style={{alignItems:'center',paddingVertical:64,gap:10}}>
-                      <MaterialIcon name="🗑" color={palette.muted}/>
-                      <Text style={{color:palette.muted,fontSize:16}}>Nothing in the bin</Text>
-                      <Text style={{color:palette.muted,textAlign:'center'}}>Deleted maps will appear here for seven days. Restore items before their recovery period ends.</Text>
+                    <View style={{alignItems:'center',justifyContent:'center',paddingVertical:96,gap:12,width:'100%'}}>
+                      <Svg width={112} height={112} viewBox="0 0 112 112"><Path d="M28 30h56M42 20h28M34 30l4 63h36l4-63M48 44v36M64 44v36" stroke={palette.muted} strokeWidth={3.5} fill="none" strokeLinecap="round" strokeLinejoin="round"/></Svg>
+                      <Text style={{color:palette.muted,fontSize:16,textAlign:'center'}}>No notes in Deleted</Text>
                     </View>
                   ):trash.map(batch=>(
-                    <Pressable key={batch.id} accessibilityRole="button" accessibilityLabel={'Select deleted map '+(batch.notes[0]?.title||'Untitled')} onPress={()=>setSelectedTrash(v=>v.includes(batch.id)?v.filter(x=>x!==batch.id):[...v,batch.id])}
+                    <Pressable key={batch.id} accessibilityRole="button" accessibilityLabel={'Open deleted map '+(batch.notes[0]?.title||'Untitled')} accessibilityHint="Tap for read-only preview; long press to select" onPress={()=>{if(selectedTrash.length)setSelectedTrash(v=>v.includes(batch.id)?v.filter(x=>x!==batch.id):[...v,batch.id]);else setDeletedPreview(batch);}} onLongPress={()=>setSelectedTrash(v=>v.includes(batch.id)?v:[...v,batch.id])}
                       style={{minHeight:120,borderRadius:16,padding:14,backgroundColor:palette.surface,borderColor:selectedTrash.includes(batch.id)?palette.accent:palette.border,borderWidth:selectedTrash.includes(batch.id)?3:1,gap:12}}>
                       <Text style={{color:palette.text,fontWeight:'600',fontSize:16}}>{batch.notes[0]?.title||'Untitled map'}</Text>
                       <View style={{overflow:'hidden',borderRadius:10}}>{mapPreview(batch.notes.find(n=>n.parentId==='root')||batch.notes[0],batch.notes)}</View>
                        {labelIds(batch.notes[0]).length>0&&<View style={{flexDirection:'row',flexWrap:'wrap',gap:5}}>{labelIds(batch.notes[0]).map(id=>{const label=folders.find(f=>f.id===id)?.name;return label?<View key={id} style={{paddingHorizontal:7,paddingVertical:3,borderRadius:6,borderWidth:1,borderColor:palette.border}}><Text style={{fontSize:11,color:palette.muted}}>{label}</Text></View>:null;})}</View>}
                        <View style={{flexDirection:'row',justifyContent:'space-between',alignItems:'center'}}>
                          <Text style={{color:palette.muted,fontSize:12}}>Deleted {stamp(batch.deletedAt)}</Text>
-                         <Pressable accessibilityRole="button" accessibilityLabel={'Restore '+(batch.notes[0]?.title||'deleted map')} onPress={()=>restore(batch)} style={{flexDirection:'row',alignItems:'center',gap:5,padding:8}}><MaterialIcon name="restoreIcon" color={palette.accent}/><Text style={{color:palette.accent,fontWeight:'600'}}>Restore</Text></Pressable>
+                         <Pressable accessibilityRole="button" accessibilityLabel={'Restore '+(batch.notes[0]?.title||'deleted map')} onPress={event=>{event.stopPropagation();restore(batch);}} style={{flexDirection:'row'},alignItems:'center',gap:5,padding:8}}><MaterialIcon name="restoreIcon" color={palette.accent}/><Text style={{color:palette.accent,fontWeight:'600'}}>Restore</Text></Pressable>
                        </View>
                     </Pressable>
                   ))}
@@ -1938,6 +1933,24 @@ if(locked){
             </GestureDetector>
           )}
           </InsetSafeAreaView></GestureHandlerRootView>
+        </Modal>
+        <Modal visible={deletedPreview!==null} animationType="slide" onRequestClose={()=>setDeletedPreview(null)}>
+          <SafeAreaView style={[styles.screen,{backgroundColor:palette.background}]}>
+            <View style={styles.header}>
+              <IconButton label="←" accessibilityLabel="Back to Deleted" onPress={()=>setDeletedPreview(null)}/>
+              <Text style={{fontSize:18,fontWeight:'600',color:palette.text,flex:1}}>Deleted map · Read only</Text>
+            </View>
+            <ScrollView contentContainerStyle={{padding:22,gap:18}}>
+              {deletedPreview&&<>
+                <Text style={[styles.readerTitle,{color:palette.text}]}>{deletedPreview.notes.find(n=>n.parentId==='root')?.title||deletedPreview.notes[0]?.title||'Untitled map'}</Text>
+                <View style={{backgroundColor:palette.surface,borderRadius:16,padding:12}}>{mapPreview(deletedPreview.notes.find(n=>n.parentId==='root')||deletedPreview.notes[0],deletedPreview.notes)}</View>
+                {deletedPreview.notes.map(note=><View key={note.id} style={{borderBottomWidth:1,borderColor:palette.border,paddingVertical:12,gap:5}}>
+                  <Text style={{color:palette.text,fontSize:16,fontWeight:'600'}}>{note.title||'Untitled note'}</Text>
+                  {note.body?noteBodyView(note.body):null}
+                </View>)}
+              </>}
+            </ScrollView>
+          </SafeAreaView>
         </Modal>
         <Modal visible={retentionNotice} transparent animationType="fade" onRequestClose={()=>{setRetentionNotice(false);setMapPrefs(p=>({...p,trashRetentionWarningSeen:true}));}}>
           <View style={{flex:1,justifyContent:'center',padding:24,backgroundColor:'rgba(0,0,0,0.55)'}}>
