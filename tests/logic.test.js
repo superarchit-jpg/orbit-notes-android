@@ -253,13 +253,14 @@ check(security.includes('export async function credentialKind')&&security.includ
 console.log('PASS: Stage 4 new feature guards');
 
 check(app.includes("focused:notes.some(n=>n.id===focused)?focused:'root'"),'Persistence must not save a missing focused note');
-check(app.includes('setPendingBranch(result.batch)')&&app.includes('setUndoOpen(true)'), 'Branch deletion needs a five-second Undo window');
+check(app.includes('setTrash(t=>mapPrefs.trashRetentionAcknowledged?pruneTrash([result.batch,...t]):[result.batch,...t])')&&app.includes('setUndoBatch(result.batch.id)')&&app.includes('setUndoOpen(true)'), 'Branch deletion must enter seven-day Recently Deleted with Undo');
 check(app.includes('setTimeout(()=>{setUndoOpen(false)')&&app.includes('},5000)'), 'Undo notification must auto-dismiss after five seconds');
 check(app.includes('Items in the bin are permanently deleted after seven days.'), 'Seven-day retention must remain visible in Recently Deleted');
 check(app.includes('accessibilityLabel="Restore selected deleted maps"')&&app.includes('label="Empty bin"'), 'Recently Deleted selection and empty-bin controls must remain available');
 check(app.includes('label="Tx" accessibilityLabel="Remove formatting"')&&richEditor.includes("clear:'removeFormat'"), 'Remove formatting must be available in the local rich editor');
 check(app.includes('accessibilityLabel="Edit labels"')&&app.includes('accessibilityLabel="Rename label"'), 'Label-management flow must support inline rename');
 check(app.includes('label="parentNote" accessibilityLabel="Go to parent note"')&&app.includes('label="centerFocus" accessibilityLabel="Center focused note"'), 'Map quick actions must use accessible vector icons');
+check(!app.includes('permanently deleted after the five-second Undo period'), 'Branch deletion must not bypass seven-day recovery');
 console.log('PASS: Stage 4 correction regression guards');
 
 // REF-01 through REF-07: approved interaction parity without new note backgrounds.
