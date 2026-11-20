@@ -34,6 +34,8 @@ const Button=({label,onPress,primary=false,danger=false,active=false}:{label:str
 
 const ICON_PATHS:Record<string,string>={
   '☰':'M4 6h16M4 12h16M4 18h16',
+  '✓':'M4 12l5 5L20 6',
+  'search':'M11 19a8 8 0 1 1 0-16 8 8 0 0 1 0 16zM17 17l5 5',
   '←':'M20 12H4m7-7-7 7 7 7',
   '⋮':'M12 5h.01M12 12h.01M12 19h.01',
   '×':'M5 5l14 14M19 5L5 19',
@@ -1589,7 +1591,7 @@ if(locked){
                 <Text style={{flex:1,color:palette.text,fontSize:21,fontWeight:'600'}}>Bin</Text>
               ):selected.length===0?(
                 <View style={{flex:1,flexDirection:'row',alignItems:'center',backgroundColor:palette.control,borderRadius:26,paddingLeft:12,minHeight:48}}>
-                  <Text style={{fontSize:20,color:palette.muted,marginRight:5}}>⌕</Text>
+                  <MaterialIcon name="search" color={palette.muted}/>
                   <TextInput accessibilityLabel="Search map titles" placeholder="Search Orbit Notes" placeholderTextColor={palette.muted} value={librarySearch} onChangeText={setLibrarySearch} style={{flex:1,minWidth:20,fontSize:15,color:palette.text,paddingVertical:7}}/>
                   <IconButton label="sort" accessibilityLabel="Sort maps" onPress={()=>setSortMenu(v=>!v)}/>
                   <IconButton label={mapPrefs.viewMode==='grid'?'listView':'gridView'} accessibilityLabel={mapPrefs.viewMode==='grid'?'Switch to list view':'Switch to card view'} onPress={()=>setMapPrefs(p=>({...p,viewMode:p.viewMode==='grid'?'list':'grid'}))}/>
@@ -1634,7 +1636,9 @@ if(locked){
                   const all=selected.length>0&&selected.every(id=>{const n=notes.find(x=>x.id===id);return n?hasLabel(n,f.id):false;});
                   const some=selected.some(id=>{const n=notes.find(x=>x.id===id);return n?hasLabel(n,f.id):false;});
                   return <Pressable key={f.id} accessibilityRole="checkbox" accessibilityState={{checked:all}} accessibilityLabel={f.name} onPress={()=>moveSelection(f.id)} style={{flexDirection:'row',gap:12,alignItems:'center',minHeight:48,paddingHorizontal:10}}>
-                    <Text style={{color:palette.accent,fontSize:23}}>{all?'☑':some?'◩':'☐'}</Text>
+                    <View style={{width:24,height:24,borderWidth:2,borderColor:all||some?palette.accent:palette.muted,borderRadius:3,alignItems:'center',justifyContent:'center',backgroundColor:all?palette.accent:'transparent'}}>
+                       {all?<MaterialIcon name="✓" color={palette.background}/>:some?<View style={{width:11,height:3,backgroundColor:palette.accent,borderRadius:1}}/>:null}
+                     </View>
                     <Text style={{color:palette.text,flex:1,fontSize:15}}>{f.name}</Text>
                   </Pressable>;
                 })}
@@ -1909,7 +1913,10 @@ if(locked){
             <View style={{padding:20,gap:16,borderTopLeftRadius:24,borderTopRightRadius:24,backgroundColor:palette.surface}}>
               <Text style={[styles.section,{color:palette.text}]}>Choose {colorTarget==='cards'?'card':'note'} color</Text>
               <View style={{flexDirection:'row',flexWrap:'wrap',gap:14}}>
-                {CARD_PALETTE.map((color,index)=><Pressable key={color} accessibilityRole="button" accessibilityLabel={index===0?'Default color':`Color ${index+1}`} onPress={()=>{
+                {CARD_PALETTE.map((color,index)=>{
+                  const targets=colorTarget==='cards'?selected:[reader||''];
+                  const chosen=targets.length>0&&targets.every(target=>(colorTarget==='cards'?mapPrefs.cardColors[target]:mapPrefs.noteColors[target])===color);
+                  return <Pressable key={color} accessibilityRole="button" accessibilityState={{selected:chosen}} accessibilityLabel={index===0?'Default color':`Color ${index+1}`} onPress={()=>{
                   if(colorTarget==='cards'){
                     setMapPrefs(p=>({...p,cardColors:{...p.cardColors,...Object.fromEntries(selected.map(id=>[id,color]))}}));
                     setSelected([]);
@@ -1917,7 +1924,10 @@ if(locked){
                     setMapPrefs(p=>({...p,noteColors:{...p.noteColors,[reader]:color}}));
                   }
                   setColorTarget(null);
-                }} style={{width:46,height:46,borderRadius:23,backgroundColor:color,borderWidth:2,borderColor:palette.border}}/>)}
+                }} style={{width:46,height:46,borderRadius:23,backgroundColor:color,borderWidth:chosen?3:2,borderColor:chosen?palette.accent:palette.border,alignItems:'center',justifyContent:'center'}}>
+                  {chosen?<View style={{width:24,height:24,borderRadius:12,backgroundColor:palette.surface,alignItems:'center',justifyContent:'center'}}><MaterialIcon name="✓" color={palette.text}/></View>:null}
+                </Pressable>;
+                })}
               </View>
               <Button label="Cancel" onPress={()=>setColorTarget(null)}/>
             </View>
