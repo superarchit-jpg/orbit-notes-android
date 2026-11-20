@@ -75,6 +75,11 @@ export default function App(){
 const [notes,setNotes]=useState<Note[]>(initial),[folders,setFolders]=useState<Folder[]>([]),[focused,setFocused]=useState('root'),[overview,setOverview]=useState(false),[menu,setMenu]=useState(true),[reader,setReader]=useState<string|null>(null),[editing,setEditing]=useState(false),[title,setTitle]=useState(''),[body,setBody]=useState(''),[folderName,setFolderName]=useState(''),[creatingFolder,setCreatingFolder]=useState(false),[selected,setSelected]=useState<string[]>([]),[folderFilter,setFolderFilter]=useState<string|null>(null),[loaded,setLoaded]=useState(false),[storageError,setStorageError]=useState<string|null>(null),[trash,setTrash]=useState<TrashBatch[]>([]),[showTrash,setShowTrash]=useState(false),[undoBatch,setUndoBatch]=useState<string|null>(null);
 
 const [mapPrefs,setMapPrefs]=useState(emptyMapPreferences);
+const [pendingBranch,setPendingBranch]=useState<TrashBatch|null>(null);
+const [undoOpen,setUndoOpen]=useState(false);
+const [trashMenu,setTrashMenu]=useState(false);
+const [themeMenu,setThemeMenu]=useState(false);
+const [labelManager,setLabelManager]=useState(false);
 const bioPromptInProgress=useRef(false),bioPrompted=useRef(false);
 const richEditorRef=useRef<RichNoteEditorHandle|null>(null);
 const [editorFormats,setEditorFormats]=useState<RichEditorState>({bold:false,italic:false,underline:false,bullets:false,numbers:false});
@@ -176,7 +181,7 @@ useEffect(()=>{
 
 useEffect(()=>{
   if(!loaded||storageError)return;
-  saveSnapshot({notes,folders,focused,trash}).catch(e=>showDialog('Save failed',String(e)));
+  saveSnapshot({notes,folders,focused:notes.some(n=>n.id===focused)?focused:'root',trash}).catch(e=>showDialog('Save failed',String(e)));
 },[notes,folders,focused,trash,loaded,storageError]);
 
 useEffect(()=>{
@@ -375,25 +380,32 @@ const deleteSelected=()=>{
       setNotes(result.remaining);
        setMapPrefs(p=>({...p,archived:p.archived.filter(item=>!result.batch.notes.some(n=>n.id===item))}));
       setTrash(t=>mapPrefs.trashRetentionAcknowledged?pruneTrash([result.batch,...t]):[result.batch,...t]);
-      setUndoBatch(result.batch.id);
-      if(result.batch.notes.some(n=>n.id===focused))moveTo('root');
+      setUndoBatch(result.batch.id);setPendingBranch(null);setUndoOpen(true);
+      if(result.batch.notes.some(n=>n.id===focused))setFocused('root');
       setSelected([]);
       setReader(null);
     }}
   ]);
 };
 
+useEffect(()=>{
+  if(!undoOpen)return;
+  const timer=setTimeout(()=>{setUndoOpen(false);setUndoBatch(null);setPendingBranch(null);},5000);
+  return()=>clearTimeout(timer);
+},[undoOpen,undoBatch,pendingBranch]);
 const removeBranch=(target:string)=>{
   if(target==='root')return;
   const result=deleteBranches(notes,[target]);
   if(!result.batch.notes.length)return;
-  showDialog('Delete note?','This note and all its descendants will go to Recently Deleted.',[
+  showDialog('Delete note?','This branch and its descendants will be permanently deleted after the five-second Undo period.',[
     {text:'Cancel'},
     {text:'Delete',style:'destructive',onPress:()=>{
       setNotes(result.remaining);
        setMapPrefs(p=>({...p,archived:p.archived.filter(item=>!result.batch.notes.some(n=>n.id===item))}));
-      setTrash(t=>mapPrefs.trashRetentionAcknowledged?pruneTrash([result.batch,...t]):[result.batch,...t]);
-      if(result.batch.notes.some(n=>n.id===focused))setFocused(current.parentId||'root');
+      setPendingBranch(result.batch);
+      setUndoBatch(null);setUndoOpen(true);
+      if(result.batch.notes.some(n=>n.id===focused))setFocused(notes.find(n=>n.id===target)?.parentId||'root');
+      if(reader&&result.batch.notes.some(n=>n.id===reader))setReader(null);
     }}
   ]);
 };
@@ -1165,22 +1177,22 @@ if(locked){
         </View>}
           {!menu&&showMiniMap&&<View style={{height:150,marginHorizontal:12,marginBottom:6,backgroundColor:palette.surface,borderColor:palette.border,borderWidth:1,borderRadius:16,overflow:'hidden',padding:10}}><Text style={styles.muted}>Map overview · {completeMap.length} notes</Text><Svg width="100%" height={118} viewBox="0 0 1000 540" preserveAspectRatio="xMidYMid meet">{miniLines.map(l=><Line key={l.id} x1={l.x1*miniBounds.scale+miniBounds.dx} y1={l.y1*miniBounds.scale+miniBounds.dy} x2={l.x2*miniBounds.scale+miniBounds.dx} y2={l.y2*miniBounds.scale+miniBounds.dy} stroke={palette.connector} strokeWidth={2}/>)}{completeMap.map(v=><Circle key={v.note.id} cx={v.x*miniBounds.scale+miniBounds.dx} cy={v.y*miniBounds.scale+miniBounds.dy} r={v.note.id===focused?5:3.5} fill={v.note.id===focused?palette.accent:palette.muted}/>)}</Svg></View>}
 
-        {undoBatch&&(
-          <View style={styles.toolbar}>
+        {undoOpen&&(undoBatch||pendingBranch)&&(
+          <View style={{position:'absolute',bottom:74,left:16,right:16,zIndex:42,backgroundColor:palette.control,borderRadius:12,padding:8,flexDirection:'row',alignItems:'center',justifyContent:'space-between'}}>
+            <Text style={{color:palette.text,flex:1}}>Deleted</Text>
             <Button
               label="Undo deletion"
               onPress={()=>{
-                const batch=trash.find(
-                  t=>t.id===undoBatch
-                );
-                if(batch)restore(batch);
-                setUndoBatch(null);
+                if(pendingBranch){setNotes(ns=>[...ns,...pendingBranch.notes]);setPendingBranch(null);}
+                else {const batch=trash.find(t=>t.id===undoBatch);if(batch)restore(batch);}
+                setUndoBatch(null);setUndoOpen(false);
               }}
             />
           </View>
         )}
         <Modal visible={gestureHelp} transparent animationType="fade" onRequestClose={()=>setGestureHelp(false)}>
           <View style={{flex:1,justifyContent:'flex-end',backgroundColor:'rgba(0,0,0,0.35)'}}>
+            <Pressable style={StyleSheet.absoluteFill} accessibilityLabel="Dismiss gesture help" onPress={()=>setGestureHelp(false)}/>
             <View style={{backgroundColor:palette.surface,borderTopLeftRadius:24,borderTopRightRadius:24,padding:20,gap:12}}>
               <Text style={[styles.section,{color:palette.text}]}>Map gestures</Text>
               <Text style={{color:palette.text,fontSize:15,lineHeight:24}}>Tap to focus a node.{"\n"}Double-tap to read.{"\n"}Triple-tap to edit.{"\n"}Long-press for note actions.{"\n"}Drag around a branch to rotate children.{"\n"}Use two fingers to zoom or rotate the map.{"\n"}Fit shows the visible map.</Text>
