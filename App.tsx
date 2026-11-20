@@ -126,6 +126,8 @@ const [readerTapAt,setReaderTapAt]=useState(0);
 const [textSelection,setTextSelection]=useState({start:0,end:0});
 const [librarySearch,setLibrarySearch]=useState('');
 const [librarySearching,setLibrarySearching]=useState(false);
+const [cardMenuId,setCardMenuId]=useState<string|null>(null);
+const [cardMenuPosition,setCardMenuPosition]=useState({top:70,left:12});
 const [deletedPreview,setDeletedPreview]=useState<TrashBatch|null>(null);
 const [formatToolbar,setFormatToolbar]=useState(false);
 const [manualColor,setManualColor]=useState('');
@@ -500,7 +502,7 @@ useEffect(()=>{
     if(reader||settings||backupMode||exportKind||labelManager||creatingFolder)return false;
     if(menu){
       if(sidebar){setSidebar(false);return true;}
-      if(selectionMenu||moveFolderMenu||sortMenu||trashMenu){setSelectionMenu(false);setMoveFolderMenu(false);setSortMenu(false);setTrashMenu(false);return true;}
+      if(selectionMenu||moveFolderMenu||sortMenu||trashMenu||cardMenuId){setSelectionMenu(false);setMoveFolderMenu(false);setSortMenu(false);setTrashMenu(false);setCardMenuId(null);return true;}
       if(selected.length){setSelected([]);return true;}
       if(selectedTrash.length){setSelectedTrash([]);return true;}
       BackHandler.exitApp();return true;
@@ -509,7 +511,7 @@ useEffect(()=>{
     setMenu(true);return true;
   });
   return()=>sub.remove();
-},[menu,reader,settings,backupMode,exportKind,labelManager,creatingFolder,sidebar,selectionMenu,moveFolderMenu,sortMenu,trashMenu,selected,selectedTrash,mapMenu,nodeActions]);
+},[menu,reader,settings,backupMode,exportKind,labelManager,creatingFolder,sidebar,selectionMenu,moveFolderMenu,sortMenu,trashMenu,cardMenuId,selected,selectedTrash,mapMenu,nodeActions]);
 
 const acknowledgeTrashRetention=()=>{
   const expired=trash.filter(b=>Date.now()-b.deletedAt>=7*86400000).length;
@@ -1631,7 +1633,7 @@ if(locked){
         <Modal
           visible={menu}
           animationType="slide"
-          onRequestClose={()=>{if(sidebar)setSidebar(false);else if(selectionMenu||moveFolderMenu||sortMenu||trashMenu){setSelectionMenu(false);setMoveFolderMenu(false);setSortMenu(false);setTrashMenu(false);}else if(selected.length)setSelected([]);else if(selectedTrash.length)setSelectedTrash([]);else BackHandler.exitApp();}}
+          onRequestClose={()=>{if(sidebar)setSidebar(false);else if(selectionMenu||moveFolderMenu||sortMenu||trashMenu||cardMenuId){setSelectionMenu(false);setMoveFolderMenu(false);setSortMenu(false);setTrashMenu(false);setCardMenuId(null);}else if(selected.length)setSelected([]);else if(selectedTrash.length)setSelectedTrash([]);else BackHandler.exitApp();}}
         >
           <GestureHandlerRootView style={{flex:1}}><InsetSafeAreaView style={[styles.screen,{backgroundColor:palette.background}]} edges={['top','bottom']}>
             <View style={[styles.header,{gap:2}]}>
@@ -1669,7 +1671,18 @@ if(locked){
               )}
             </View>
 
-            {(selectionMenu||moveFolderMenu||sidebar||sortMenu||trashMenu)&&<Pressable accessibilityLabel="Close menu" onPress={()=>{setSelectionMenu(false);setMoveFolderMenu(false);setSidebar(false);setSortMenu(false);setTrashMenu(false);}} style={[StyleSheet.absoluteFill,{zIndex:20,elevation:10,backgroundColor:sidebar?'rgba(0,0,0,0.32)':'transparent'}]}/>}
+            {(selectionMenu||moveFolderMenu||sidebar||sortMenu||trashMenu||cardMenuId)&&<Pressable accessibilityLabel="Close menu" onPress={()=>{setSelectionMenu(false);setMoveFolderMenu(false);setSidebar(false);setSortMenu(false);setTrashMenu(false);setCardMenuId(null);}} style={[StyleSheet.absoluteFill,{zIndex:20,elevation:10,backgroundColor:sidebar?'rgba(0,0,0,0.32)':'transparent'}]}/>}
+            {cardMenuId&&<View style={{position:'absolute',top:cardMenuPosition.top,left:cardMenuPosition.left,zIndex:34,elevation:22,width:220,borderRadius:15,padding:7,backgroundColor:palette.surface,borderWidth:1,borderColor:palette.border}}>
+              <ActionRow label={mapPrefs.pinned.includes(cardMenuId)?'Unpin':'Pin'} icon="pin" onPress={()=>{
+                const target=cardMenuId;setMapPrefs(p=>({...p,pinned:p.pinned.includes(target)?p.pinned.filter(item=>item!==target):[...p.pinned,target]}));setCardMenuId(null);
+              }}/>
+              <ActionRow label="Labels" icon="label" onPress={()=>{setSelected([cardMenuId]);setCardMenuId(null);setMoveFolderMenu(true);}}/>
+              <ActionRow label="Color" icon="palette" onPress={()=>{setSelected([cardMenuId]);setManualColor(mapPrefs.cardColors[cardMenuId]||'');setCardMenuId(null);setColorTarget('cards');}}/>
+              <ActionRow label={showArchive?'Unarchive':'Archive'} icon={showArchive?'unarchive':'archive'} onPress={()=>{archiveOne(cardMenuId,!showArchive);setCardMenuId(null);}}/>
+              <ActionRow label="Export PDF" icon="exportIcon" onPress={()=>{exportOne('pdf',cardMenuId);setCardMenuId(null);}}/>
+              <View style={{height:1,backgroundColor:palette.border,marginVertical:3}}/>
+              <ActionRow label="Delete" icon="🗑" danger onPress={()=>{removeBranch(cardMenuId);setCardMenuId(null);}}/>
+            </View>}
             {trashMenu&&showTrash&&<View style={[styles.popup,{backgroundColor:palette.surface,borderColor:palette.border,top:56,right:12,zIndex:32,paddingVertical:6}]}>
               <ActionRow label={selectedTrash.length?'Delete forever':'Empty bin'} icon="🗑" danger onPress={()=>{setTrashMenu(false);if(selectedTrash.length)removeSelectedTrash();else if(trash.length)showDialog('Empty Deleted?','Permanently delete all items in Deleted?',[
                 {text:'Cancel',style:'cancel'},
@@ -1880,7 +1893,7 @@ if(locked){
                       }
                     >
                       <View style={{flex:1,width:'100%'}}>
-                        <Text style={[styles.listTitle,{color:mapPrefs.cardColors[n.id]?'#362722':palette.text,paddingRight:mapPrefs.pinned.includes(n.id)?29:0}]} numberOfLines={2}>{n.title||'Untitled map'}</Text>
+                        <Text style={[styles.listTitle,{color:mapPrefs.cardColors[n.id]?'#362722':palette.text,paddingRight:mapPrefs.pinned.includes(n.id)?80:43}]} numberOfLines={2}>{n.title||'Untitled map'}</Text>
                         {mapPrefs.viewMode==='grid'&&mapPreview(n)}
                          {labelIds(n).length>0&&<View style={{flexDirection:'row',flexWrap:'wrap',gap:5,marginTop:7}}>
                          {labelIds(n).map(labelId=>{const name=folders.find(f=>f.id===labelId)?.name;return name?<View key={labelId} style={{borderColor:palette.muted,borderWidth:1,borderRadius:6,paddingVertical:3,paddingHorizontal:7}}><Text style={{color:palette.muted,fontSize:11}}>{name}</Text></View>:null;})}
@@ -1888,9 +1901,16 @@ if(locked){
  
                       </View>
 
+                      {selected.length===0&&<Pressable accessibilityRole="button" accessibilityLabel={'More actions for '+(n.title||'Untitled map')} onPress={event=>{
+                        event.stopPropagation();
+                        setCardMenuPosition({top:Math.max(64,Math.min(H-358,event.nativeEvent.pageY+7)),left:Math.max(8,Math.min(W-228,event.nativeEvent.pageX-202))});
+                        setCardMenuId(n.id);
+                      }} style={{position:'absolute',right:5,top:4,width:37,height:37,alignItems:'center',justifyContent:'center',zIndex:4}}>
+                        <MaterialIcon name="⋮" color={palette.text}/>
+                      </Pressable>}
                       {selected.length===0&&mapPrefs.pinned.includes(n.id)&&
                         <Pressable accessibilityRole="button" accessibilityLabel="Unpin map" onPress={()=>setMapPrefs(p=>({...p,pinned:p.pinned.filter(x=>x!==n.id)}))}
-                          hitSlop={8} style={{position:'absolute',right:8,top:7,width:34,height:34,alignItems:'center',justifyContent:'center',zIndex:2}}>
+                          hitSlop={8} style={{position:'absolute',right:47,top:7,width:34,height:34,alignItems:'center',justifyContent:'center',zIndex:2}}>
                           <Svg width={21} height={21} viewBox="0 0 24 24">
                             <Path d="M8 3h8v2l-1.5 2.3v4.1l3.2 3V16H6.3v-1.6l3.2-3V7.3L8 5V3z" fill={palette.accent}/>
                             <Path d="M12 16v6" stroke={palette.accent} strokeWidth={2} strokeLinecap="round"/>
