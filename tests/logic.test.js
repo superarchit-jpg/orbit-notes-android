@@ -165,7 +165,7 @@ for (const marker of [
   "accessibilityLabel={draftChildId===reader?'Discard new child note':'Close note'}",
   'styles.editorField',
   'styles.editorLabel',
-  'Nothing in the bin',
+  'No notes in Deleted',
   'No maps in this label',
   'No maps match this search.'
 ]) {
@@ -214,7 +214,7 @@ console.log('PASS: pinned map and child note persistence regression');
 
 // Approved recording follow-up requirements.
 for(const marker of [
-  'thumbnailHeight=Math.min(244',
+  'thumbnailHeight=Math.min(284',
   "mapPrefs.viewMode==='grid'?[0,1]:[0]",
   "label={mapPrefs.viewMode==='grid'?'listView':'gridView'}",
   'accessibilityLabel="Sort maps"',
@@ -255,8 +255,8 @@ console.log('PASS: Stage 4 new feature guards');
 check(app.includes("focused:notes.some(n=>n.id===focused)?focused:'root'"),'Persistence must not save a missing focused note');
 check(app.includes('setTrash(t=>mapPrefs.trashRetentionAcknowledged?pruneTrash([result.batch,...t]):[result.batch,...t])')&&app.includes('setUndoBatch(result.batch.id)')&&app.includes('setUndoOpen(true)'), 'Branch deletion must enter seven-day Recently Deleted with Undo');
 check(app.includes('setTimeout(()=>{setUndoOpen(false)')&&app.includes('},5000)'), 'Undo notification must auto-dismiss after five seconds');
-check(app.includes('Items in the bin are permanently deleted after seven days.'), 'Seven-day retention must remain visible in Recently Deleted');
-check(app.includes('accessibilityLabel="Restore selected deleted maps"')&&app.includes('label="Empty bin"'), 'Recently Deleted selection and empty-bin controls must remain available');
+check(app.includes('remain recoverable for seven days before permanent removal'), 'Retention information must be shown during deletion');
+check(app.includes('accessibilityLabel="Restore selected deleted maps"')&&app.includes("label={selectedTrash.length?'Delete forever':'Empty bin'}"), 'Deleted header selection and empty-bin controls must remain available');
 check(app.includes('label="Tx" accessibilityLabel="Remove formatting"')&&richEditor.includes("clear:'removeFormat'"), 'Remove formatting must be available in the local rich editor');
 check(app.includes('accessibilityLabel="Edit labels"')&&app.includes('accessibilityLabel="Rename label"'), 'Label-management flow must support inline rename');
 check(app.includes('label="parentNote" accessibilityLabel="Go to parent note"')&&app.includes('label="centerFocus" accessibilityLabel="Center focused note"'), 'Map quick actions must use accessible vector icons');
@@ -406,6 +406,23 @@ check(
   'Combined PDF export must render every selected map as its own page'
 );
 console.log('PASS: PDF export module and large-map bounds');
+
+
+const librarySearch=read('librarySearch.ts');
+const richMarkup=read('richTextMarkup.ts');
+check(app.includes('matchesMapQuery(n,notes,librarySearch)')&&librarySearch.includes('while(pending.length)'), 'Search must traverse all descendant note titles and bodies');
+check(app.includes('librarySearching||librarySearch.length>0')&&app.includes('accessibilityLabel="Clear search"'), 'Search mode must hide sort and view controls');
+check(app.includes('if(selected.length){setSelected([]);return true;}')&&app.includes('else if(selected.length)setSelected([])'), 'Back must clear selected maps before exiting');
+check(app.includes("setDeletedPreview(batch)")&&app.includes('onLongPress={()=>setSelectedTrash'), 'Deleted maps require tap preview and long press selection');
+check(app.includes('visible={deletedPreview!==null}')&&app.includes('Read only'), 'Deleted preview must not expose edit controls');
+check(app.includes('accessibilityLabel="New label name"')&&app.includes("setLabelManager(true)"), 'Label creation must share inline editing');
+check(app.includes("colorTarget==='node'")&&app.includes('Custom hex color')&&app.includes('accessibilityLabel="Dismiss color palette"'), 'All color palettes must support manual color and outside dismissal');
+check(app.includes('accessibilityLabel="Text formatting"')&&app.includes('accessibilityLabel="Close formatting toolbar"'), 'Formatting controls must use a persistent popover');
+check(richEditor.includes('flatMap(block)')&&richEditor.includes("clear:'removeFormat'"), 'Rich editor must serialize nested lists and support clear formatting');
+check(richMarkup.includes("'<ol start="), 'Numbered-list storage should retain semantic ol elements');
+check(!app.includes('<Button label="Close" onPress={()=>setGestureHelp(false)}/>'), 'Guide must not show Close');
+check(!app.includes('<Button label="Cancel" onPress={()=>setColorTarget(null)}/>'), 'Palettes must not show Cancel');
+console.log('PASS: outstanding correction functional wiring guards');
 
 console.log(
   'PASS: All Orbit Notes v0.16 source checks'
