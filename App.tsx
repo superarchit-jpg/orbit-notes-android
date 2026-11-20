@@ -1866,9 +1866,9 @@ if(locked){
 
                   {shown.length===0&&(
                     <View style={{alignItems:'center',paddingVertical:48,paddingHorizontal:20,gap:12}}>
-                      <Text style={{fontSize:34,color:palette.muted}}>◎</Text>
-                      <Text style={[styles.listTitle,{textAlign:'center'}]}>{librarySearch.trim()?'No matching maps':showArchive?'No archived maps':folderFilter?'No maps in this label':'Your library is ready'}</Text>
-                      <Text style={[styles.muted,{color:palette.muted,textAlign:'center'}]}>{librarySearch.trim()?'No maps match this search. Try different words or clear the search.':folderFilter?'Create a map in this label, or move an existing map here from the library.':'Create your first map to start building your notes.'}</Text>
+                      {showArchive&&!librarySearch.trim()?<Svg width={112} height={112} viewBox="0 0 112 112"><Rect x={15} y={33} width={82} height={58} rx={10} fill="none" stroke={palette.muted} strokeWidth={3}/><Rect x={10} y={23} width={92} height={18} rx={4} fill={palette.background} stroke={palette.muted} strokeWidth={3}/><Path d="M40 59h32" fill="none" stroke={palette.muted} strokeWidth={4} strokeLinecap="round"/></Svg>:<MaterialIcon name={showArchive?'archive':'label'} color={palette.muted}/>}
+                      <Text style={[styles.listTitle,{textAlign:'center',color:palette.text}]}>{librarySearch.trim()?'No matching maps':showArchive?'Your archived maps appear here':folderFilter?'No maps in this label':'Your library is ready'}</Text>
+                      {!showArchive&&<Text style={[styles.muted,{color:palette.muted,textAlign:'center'}]}>{librarySearch.trim()?'No maps match this search. Try different words or clear the search.':folderFilter?'Create a map in this label, or move an existing map here from the library.':'Create your first map to start building your notes.'}</Text>}
                       {librarySearch.trim()?<Button label="Clear search" onPress={()=>setLibrarySearch('')}/>:!showArchive&&<Button label="Create map" primary onPress={newMap}/>}
                     </View>
                   )}
