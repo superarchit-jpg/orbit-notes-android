@@ -28,7 +28,7 @@ const id=()=>`${Date.now()}-${Math.random().toString(36).slice(2,8)}`;
 const LIGHT={background:'#ffffff',surface:'#ffffff',control:'#e8eef7',text:'#202124',muted:'#5f6368',border:'#dadce0',accent:'#52658e',canvas:'#ffffff',node:'#e8eef7',subnode:'#f4f6fa',connector:'#9aa4b4'};
 const DARK={background:'#202124',surface:'#292a2d',control:'#3c4043',text:'#e8eaed',muted:'#bdc1c6',border:'#5f6368',accent:'#a8c7fa',canvas:'#202124',node:'#414852',subnode:'#363a41',connector:'#80868b'};
 const PaletteContext=React.createContext(LIGHT);
-const CARD_PALETTE=['#fffdfb','#fce7df','#fff3c9','#e8f3dd','#e6ecfc','#f5e6f4'];
+const CARD_PALETTE=['#ffffff','#FAAFA9','#F29F75','#FFF8B9','#E2F6D3','#B4DED4','#D5E3EE','#AFCCDC','#D3BFDB','#F5E2DC','#E9E3D3','#EFEFF1'];
 
 const Button=({label,onPress,primary=false,danger=false,active=false}:{label:string;onPress:()=>void;primary?:boolean;danger?:boolean;active?:boolean})=>{const palette=React.useContext(PaletteContext);return <Pressable accessibilityRole="button" accessibilityLabel={label} onPress={onPress} style={[styles.button,{backgroundColor:active?palette.control:'transparent'},primary&&{backgroundColor:palette.accent}]}><Text style={[styles.buttonText,{color:danger?'#dc2626':active?palette.accent:palette.text},primary&&{color:'white'}]}>{label==='🗑'?<Svg width={23} height={23} viewBox="0 0 24 24"><Line x1={4} y1={7} x2={20} y2={7} stroke="#dc2626" strokeWidth={1.8}/><Line x1={9} y1={4} x2={15} y2={4} stroke="#dc2626" strokeWidth={1.8}/><Rect x={6} y={7} width={12} height={14} rx={2} stroke="#dc2626" strokeWidth={1.8} fill="none"/><Line x1={10} y1={11} x2={10} y2={17} stroke="#dc2626" strokeWidth={1.5}/><Line x1={14} y1={11} x2={14} y2={17} stroke="#dc2626" strokeWidth={1.5}/></Svg>:label}</Text></Pressable>;}
 
@@ -1706,7 +1706,7 @@ if(locked){
                         <>
                           <IconButton label="🗑" accessibilityLabel={'Delete label '+item.name} danger onPress={()=>showDialog('Delete label?', 'Maps assigned this label will remain available.',[
                             {text:'Cancel',style:'cancel'},
-                            {text:'Delete',style:'destructive',onPress:()=>{setNotes(ns=>ns.map(n=>hasLabel(n,item.id)?removeLabel(n,item.id):n));setFolders(fs=>fs.filter(x=>x.id!==item.id));if(folderFilter===item.id)setFolderFilter(null);setEditingFolderId(null);}}
+                            {text:'Delete',style:'destructive',onPress:()=>{setNotes(ns=>ns.map(n=>hasLabel(n,item.id)?removeLabel(n,item.id):n));setTrash(previous=>previous.map(batch=>({...batch,notes:batch.notes.map(n=>hasLabel(n,item.id)?removeLabel(n,item.id):n)})));setFolders(fs=>fs.filter(x=>x.id!==item.id));if(folderFilter===item.id)setFolderFilter(null);setEditingFolderId(null);}}
                           ])}/>
                           <TextInput accessibilityLabel="Rename label" value={folderName} onChangeText={setFolderName} autoFocus style={{flex:1,borderBottomWidth:1,borderBottomColor:palette.accent,color:palette.text,fontSize:16}}/>
                           <IconButton label="✓" accessibilityLabel="Save label name" onPress={()=>{if(folderName.trim())setFolders(fs=>fs.map(x=>x.id===item.id?{...x,name:folderName.trim()}:x));setEditingFolderId(null);}}/>
