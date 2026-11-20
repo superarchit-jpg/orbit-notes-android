@@ -3,7 +3,7 @@ const {execFileSync}=require('node:child_process');
 const fs=require('node:fs');const os=require('node:os');const path=require('node:path');const assert=require('node:assert/strict');
 const temp=fs.mkdtempSync(path.join(os.tmpdir(),'orbit-tests-'));
 try{
- execFileSync('tsc',['layout.ts','trash.ts','mapGeometry.ts','noteFormatting.ts','labels.ts','--module','commonjs','--target','es2020','--outDir',temp,'--skipLibCheck','--noEmitOnError','false'],{stdio:'pipe'});
+ execFileSync('tsc',['layout.ts','trash.ts','mapGeometry.ts','noteFormatting.ts','labels.ts','librarySearch.ts','richTextMarkup.ts','--module','commonjs','--target','es2020','--outDir',temp,'--skipLibCheck','--noEmitOnError','false'],{stdio:'pipe'});
 }catch(e){if(!fs.existsSync(path.join(temp,'layout.js')))throw e;}
 const {radialLayout,overviewLayout}=require(path.join(temp,'layout.js'));
 const {deleteBranches,restoreBatch,pruneTrash}=require(path.join(temp,'trash.js'));
@@ -68,5 +68,30 @@ const restored=normalizeLabels([{...legacy,labelIds:['old-label','second-label']
 assert.deepEqual(restored[0].labelIds,['old-label','second-label']);
 assert.deepEqual(labelIds(withLabels(legacy,[])),[]);
 console.log('PASS: legacy migration, multiple label assignments and recovery');
+
+
+const {matchesMapQuery}=require(path.join(temp,'librarySearch.js'));
+const searchNotes=[
+ {id:'root',parentId:null,title:'Root',body:''},
+ {id:'map',parentId:'root',title:'Map',body:''},
+ {id:'child',parentId:'map',title:'Child',body:''},
+ {id:'grandchild',parentId:'child',title:'Third level',body:'UniqueOrbitSearchTerm in paragraph'},
+ {id:'other',parentId:'root',title:'Other map',body:'irrelevant'}
+];
+assert.equal(matchesMapQuery(searchNotes[1],searchNotes,'uniqueorbitsearchterm'),true);
+assert.equal(matchesMapQuery(searchNotes[1],searchNotes,'third level'),true);
+assert.equal(matchesMapQuery(searchNotes[1],searchNotes,'map'),true);
+assert.equal(matchesMapQuery(searchNotes[4],searchNotes,'uniqueorbitsearchterm'),false);
+assert.equal(matchesMapQuery(searchNotes[1],searchNotes,'  '),true);
+console.log('PASS: offline full-depth map search');
+const {markupToHtml}=require(path.join(temp,'richTextMarkup.js'));
+const numbered=markupToHtml('Before\n1. First\n2. **Second**\n3. *Third*\nAfter');
+assert.ok(numbered.includes('<ol start="1"><li>First</li><li><strong>Second</strong></li><li><em>Third</em></li></ol>'));
+assert.ok(numbered.includes('<div>Before</div>')&&numbered.includes('<div>After</div>'));
+assert.ok(markupToHtml('4. Fourth\n5. Fifth').includes('<ol start="4">'));
+assert.ok(markupToHtml('• A\n• B').includes('<ul><li>A</li><li>B</li></ul>'));
+assert.equal(formatSelection('one',0,3,'numbers'),'1. one');
+assert.equal(formatSelection('one\ntwo',0,7,'numbers'),'1. one\n2. two');
+console.log('PASS: numbered lists and combined formatting emit semantic ordered-list HTML');
 
 console.log('PASS: executable layout and trash tests');
