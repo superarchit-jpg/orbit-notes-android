@@ -58,6 +58,9 @@ const ICON_PATHS:Record<string,string>={
   'exportIcon':'M12 3v12m-5-5 5 5 5-5M5 17v4h14v-4',
   'readIcon':'M4 4h16v16H4zM8 9h8M8 13h8M8 17h5',
   'childIcon':'M12 3v11m-5-5 5 5 5-5M5 20h14',
+  'upLevel':'M12 20V4m-6 6 6-6 6 6',
+  'downLevel':'M12 4v16m-6-6 6 6 6-6',
+  'helpIcon':'M12 18h.01M9.5 9a2.5 2.5 0 1 1 4.4 1.7c-1.3 1.6-1.9 1.6-1.9 3.3M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20z',
   'allMaps':'M4 4h7v7H4zM13 4h7v7h-7zM4 13h7v7H4zM13 13h7v7h-7z',
   'settingsIcon':'M12 3v2M12 19v2M3 12h2M19 12h2M5.6 5.6l1.4 1.4M17 17l1.4 1.4M18.4 5.6L17 7M7 17l-1.4 1.4M12 8a4 4 0 1 0 0 8 4 4 0 0 0 0-8',
   'centerFocus':'M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20z',
@@ -1118,8 +1121,8 @@ if(locked){
           <ActionRow label="Read note" icon="readIcon" onPress={()=>{openReader(nodeActions);setNodeActions(null);}}/>
           <ActionRow label="Edit note" icon="✎" onPress={()=>{beginEdit(nodeActions);setNodeActions(null);}}/>
           <ActionRow label="Add child" icon="childIcon" onPress={()=>{addChild(nodeActions);setNodeActions(null);}}/>
-          <Button label="Move up a level" onPress={()=>{reparent(nodeActions,'up');setNodeActions(null);}}/>
-          <Button label="Move down a level" onPress={()=>{reparent(nodeActions,'down');setNodeActions(null);}}/>
+          <ActionRow label="Move up a level" icon="upLevel" onPress={()=>{reparent(nodeActions,'up');setNodeActions(null);}}/>
+          <ActionRow label="Move down a level" icon="downLevel" onPress={()=>{reparent(nodeActions,'down');setNodeActions(null);}}/>
           {notes.find(n=>n.id===nodeActions)?.parentId==='root'&&<ActionRow icon={mapPrefs.archived.includes(nodeActions)?'unarchive':'archive'} label={mapPrefs.archived.includes(nodeActions)?'Unarchive map':'Archive map'} onPress={()=>{archiveOne(nodeActions,!mapPrefs.archived.includes(nodeActions));setNodeActions(null);setMenu(true);setShowArchive(false);}}/>}
           <ActionRow label="Delete branch" icon="🗑" danger onPress={()=>{removeBranch(nodeActions);setNodeActions(null);}}/>
           <Button label="Cancel" onPress={()=>setNodeActions(null)}/>
@@ -1128,7 +1131,7 @@ if(locked){
           <View style={[styles.bottomSheet,{backgroundColor:palette.surface,borderColor:palette.border}]}>
             <ActionRow label="Export" icon="exportIcon" onPress={()=>{setMapMenu(false);exportOne('pdf');}}/>
             {current.parentId==='root'&&<ActionRow icon={mapPrefs.archived.includes(current.id)?'unarchive':'archive'} label={mapPrefs.archived.includes(current.id)?'Unarchive':'Archive'} onPress={()=>{archiveOne(current.id,!mapPrefs.archived.includes(current.id));setMapMenu(false);setMenu(true);setShowArchive(false);}}/>}
-            <Button label="Help" onPress={()=>{setGestureHelp(true);setMapMenu(false);}}/>
+            <ActionRow label="Help" icon="helpIcon" onPress={()=>{setGestureHelp(true);setMapMenu(false);}}/>
           </View>
         )}
 
@@ -1602,6 +1605,7 @@ if(locked){
           <InsetSafeAreaView style={[styles.screen,{backgroundColor:palette.background}]} edges={['top','bottom']}>
             <View style={[styles.header,{gap:2}]}>
               <IconButton label={selected.length?'×':'☰'} accessibilityLabel={selected.length?'Clear selection':'Open sidebar'} onPress={()=>selected.length?setSelected([]):setSidebar(v=>!v)}/>
+              {selected.length>0&&<Text accessibilityLabel={selected.length+' maps selected'} style={{fontSize:18,fontWeight:'600',color:palette.text,minWidth:24}}>{selected.length}</Text>}
               {showTrash?(
                 <Text style={{flex:1,color:palette.text,fontSize:21,fontWeight:'600'}}>Bin</Text>
               ):selected.length===0?(
@@ -1628,8 +1632,9 @@ if(locked){
             {selectionMenu&&selected.length>0&&(
               <View style={[styles.bottomSheet,{backgroundColor:palette.surface,borderColor:palette.border}]}>
                 <ActionRow icon={showArchive?'unarchive':'archive'} label={showArchive?'Unarchive':'Archive'} onPress={()=>archiveSelection(!showArchive)}/>
+                <ActionRow label="Export" icon="exportIcon" onPress={()=>{setSelectionMenu(false);exportSelected();}}/>
+                <View style={{height:1,backgroundColor:palette.border,marginVertical:4}}/>
                 <ActionRow label="Delete" icon="🗑" danger onPress={()=>{setSelectionMenu(false);deleteSelected();}}/>
-                <Button label="Export" onPress={()=>{setSelectionMenu(false);exportSelected();}}/>
               </View>
             )}
 
@@ -1732,7 +1737,10 @@ if(locked){
                         </>
                       ):(
                         <>
-                          <MaterialIcon name="label" color={palette.text}/>
+                          <IconButton label="🗑" accessibilityLabel={'Delete label '+item.name} danger onPress={()=>showDialog('Delete label?', 'Maps assigned this label will remain available.',[
+                            {text:'Cancel',style:'cancel'},
+                            {text:'Delete',style:'destructive',onPress:()=>{setNotes(ns=>ns.map(n=>hasLabel(n,item.id)?removeLabel(n,item.id):n));setTrash(previous=>previous.map(batch=>({...batch,notes:batch.notes.map(n=>hasLabel(n,item.id)?removeLabel(n,item.id):n)})));setFolders(fs=>fs.filter(x=>x.id!==item.id));if(folderFilter===item.id)setFolderFilter(null);setEditingFolderId(null);}}
+                          ])}/>
                           <Text style={{flex:1,color:palette.text,fontSize:16}}>{item.name}</Text>
                           <IconButton label="✎" accessibilityLabel={'Edit label '+item.name} onPress={()=>{setEditingFolderId(item.id);setFolderName(item.name);}}/>
                         </>
@@ -2096,7 +2104,8 @@ const styles=StyleSheet.create({
   },
   readerTitle:{
     fontSize:28,
-    fontWeight:'800',
+    fontFamily:'Roboto',
+    fontWeight:'600',
     color:'#0f172a'
   },
   readBody:{
@@ -2107,7 +2116,8 @@ const styles=StyleSheet.create({
   },
   section:{
     fontSize:17,
-    fontWeight:'800',
+    fontFamily:'Roboto',
+    fontWeight:'600',
     color:'#0f172a'
   },
   wrap:{
@@ -2133,7 +2143,8 @@ const styles=StyleSheet.create({
   },
   listTitle:{
     fontSize:16,
-    fontWeight:'700',
+    fontFamily:'Roboto',
+    fontWeight:'600',
     color:'#0f172a'
   },
   checkbox:{
