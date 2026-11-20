@@ -181,7 +181,7 @@ console.log('PASS: Stage 3 UX-06 editor and empty-state wiring');
 
 for (const marker of [
   'const LIGHT=','const DARK=','PaletteContext.Provider',
-  "effectiveTheme==='dark'",'const mapPreview=(root:Note)=>',
+  "effectiveTheme==='dark'",'const mapPreview=(root:Note,previewNotes:Note[]=notes)=>',
   "mapPrefs.viewMode==='grid'&&mapPreview(n)",
   'Change selected card colors',
   "Filter '+item.name", 'Create new map',
