@@ -1628,20 +1628,18 @@ if(locked){
             </View>}
                           {moveFolderMenu&&(
               <View style={[styles.bottomSheet,{backgroundColor:palette.surface,borderColor:palette.border}]}>
-                {folders.map(f=>(
-                  <Button
-                    key={f.id}
-                    label={f.name}
-                    onPress={()=>{
-                      moveSelection(f.id);
-                      setMoveFolderMenu(false);
-                    }}
-                  />
-                ))}
-                <Button
-                  label="Cancel"
-                  onPress={()=>setMoveFolderMenu(false)}
-                />
+                <Text style={{color:palette.text,fontWeight:'600',fontSize:17,marginVertical:6}}>Labels</Text>
+                <Text style={{color:palette.muted,fontSize:12}}>Select one or more labels for the selected maps.</Text>
+                {folders.map(f=>{
+                  const all=selected.length>0&&selected.every(id=>{const n=notes.find(x=>x.id===id);return n?hasLabel(n,f.id):false;});
+                  const some=selected.some(id=>{const n=notes.find(x=>x.id===id);return n?hasLabel(n,f.id):false;});
+                  return <Pressable key={f.id} accessibilityRole="checkbox" accessibilityState={{checked:all}} accessibilityLabel={f.name} onPress={()=>moveSelection(f.id)} style={{flexDirection:'row',gap:12,alignItems:'center',minHeight:48,paddingHorizontal:10}}>
+                    <Text style={{color:palette.accent,fontSize:23}}>{all?'☑':some?'◩':'☐'}</Text>
+                    <Text style={{color:palette.text,flex:1,fontSize:15}}>{f.name}</Text>
+                  </Pressable>;
+                })}
+                <Button label="+ Create new label" onPress={()=>{setEditingFolderId(null);setFolderName('');setCreatingFolder(true);setMoveFolderMenu(false);}}/>
+                <Button label="Done" onPress={()=>{setSelected([]);setMoveFolderMenu(false);}}/>
               </View>
             )}
 
@@ -1850,7 +1848,9 @@ if(locked){
                       <View style={{flex:1,width:'100%'}}>
                         <Text style={[styles.listTitle,{color:mapPrefs.cardColors[n.id]?'#362722':palette.text,paddingRight:mapPrefs.pinned.includes(n.id)?29:0}]} numberOfLines={2}>{n.title||'Untitled map'}</Text>
                         {mapPrefs.viewMode==='grid'&&mapPreview(n)}
-                         {n.folderId&&<View style={{alignSelf:'flex-start',borderColor:palette.muted,borderWidth:1,borderRadius:6,marginTop:7,paddingVertical:3,paddingHorizontal:7}}><Text style={{color:palette.muted,fontSize:11}}>{folders.find(f=>f.id===n.folderId)?.name||''}</Text></View>}
+                         {labelIds(n).length>0&&<View style={{flexDirection:'row',flexWrap:'wrap',gap:5,marginTop:7}}>
+                         {labelIds(n).map(labelId=>{const name=folders.find(f=>f.id===labelId)?.name;return name?<View key={labelId} style={{borderColor:palette.muted,borderWidth:1,borderRadius:6,paddingVertical:3,paddingHorizontal:7}}><Text style={{color:palette.muted,fontSize:11}}>{name}</Text></View>:null;})}
+                       </View>}
  
                       </View>
 
