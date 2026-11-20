@@ -252,6 +252,17 @@ check(richEditor.includes('insertOrderedList')&&richEditor.includes('insertUnord
 check(security.includes('export async function credentialKind')&&security.includes("kind==='password'")&&security.includes("kind==='pin'"),'Credential migration should preserve old PINs and support password mode');
 console.log('PASS: Stage 4 new feature guards');
 
+check(app.includes("focused:notes.some(n=>n.id===focused)?focused:'root'"),'Persistence must not save a missing focused note');
+check(app.includes('setPendingBranch(result.batch)')&&app.includes('setUndoOpen(true)'), 'Branch deletion needs a five-second Undo window');
+check(app.includes('setTimeout(()=>{setUndoOpen(false)')&&app.includes('},5000)'), 'Undo notification must auto-dismiss after five seconds');
+check(app.includes('Items in the bin are permanently deleted after seven days.'), 'Seven-day retention must remain visible in Recently Deleted');
+check(app.includes('accessibilityLabel="Restore selected deleted maps"')&&app.includes('label="Empty bin"'), 'Recently Deleted selection and empty-bin controls must remain available');
+check(app.includes('label="Tx" accessibilityLabel="Remove formatting"')&&richEditor.includes("clear:'removeFormat'"), 'Remove formatting must be available in the local rich editor');
+check(app.includes('accessibilityLabel="Edit labels"')&&app.includes('accessibilityLabel="Rename label"'), 'Label-management flow must support inline rename');
+check(app.includes('label="parentNote" accessibilityLabel="Go to parent note"')&&app.includes('label="centerFocus" accessibilityLabel="Center focused note"'), 'Map quick actions must use accessible vector icons');
+console.log('PASS: Stage 4 correction regression guards');
+
+
 // Upright labels during rotation
 check(
   app.includes('const Upright='),
