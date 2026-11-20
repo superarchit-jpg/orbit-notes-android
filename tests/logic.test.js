@@ -138,11 +138,11 @@ for (const marker of [
   'accessibilityLabel="Back to library"',
   'accessibilityLabel="Fit map to screen"',
   'accessibilityLabel="More map actions"',
-  'accessibilityLabel="Open folders and tools"',
+  'Open sidebar',
   'accessibilityLabel="Create new map"',
-  'label="Gesture help"',
-  'label="Go to parent note"',
-  'label="Center focused note"',
+  'label="Help"',
+  'accessibilityLabel="Go to parent note"',
+  'accessibilityLabel="Center focused note"',
   'Show mini-map',
   'minHeight:48'
 ]) {
@@ -165,7 +165,7 @@ for (const marker of [
   "accessibilityLabel={draftChildId===reader?'Discard new child note':'Close note'}",
   'styles.editorField',
   'styles.editorLabel',
-  'No deleted notes. Notes moved here will appear for recovery.',
+  'Nothing in the bin',
   'No maps in this label',
   'No maps match this search.'
 ]) {
@@ -173,7 +173,7 @@ for (const marker of [
 }
 check(
   app.includes('onPress={saveEdit}') && app.includes('onPress={cancelReader}') &&
-  app.includes('onPress={()=>restore(b)}'),
+  app.includes('onPress={restoreSelectedTrash}'),
   'UX-06 must retain existing save, close and restore operations'
 );
 check(richEditor.includes('accessibilityLabel="Note content"'),'Offline rich editor must retain accessible note content label');
@@ -184,7 +184,7 @@ for (const marker of [
   "effectiveTheme==='dark'",'const mapPreview=(root:Note)=>',
   "mapPrefs.viewMode==='grid'&&mapPreview(n)",
   'Change selected card colors',
-  'Filter ${f.name}', 'Create new map',
+  "Filter '+item.name", 'Create new map',
   'FadeInLeft.duration(220)', "No maps in this label",
   'formatSelection(value,textSelection.start',
   'parseRichLine(line)', 'label="bullets" active={editorFormats.bullets} accessibilityLabel="Bulleted list"',
@@ -195,7 +195,7 @@ console.log('PASS: approved Keep-inspired redesign wiring');
 
 // Targeted device feedback regression: pinned cards and new child draft lifecycle.
 check(
-  app.includes("selected.every(id=>mapPrefs.pinned.includes(id))?'Unpin selected maps':'Pin selected maps'") &&
+  app.includes('accessibilityLabel="Pin or unpin selected maps"') &&
   app.includes('accessibilityLabel="Unpin map"') &&
   app.includes("selected.length===0&&mapPrefs.pinned.includes(n.id)") &&
   app.includes("fill={palette.accent}") &&
@@ -222,7 +222,7 @@ for(const marker of [
   "label={mapPrefs.collapsed[focused]?'expandBranch':'collapseBranch'}",
   'visible={gestureHelp}',
   'height:150,marginHorizontal:12',
-  'label="⚙  Settings"',
+  'accessibilityLabel="Settings"',
   'Rename label',
   'Delete label?',
   'setFolders(fs=>fs.map',
@@ -240,7 +240,7 @@ for(const obsolete of [
   'toggleChecklistLine(n.body,index)',
   'new Date(n.updatedAt).toLocaleDateString'
 ]) check(!app.includes(obsolete),`Removed functionality resurfaced: ${obsolete}`);
-check(app.includes('label="Center focused note"'),'Working recenter action must remain');
+check(app.includes('accessibilityLabel="Center focused note"'),'Working recenter action must remain');
 console.log('PASS: 26 approved recording changes and scope exclusions');
 for(const marker of ['archiveSelection','showArchive','selectedTrash','acknowledgeTrashRetention','RichNoteEditor','credentialType','Follow system','retentionNotice','bioPrompted.current'])
   check(app.includes(marker),`Missing Stage 4 approved feature: ${marker}`);
