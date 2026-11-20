@@ -1743,7 +1743,7 @@ if(locked){
                       </Pressable>
                     ))}
                   </>}
-                  <Pressable accessibilityRole="button" accessibilityLabel="Create new label" onPress={()=>{setEditingFolderId(null);setFolderName('');setCreatingFolder(true);setLabelManager(true);setSidebar(false);}} style={{flexDirection:'row'},alignItems:'center',padding:12,gap:14}}>
+                  <Pressable accessibilityRole="button" accessibilityLabel="Create new label" onPress={()=>{setEditingFolderId(null);setFolderName('');setCreatingFolder(true);setLabelManager(true);setSidebar(false);}} style={{flexDirection:'row',alignItems:'center',padding:12,gap:14}}>
                     <MaterialIcon name="+" color={palette.text}/><Text style={{color:palette.text}}>Create new label</Text>
                   </Pressable>
                   {folders.length>0&&<View style={{height:1,backgroundColor:palette.border,marginVertical:5}}/>}
@@ -1839,7 +1839,7 @@ if(locked){
                        {labelIds(batch.notes[0]).length>0&&<View style={{flexDirection:'row',flexWrap:'wrap',gap:5}}>{labelIds(batch.notes[0]).map(id=>{const label=folders.find(f=>f.id===id)?.name;return label?<View key={id} style={{paddingHorizontal:7,paddingVertical:3,borderRadius:6,borderWidth:1,borderColor:palette.border}}><Text style={{fontSize:11,color:palette.muted}}>{label}</Text></View>:null;})}</View>}
                        <View style={{flexDirection:'row',justifyContent:'space-between',alignItems:'center'}}>
                          <Text style={{color:palette.muted,fontSize:12}}>Deleted {stamp(batch.deletedAt)}</Text>
-                         <Pressable accessibilityRole="button" accessibilityLabel={'Restore '+(batch.notes[0]?.title||'deleted map')} onPress={event=>{event.stopPropagation();restore(batch);}} style={{flexDirection:'row'},alignItems:'center',gap:5,padding:8}}><MaterialIcon name="restoreIcon" color={palette.accent}/><Text style={{color:palette.accent,fontWeight:'600'}}>Restore</Text></Pressable>
+                         <Pressable accessibilityRole="button" accessibilityLabel={'Restore '+(batch.notes[0]?.title||'deleted map')} onPress={event=>{event.stopPropagation();restore(batch);}} style={{flexDirection:'row',alignItems:'center',gap:5,padding:8}}><MaterialIcon name="restoreIcon" color={palette.accent}/><Text style={{color:palette.accent,fontWeight:'600'}}>Restore</Text></Pressable>
                        </View>
                     </Pressable>
                   ))}
