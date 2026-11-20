@@ -287,6 +287,14 @@ for(const marker of [
   "showArchive?("
 ]) check(app.includes(marker),'Missing consolidated candidate interaction parity: '+marker);
 check(app.includes("setUndoBatch(result.batch.id)")&&app.includes("setTrash(t=>mapPrefs.trashRetentionAcknowledged?pruneTrash([result.batch,...t]):[result.batch,...t])"),'Note deletion must enter Recently Deleted, never bypass seven-day recovery');
+for(const token of [
+  'mapPreview(batch.notes.find(n=>n.parentId',
+  "previewNotes:Note[]=notes",
+  "accessibilityLabel={'Restore '+",
+  'accessibilityLabel="Unarchive map"',
+  'borderBottomColor:palette.border,backgroundColor:editingFolderId'
+]) check(app.includes(token),'Missing visible REF recovery/label UI: '+token);
+console.log('PASS: REF Deleted recovery previews, action affordances and label edit states');
 console.log('PASS: REF parity actions, labels, selected colors and scope exclusions');
 
 
