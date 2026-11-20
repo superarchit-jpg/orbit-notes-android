@@ -2,33 +2,13 @@
 import React,{forwardRef,useImperativeHandle,useMemo,useRef} from 'react';
 import {View} from 'react-native';
 import WebView from 'react-native-webview';
-import {parseRichLine} from './noteFormatting';
+import {markupToHtml} from './richTextMarkup';
+export {markupToHtml} from './richTextMarkup';
 
 export type RichEditorAction='bold'|'italic'|'underline'|'bullets'|'numbers'|'clear';
 export type RichNoteEditorHandle={format:(action:RichEditorAction)=>void};
 export type RichEditorState={bold:boolean;italic:boolean;underline:boolean;bullets:boolean;numbers:boolean};
 type Props={initialText:string;onChangeText:(text:string)=>void;onFormatStateChange?:(state:RichEditorState)=>void;dark:boolean;textColor:string;backgroundColor:string};
-
-const escapeHtml=(value:string)=>value.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
-const inlineHtml=(line:string)=>parseRichLine(line).map(run=>{
-  let html=escapeHtml(run.text);
-  if(run.underline)html='<u>'+html+'</u>';
-  if(run.italic)html='<em>'+html+'</em>';
-  if(run.bold)html='<strong>'+html+'</strong>';
-  return html;
-}).join('');
-export function markupToHtml(body:string):string{
-  const parts:string[]=[];let mode:'ul'|'ol'|null=null;
-  const close=()=>{if(mode){parts.push('</'+mode+'>');mode=null;}};
-  for(const line of body.split('\n')){
-    const bullet=line.match(/^•\s(.*)$/),number=line.match(/^\d+\.\s(.*)$/);
-    const next=bullet?'ul':number?'ol':null;
-    if(next!==mode){close();if(next){parts.push('<'+next+'>');mode=next;}}
-    if(next)parts.push('<li>'+inlineHtml((bullet||number)![1])+'</li>');
-    else parts.push('<div>'+ (line?inlineHtml(line):'<br>')+'</div>');
-  }
-  close();return parts.join('')||'<div><br></div>';
-}
 
 const RichNoteEditor=forwardRef<RichNoteEditorHandle,Props>(function RichNoteEditor({initialText,onChangeText,onFormatStateChange,dark,textColor,backgroundColor},ref){
   const web=useRef<WebView>(null);
@@ -62,14 +42,25 @@ function inline(node){
  return content;
 }
 function block(node){
- if(node.nodeType===3)return node.nodeValue||'';
- if(node.nodeType!==1)return '';
+ if(node.nodeType===3)return [node.nodeValue||''];
+ if(node.nodeType!==1)return [];
  const tag=node.tagName.toLowerCase();
- if(tag==='ul'||tag==='ol')return Array.from(node.children).map((n,i)=>(tag==='ul'?'• ':(i+1)+'. ')+Array.from(n.childNodes).map(inline).join('').replace(/\\n$/,'')).join('\\n');
- if(tag==='br')return '';
- return Array.from(node.childNodes).map(inline).join('').replace(/\\n$/,'');
+ if(tag==='ol'||tag==='ul'){
+  const start=tag==='ol'?Number(node.getAttribute('start')||1):1;
+  return Array.from(node.children).filter(n=>n.tagName.toLowerCase()==='li').map((n,i)=>{
+   const value=n.hasAttribute('value')?Number(n.getAttribute('value')):start+i;
+   const text=Array.from(n.childNodes).filter(child=>child.nodeType!==1||!['ul','ol'].includes(child.tagName.toLowerCase())).map(inline).join('').replace(/\\n$/,'');
+   return (tag==='ul'?'• ':value+'. ')+text;
+  });
+ }
+ if(tag==='div'||tag==='p'){
+  const nested=Array.from(node.childNodes).some(child=>child.nodeType===1&&['ol','ul'].includes(child.tagName.toLowerCase()));
+  if(nested)return Array.from(node.childNodes).flatMap(block);
+ }
+ if(tag==='br')return [''];
+ return [Array.from(node.childNodes).map(inline).join('').replace(/\\n$/,'')];
 }
-function serialize(){return Array.from(editor.childNodes).map(block).join('\\n').replace(/\\n{3,}/g,'\\n\\n');}
+function serialize(){return Array.from(editor.childNodes).flatMap(block).join('\\n').replace(/\\n{3,}/g,'\\n\\n');}
 function send(){window.ReactNativeWebView.postMessage(JSON.stringify({type:'change',text:serialize()}));}
 editor.addEventListener('input',send);
 editor.addEventListener('paste',event=>{event.preventDefault();const value=event.clipboardData?.getData('text/plain')||'';document.execCommand('insertText',false,value);});
@@ -78,7 +69,7 @@ window.addEventListener('message',e=>command(e.data));
 function command(raw){let m;try{m=JSON.parse(raw);}catch{return;}if(m.type!=='format')return;
  editor.focus();
  if(selectionRange){const s=getSelection();s.removeAllRanges();s.addRange(selectionRange);}
- const commands={bold:'bold',italic:'italic',underline:'underline',bullets:'insertUnorderedList',numbers:'insertOrderedList'};
+ const commands={bold:'bold',italic:'italic',underline:'underline',bullets:'insertUnorderedList',numbers:'insertOrderedList',clear:'removeFormat'};
  if(commands[m.action])document.execCommand(commands[m.action],false,null);
  send();sendState();
 }
