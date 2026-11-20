@@ -54,6 +54,10 @@ const ICON_PATHS:Record<string,string>={
   'pin':'M8 3h8v2l-1.5 2v5l3 3v1H6v-1l3-3V7L8 5zM12 16v6',
   'label':'M4 5h11l6 7-6 7H4a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2zM7 12h.01',
   'archive':'M3 4h18v5H3zM5 10h14v10H5zM9 14h6',
+  'unarchive':'M3 4h18v5H3zM5 10h14v10H5zM9 16h6M12 11v8m-4-4 4-4 4 4',
+  'exportIcon':'M12 3v12m-5-5 5 5 5-5M5 17v4h14v-4',
+  'readIcon':'M4 4h16v16H4zM8 9h8M8 13h8M8 17h5',
+  'childIcon':'M12 3v11m-5-5 5 5 5-5M5 20h14',
   'allMaps':'M4 4h7v7H4zM13 4h7v7h-7zM4 13h7v7H4zM13 13h7v7h-7z',
   'settingsIcon':'M12 3v2M12 19v2M3 12h2M19 12h2M5.6 5.6l1.4 1.4M17 17l1.4 1.4M18.4 5.6L17 7M7 17l-1.4 1.4M12 8a4 4 0 1 0 0 8 4 4 0 0 0 0-8',
   'centerFocus':'M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20z',
@@ -81,6 +85,15 @@ const IconButton=({label,onPress,danger=false,active=false,accessibilityLabel}:{
   const palette=React.useContext(PaletteContext);
   return <Pressable accessibilityRole="button" accessibilityLabel={accessibilityLabel||label} accessibilityState={{selected:active}} onPress={onPress} style={{paddingHorizontal:12,paddingVertical:10,minWidth:48,minHeight:48,alignItems:'center',justifyContent:'center',borderRadius:16,backgroundColor:active?palette.control:'transparent'}}>
     <MaterialIcon name={label} color={danger?'#dc2626':palette.text}/>
+  </Pressable>;
+};
+
+const ActionRow=({label,icon,onPress,danger=false}:{label:string;icon:string;onPress:()=>void;danger?:boolean})=>{
+  const theme=React.useContext(PaletteContext);
+  const foreground=danger?'#dc2626':theme.text;
+  return <Pressable accessibilityRole="button" accessibilityLabel={label} onPress={onPress} style={{minHeight:52,flexDirection:'row',alignItems:'center',gap:18,paddingHorizontal:14,borderRadius:12}}>
+    <MaterialIcon name={icon} color={foreground}/>
+    <Text style={{fontSize:16,color:foreground,flex:1}}>{label}</Text>
   </Pressable>;
 };
 
@@ -1100,19 +1113,19 @@ if(locked){
         {(nodeActions||mapMenu)&&<Pressable accessibilityLabel="Close menu" onPress={()=>{setNodeActions(null);setMapMenu(false);}} style={[StyleSheet.absoluteFill,{zIndex:20,elevation:10}]}/>}
         {nodeActions&&<View style={[styles.bottomSheet,{backgroundColor:palette.surface,borderColor:palette.border,borderTopLeftRadius:24,borderTopRightRadius:24,padding:16,gap:8}]}>
           <Text style={{fontWeight:'700',color:palette.text}} numberOfLines={2}>{notes.find(n=>n.id===nodeActions)?.title||'Note actions'}</Text>
-          <Button label="Read note" onPress={()=>{openReader(nodeActions);setNodeActions(null);}}/>
-          <Button label="Edit note" onPress={()=>{beginEdit(nodeActions);setNodeActions(null);}}/>
-          <Button label="Add child" onPress={()=>{addChild(nodeActions);setNodeActions(null);}}/>
+          <ActionRow label="Read note" icon="readIcon" onPress={()=>{openReader(nodeActions);setNodeActions(null);}}/>
+          <ActionRow label="Edit note" icon="✎" onPress={()=>{beginEdit(nodeActions);setNodeActions(null);}}/>
+          <ActionRow label="Add child" icon="childIcon" onPress={()=>{addChild(nodeActions);setNodeActions(null);}}/>
           <Button label="Move up a level" onPress={()=>{reparent(nodeActions,'up');setNodeActions(null);}}/>
           <Button label="Move down a level" onPress={()=>{reparent(nodeActions,'down');setNodeActions(null);}}/>
-          {notes.find(n=>n.id===nodeActions)?.parentId==='root'&&<Button label={mapPrefs.archived.includes(nodeActions)?'Unarchive map':'Archive map'} onPress={()=>{archiveOne(nodeActions,!mapPrefs.archived.includes(nodeActions));setNodeActions(null);setMenu(true);setShowArchive(false);}}/>}
-          <Button label="Delete branch" danger onPress={()=>{removeBranch(nodeActions);setNodeActions(null);}}/>
+          {notes.find(n=>n.id===nodeActions)?.parentId==='root'&&<ActionRow icon={mapPrefs.archived.includes(nodeActions)?'unarchive':'archive'} label={mapPrefs.archived.includes(nodeActions)?'Unarchive map':'Archive map'} onPress={()=>{archiveOne(nodeActions,!mapPrefs.archived.includes(nodeActions));setNodeActions(null);setMenu(true);setShowArchive(false);}}/>}
+          <ActionRow label="Delete branch" icon="🗑" danger onPress={()=>{removeBranch(nodeActions);setNodeActions(null);}}/>
           <Button label="Cancel" onPress={()=>setNodeActions(null)}/>
         </View>}
         {mapMenu&&(
           <View style={[styles.bottomSheet,{backgroundColor:palette.surface,borderColor:palette.border}]}>
-            <Button label="Export" onPress={()=>{setMapMenu(false);exportOne('pdf');}}/>
-            {current.parentId==='root'&&<Button label={mapPrefs.archived.includes(current.id)?'Unarchive':'Archive'} onPress={()=>{archiveOne(current.id,!mapPrefs.archived.includes(current.id));setMapMenu(false);setMenu(true);setShowArchive(false);}}/>}
+            <ActionRow label="Export" icon="exportIcon" onPress={()=>{setMapMenu(false);exportOne('pdf');}}/>
+            {current.parentId==='root'&&<ActionRow icon={mapPrefs.archived.includes(current.id)?'unarchive':'archive'} label={mapPrefs.archived.includes(current.id)?'Unarchive':'Archive'} onPress={()=>{archiveOne(current.id,!mapPrefs.archived.includes(current.id));setMapMenu(false);setMenu(true);setShowArchive(false);}}/>}
             <Button label="Help" onPress={()=>{setGestureHelp(true);setMapMenu(false);}}/>
           </View>
         )}
@@ -1612,8 +1625,8 @@ if(locked){
             {(selectionMenu||moveFolderMenu||sidebar||sortMenu)&&<Pressable accessibilityLabel="Close menu" onPress={()=>{setSelectionMenu(false);setMoveFolderMenu(false);setSidebar(false);setSortMenu(false);}} style={[StyleSheet.absoluteFill,{zIndex:20,elevation:10,backgroundColor:sidebar?'rgba(0,0,0,0.32)':'transparent'}]}/>}
             {selectionMenu&&selected.length>0&&(
               <View style={[styles.bottomSheet,{backgroundColor:palette.surface,borderColor:palette.border}]}>
-                <Button label={showArchive?'Unarchive':'Archive'} onPress={()=>archiveSelection(!showArchive)}/>
-                <Button label="Delete" danger onPress={()=>{setSelectionMenu(false);deleteSelected();}}/>
+                <ActionRow icon={showArchive?'unarchive':'archive'} label={showArchive?'Unarchive':'Archive'} onPress={()=>archiveSelection(!showArchive)}/>
+                <ActionRow label="Delete" icon="🗑" danger onPress={()=>{setSelectionMenu(false);deleteSelected();}}/>
                 <Button label="Export" onPress={()=>{setSelectionMenu(false);exportSelected();}}/>
               </View>
             )}
