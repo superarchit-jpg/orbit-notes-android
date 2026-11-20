@@ -51,6 +51,8 @@ const ICON_PATHS:Record<string,string>={
   'pin':'M8 3h8v2l-1.5 2v5l3 3v1H6v-1l3-3V7L8 5zM12 16v6',
   'label':'M4 5h11l6 7-6 7H4a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2zM7 12h.01',
   'archive':'M3 4h18v5H3zM5 10h14v10H5zM9 14h6',
+  'allMaps':'M4 4h7v7H4zM13 4h7v7h-7zM4 13h7v7H4zM13 13h7v7h-7z',
+  'settingsIcon':'M12 3v2M12 19v2M3 12h2M19 12h2M5.6 5.6l1.4 1.4M17 17l1.4 1.4M18.4 5.6L17 7M7 17l-1.4 1.4M12 8a4 4 0 1 0 0 8 4 4 0 0 0 0-8',
   'centerFocus':'M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20z',
   'parentNote':'M12 3a3 3 0 1 0 0 6 3 3 0 0 0 0-6zM6 13c0-5 12-5 12 0v2H6zM12 15v3M4 18h16M4 18v2M12 18v2M20 18v2',
   'miniMapIcon':'M5 12h14M12 5v14M12 12m-7 5-2 2m16-2 2 2M12 5a3 3 0 1 0 0 6M5 16a2 2 0 1 0 0 4M19 16a2 2 0 1 0 0 4',
@@ -1656,7 +1658,9 @@ if(locked){
                   gap:10
                 }}>
 
-                  <Button label="◈  All maps" active={!showArchive&&!showTrash&&!folderFilter} onPress={()=>{setFolderFilter(null);setShowTrash(false);setShowArchive(false);setSidebar(false);}}/>
+                  <Pressable accessibilityRole="button" accessibilityLabel="All maps" onPress={()=>{setFolderFilter(null);setShowTrash(false);setShowArchive(false);setSidebar(false);}} style={{flexDirection:'row',alignItems:'center',gap:14,padding:12,borderRadius:28,backgroundColor:!showArchive&&!showTrash&&!folderFilter?palette.control:'transparent'}}>
+                    <MaterialIcon name="allMaps" color={palette.text}/><Text style={{color:palette.text}}>All maps</Text>
+                  </Pressable>
                   {folders.length>0&&<>
                     <View style={{height:1,backgroundColor:palette.border,marginVertical:5}}/>
                     <View style={{flexDirection:'row',alignItems:'center',justifyContent:'space-between',paddingHorizontal:12}}>
@@ -1681,7 +1685,7 @@ if(locked){
                     <MaterialIcon name="🗑" color={palette.text}/><Text style={{color:palette.text}}>Recently Deleted</Text>
                   </Pressable>
                   <Pressable accessibilityRole="button" accessibilityLabel="Settings" onPress={()=>{setSettings(true);setSidebar(false);}} style={{flexDirection:'row',alignItems:'center',gap:14,padding:12}}>
-                    <MaterialIcon name="☷" color={palette.text}/><Text style={{color:palette.text}}>Settings</Text>
+                    <MaterialIcon name="settingsIcon" color={palette.text}/><Text style={{color:palette.text}}>Settings</Text>
                   </Pressable>
                 </ScrollView>
               </Animated.View>
