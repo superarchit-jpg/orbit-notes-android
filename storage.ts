@@ -44,7 +44,7 @@ export async function loadSnapshot():Promise<LocalSnapshot|null>{
  const initialized=await db.getFirstAsync<{value:string}>("SELECT value FROM metadata WHERE key='initialized'");
  if(!initialized)return null;
  const [notes,folders,trash,focused]=await Promise.all([
-  db.getAllAsync<Note&{labelIds:string|null}>('SELECT id,parent_id AS parentId,title,body,updated_at AS updatedAt,folder_id AS folderId,label_ids AS labelIds FROM notes'),
+  db.getAllAsync<Omit<Note,'labelIds'>&{labelIds:string|null}>('SELECT id,parent_id AS parentId,title,body,updated_at AS updatedAt,folder_id AS folderId,label_ids AS labelIds FROM notes'),
   db.getAllAsync<Folder>('SELECT id,name FROM folders'),
   db.getAllAsync<{payload:string}>('SELECT payload FROM trash'),
   db.getFirstAsync<{value:string}>("SELECT value FROM metadata WHERE key='focused'")
@@ -59,7 +59,7 @@ export function saveSnapshot(snapshot:LocalSnapshot):Promise<void>{
   assertSnapshot(snapshot);
   const db=await getDatabase();
   await db.withExclusiveTransactionAsync(async tx=>{
-   const oldNotes=await tx.getAllAsync<Note&{labelIds:string|null}>('SELECT id,parent_id AS parentId,title,body,updated_at AS updatedAt,folder_id AS folderId,label_ids AS labelIds FROM notes');
+   const oldNotes=await tx.getAllAsync<Omit<Note,'labelIds'>&{labelIds:string|null}>('SELECT id,parent_id AS parentId,title,body,updated_at AS updatedAt,folder_id AS folderId,label_ids AS labelIds FROM notes');
    const oldFolders=await tx.getAllAsync<Folder>('SELECT id,name FROM folders');
    const oldTrash=await tx.getAllAsync<{id:string;payload:string}>('SELECT id,payload FROM trash');
    const nextNoteIds=new Set(snapshot.notes.map(x=>x.id));
