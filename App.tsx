@@ -1656,7 +1656,7 @@ if(locked){
                   gap:10
                 }}>
 
-                  <Pressable accessibilityRole="button" accessibilityLabel="All maps" onPress={()=>{setFolderFilter(null);setShowTrash(false);setShowArchive(false);setSidebar(false);}} style={{flexDirection:'row',alignItems:'center',gap:14,padding:12,borderRadius:28,backgroundColor:!showArchive&&!showTrash&&!folderFilter?palette.control:'transparent'}}>
+                  <Pressable accessibilityRole="button" accessibilityLabel="All maps" onPress={()=>{setFolderFilter(null);setShowTrash(false);setShowArchive(false);setSidebar(false);}} style={{flexDirection:'row',alignItems:'center',gap:14,padding:12,borderRadius:28,backgroundColor:!showArchive&&!showTrash&&!folderFilter?(effectiveTheme==='dark'?'#473e2e':'#fef3c7'):'transparent'}}>
                     <MaterialIcon name="allMaps" color={palette.text}/><Text style={{color:palette.text}}>All maps</Text>
                   </Pressable>
                   {folders.length>0&&<>
@@ -1666,7 +1666,7 @@ if(locked){
                       <Pressable accessibilityRole="button" accessibilityLabel="Edit labels" onPress={()=>{setLabelManager(true);setSidebar(false);}} style={{padding:8}}><Text style={{color:palette.accent,fontWeight:'600'}}>Edit</Text></Pressable>
                     </View>
                     {folders.map(item=>(
-                      <Pressable key={item.id} accessibilityRole="button" accessibilityLabel={'Filter '+item.name} onPress={()=>{setFolderFilter(item.id);setShowTrash(false);setShowArchive(false);setSidebar(false);}} style={{flexDirection:'row',alignItems:'center',gap:14,padding:12,borderRadius:28,backgroundColor:folderFilter===item.id?palette.control:'transparent'}}>
+                      <Pressable key={item.id} accessibilityRole="button" accessibilityLabel={'Filter '+item.name} onPress={()=>{setFolderFilter(item.id);setShowTrash(false);setShowArchive(false);setSidebar(false);}} style={{flexDirection:'row',alignItems:'center',gap:14,padding:12,borderRadius:28,backgroundColor:folderFilter===item.id?(effectiveTheme==='dark'?'#473e2e':'#fef3c7'):'transparent'}}>
                         <MaterialIcon name="label" color={folderFilter===item.id?palette.accent:palette.text}/>
                         <Text style={{color:palette.text,flex:1}}>{item.name}</Text>
                       </Pressable>
@@ -1676,10 +1676,10 @@ if(locked){
                     <MaterialIcon name="+" color={palette.text}/><Text style={{color:palette.text}}>Create new label</Text>
                   </Pressable>
                   {folders.length>0&&<View style={{height:1,backgroundColor:palette.border,marginVertical:5}}/>}
-                  <Pressable accessibilityRole="button" accessibilityLabel="Archive" onPress={()=>{setShowArchive(true);setShowTrash(false);setFolderFilter(null);setSelected([]);setSidebar(false);}} style={{flexDirection:'row',alignItems:'center',gap:14,padding:12,borderRadius:28,backgroundColor:showArchive?palette.control:'transparent'}}>
+                  <Pressable accessibilityRole="button" accessibilityLabel="Archive" onPress={()=>{setShowArchive(true);setShowTrash(false);setFolderFilter(null);setSelected([]);setSidebar(false);}} style={{flexDirection:'row',alignItems:'center',gap:14,padding:12,borderRadius:28,backgroundColor:showArchive?(effectiveTheme==='dark'?'#473e2e':'#fef3c7'):'transparent'}}>
                     <MaterialIcon name="archive" color={palette.text}/><Text style={{color:palette.text}}>Archive</Text>
                   </Pressable>
-                  <Pressable accessibilityRole="button" accessibilityLabel="Recently Deleted" onPress={()=>{setShowTrash(true);setShowArchive(false);setFolderFilter(null);setSelectedTrash([]);setSelected([]);setSidebar(false);}} style={{flexDirection:'row',alignItems:'center',gap:14,padding:12,borderRadius:28,backgroundColor:showTrash?palette.control:'transparent'}}>
+                  <Pressable accessibilityRole="button" accessibilityLabel="Recently Deleted" onPress={()=>{setShowTrash(true);setShowArchive(false);setFolderFilter(null);setSelectedTrash([]);setSelected([]);setSidebar(false);}} style={{flexDirection:'row',alignItems:'center',gap:14,padding:12,borderRadius:28,backgroundColor:showTrash?(effectiveTheme==='dark'?'#473e2e':'#fef3c7'):'transparent'}}>
                     <MaterialIcon name="🗑" color={palette.text}/><Text style={{color:palette.text}}>Recently Deleted</Text>
                   </Pressable>
                   <Pressable accessibilityRole="button" accessibilityLabel="Settings" onPress={()=>{setSettings(true);setSidebar(false);}} style={{flexDirection:'row',alignItems:'center',gap:14,padding:12}}>
