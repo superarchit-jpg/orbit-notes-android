@@ -1640,53 +1640,34 @@ if(locked){
                   padding:12,
                   gap:10
                 }}>
-                  <Button
-                    label="◈  All maps"
-                    active={!showArchive&&!showTrash&&!folderFilter}
-                    onPress={()=>{
-                      setFolderFilter(null);
-                      setShowTrash(false);setShowArchive(false);
-                       setSidebar(false);setFoldersExpanded(false);
-                    }}
-                  />
-                   <View style={{height:1,backgroundColor:palette.border,marginVertical:5}}/>
-                   <Button label={foldersExpanded?'▾  Labels':'›  Labels'} onPress={()=>setFoldersExpanded(v=>!v)}/>
-                  {foldersExpanded&&folders.map(f=>(
-                    <View key={f.id} style={{flexDirection:'row',alignItems:'center',gap:2}}>
-                      <View style={{flex:1}}>
-                        <Button label={`◩  ${f.name}`} active={!showTrash&&folderFilter===f.id} onPress={()=>{
-                          setFolderFilter(f.id);setShowTrash(false);setShowArchive(false);setSidebar(false);setFoldersExpanded(false);
-                        }}/>
-                      </View>
-                      <IconButton label="✎" accessibilityLabel={`Rename label ${f.name}`} onPress={()=>{
-                        setEditingFolderId(f.id);setFolderName(f.name);setCreatingFolder(true);setSidebar(false);
-                      }}/>
-                      <IconButton label="🗑" accessibilityLabel={`Delete label ${f.name}`} onPress={()=>showDialog('Delete label?',`Maps in "${f.name}" will remain available under All maps.`,[
-                        {text:'Cancel',style:'cancel'},
-                        {text:'Delete label',style:'destructive',onPress:()=>{
-                          setNotes(ns=>ns.map(n=>n.folderId===f.id?{...n,folderId:null}:n));
-                          setFolders(fs=>fs.filter(x=>x.id!==f.id));
-                          if(folderFilter===f.id)setFolderFilter(null);
-                        }}
-                      ])}/>
+
+                  <Button label="◈  All maps" active={!showArchive&&!showTrash&&!folderFilter} onPress={()=>{setFolderFilter(null);setShowTrash(false);setShowArchive(false);setSidebar(false);}}/>
+                  {folders.length>0&&<>
+                    <View style={{height:1,backgroundColor:palette.border,marginVertical:5}}/>
+                    <View style={{flexDirection:'row',alignItems:'center',justifyContent:'space-between',paddingHorizontal:12}}>
+                      <Text style={{color:palette.muted,fontWeight:'600'}}>Labels</Text>
+                      <Pressable accessibilityRole="button" accessibilityLabel="Edit labels" onPress={()=>{setLabelManager(true);setSidebar(false);}} style={{padding:8}}><Text style={{color:palette.accent,fontWeight:'600'}}>Edit</Text></Pressable>
                     </View>
-                  ))}
-                  {foldersExpanded&&<Button
-                    label="+ Create label"
-                    onPress={()=>{setEditingFolderId(null);setFolderName('');setCreatingFolder(true);setSidebar(false);}}
-                  />}
-                  <View style={{height:1,backgroundColor:palette.border,marginVertical:5}}/>
-                   <Button label="📥  Archive" active={showArchive} onPress={()=>{setShowArchive(true);setShowTrash(false);setFolderFilter(null);setSelected([]);setSidebar(false);}}/>
-                   <Button
-                    label="🗑  Recently Deleted"
-                    active={showTrash}
-                    onPress={()=>{
-                      setShowTrash(true);setShowArchive(false);
-                       setSidebar(false);setFoldersExpanded(false);
-                      setSelected([]);
-                    }}
-                  />
-                  <Button label="⚙  Settings" onPress={()=>{setSettings(true);setSidebar(false);setFoldersExpanded(false);}}/>
+                    {folders.map(item=>(
+                      <Pressable key={item.id} accessibilityRole="button" accessibilityLabel={'Filter '+item.name} onPress={()=>{setFolderFilter(item.id);setShowTrash(false);setShowArchive(false);setSidebar(false);}} style={{flexDirection:'row',alignItems:'center',gap:14,padding:12,borderRadius:28,backgroundColor:folderFilter===item.id?palette.control:'transparent'}}>
+                        <MaterialIcon name="label" color={folderFilter===item.id?palette.accent:palette.text}/>
+                        <Text style={{color:palette.text,flex:1}}>{item.name}</Text>
+                      </Pressable>
+                    ))}
+                  </>}
+                  <Pressable accessibilityRole="button" accessibilityLabel="Create new label" onPress={()=>{setEditingFolderId(null);setFolderName('');setCreatingFolder(true);setSidebar(false);}} style={{flexDirection:'row',alignItems:'center',padding:12,gap:14}}>
+                    <MaterialIcon name="+" color={palette.text}/><Text style={{color:palette.text}}>Create new label</Text>
+                  </Pressable>
+                  {folders.length>0&&<View style={{height:1,backgroundColor:palette.border,marginVertical:5}}/>}
+                  <Pressable accessibilityRole="button" accessibilityLabel="Archive" onPress={()=>{setShowArchive(true);setShowTrash(false);setFolderFilter(null);setSelected([]);setSidebar(false);}} style={{flexDirection:'row',alignItems:'center',gap:14,padding:12,borderRadius:28,backgroundColor:showArchive?palette.control:'transparent'}}>
+                    <MaterialIcon name="archive" color={palette.text}/><Text style={{color:palette.text}}>Archive</Text>
+                  </Pressable>
+                  <Pressable accessibilityRole="button" accessibilityLabel="Recently Deleted" onPress={()=>{setShowTrash(true);setShowArchive(false);setFolderFilter(null);setSelectedTrash([]);setSelected([]);setSidebar(false);}} style={{flexDirection:'row',alignItems:'center',gap:14,padding:12,borderRadius:28,backgroundColor:showTrash?palette.control:'transparent'}}>
+                    <MaterialIcon name="🗑" color={palette.text}/><Text style={{color:palette.text}}>Recently Deleted</Text>
+                  </Pressable>
+                  <Pressable accessibilityRole="button" accessibilityLabel="Settings" onPress={()=>{setSettings(true);setSidebar(false);}} style={{flexDirection:'row',alignItems:'center',gap:14,padding:12}}>
+                    <MaterialIcon name="☷" color={palette.text}/><Text style={{color:palette.text}}>Settings</Text>
+                  </Pressable>
                 </ScrollView>
               </Animated.View>
               </GestureDetector>
