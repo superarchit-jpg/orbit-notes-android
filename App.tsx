@@ -1184,7 +1184,7 @@ if(locked){
           {!menu&&showMiniMap&&<View style={{height:150,marginHorizontal:12,marginBottom:6,backgroundColor:palette.surface,borderColor:palette.border,borderWidth:1,borderRadius:16,overflow:'hidden',padding:10}}><Text style={styles.muted}>Map overview · {completeMap.length} notes</Text><Svg width="100%" height={118} viewBox="0 0 1000 540" preserveAspectRatio="xMidYMid meet">{miniLines.map(l=><Line key={l.id} x1={l.x1*miniBounds.scale+miniBounds.dx} y1={l.y1*miniBounds.scale+miniBounds.dy} x2={l.x2*miniBounds.scale+miniBounds.dx} y2={l.y2*miniBounds.scale+miniBounds.dy} stroke={palette.connector} strokeWidth={2}/>)}{completeMap.map(v=><Circle key={v.note.id} cx={v.x*miniBounds.scale+miniBounds.dx} cy={v.y*miniBounds.scale+miniBounds.dy} r={v.note.id===focused?5:3.5} fill={v.note.id===focused?palette.accent:palette.muted}/>)}</Svg></View>}
 
         {undoOpen&&(undoBatch||pendingBranch)&&(
-          <GestureDetector gesture={Gesture.Pan().activeOffsetX([-20,20]).onEnd(e=>{if(Math.abs(e.translationX)>55)runOnJS(setUndoOpen)(false);})}>
+          <GestureDetector gesture={Gesture.Pan().activeOffsetX([-20,20]).onEnd(e=>{if(Math.abs(e.translationX)>55){runOnJS(setUndoOpen)(false);runOnJS(setUndoBatch)(null);runOnJS(setPendingBranch)(null);}})}>
           <View style={{position:'absolute',bottom:74,left:16,right:16,zIndex:42,backgroundColor:palette.control,borderRadius:12,padding:8,flexDirection:'row',alignItems:'center',justifyContent:'space-between'}}>
             <Text style={{color:palette.text,flex:1}}>Deleted</Text>
             <Button
@@ -1883,7 +1883,7 @@ if(locked){
               <Text style={{fontSize:32,color:'white'}}>+</Text>
             </Pressable>}
           {undoOpen&&undoBatch&&(
-            <GestureDetector gesture={Gesture.Pan().activeOffsetX([-20,20]).onEnd(e=>{if(Math.abs(e.translationX)>55)runOnJS(setUndoOpen)(false);})}>
+            <GestureDetector gesture={Gesture.Pan().activeOffsetX([-20,20]).onEnd(e=>{if(Math.abs(e.translationX)>55){runOnJS(setUndoOpen)(false);runOnJS(setUndoBatch)(null);runOnJS(setPendingBranch)(null);}})}>
               <View style={{position:'absolute',bottom:90,left:16,right:16,zIndex:60,backgroundColor:palette.control,borderRadius:12,padding:12,flexDirection:'row',alignItems:'center',justifyContent:'space-between',elevation:8}}>
                 <Text style={{color:palette.text}}>Moved to Recently Deleted</Text>
                 <Pressable accessibilityRole="button" accessibilityLabel="Undo deletion" onPress={()=>{const batch=trash.find(t=>t.id===undoBatch);if(batch)restore(batch);setUndoOpen(false);setUndoBatch(null);}} style={{padding:8}}>
