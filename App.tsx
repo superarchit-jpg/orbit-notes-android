@@ -46,7 +46,15 @@ const ICON_PATHS:Record<string,string>={
   '☷':'M5 6h14M5 12h14M5 18h14',
   '▦':'M3 3h8v8H3zM13 3h8v8h-8zM3 13h8v8H3zM13 13h8v8h-8z',
   'Fit':'M4 9V4h5M15 4h5v5M20 15v5h-5M9 20H4v-5',
-  'listView':'M4 5h16M4 10h16M4 15h16M4 20h16',
+  'listView':'M4 4h16v7H4zM4 14h16v7H4z',
+  'sort':'M4 6h12M4 12h9M4 18h6M19 6v12m-3-3 3 3 3-3',
+  'pin':'M8 3h8v2l-1.5 2v5l3 3v1H6v-1l3-3V7L8 5zM12 16v6',
+  'label':'M4 5h11l6 7-6 7H4a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2zM7 12h.01',
+  'archive':'M3 4h18v5H3zM5 10h14v10H5zM9 14h6',
+  'centerFocus':'M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20z',
+  'parentNote':'M12 3a3 3 0 1 0 0 6 3 3 0 0 0 0-6zM6 13c0-5 12-5 12 0v2H6zM12 15v3M4 18h16M4 18v2M12 18v2M20 18v2',
+  'miniMapIcon':'M5 12h14M12 5v14M12 12m-7 5-2 2m16-2 2 2M12 5a3 3 0 1 0 0 6M5 16a2 2 0 1 0 0 4M19 16a2 2 0 1 0 0 4',
+  'restoreIcon':'M3 11v-7h7M3 4l6 6M4 13a8 8 0 1 0 7-9',
   'gridView':'M3 3h8v8H3zM13 3h8v8h-8zM3 13h8v8H3zM13 13h8v8h-8z',
   'palette':'M12 3a9 9 0 1 0 0 18h1.2c1.1 0 1.9-.9 1.9-2 0-.7-.4-1.3-.8-1.8-.3-.4-.5-.8-.5-1.3 0-1.1.9-2 2-2H19A7 7 0 0 0 12 3zM6.9 12h.01M8.5 7.9h.01M13.4 6.8h.01M17.1 9.4h.01',
   'collapseBranch':'M5 12h14M12 5l7 7-7 7',
@@ -57,7 +65,7 @@ const ICON_PATHS:Record<string,string>={
 const MaterialIcon=({name,color}:{name:string;color:string})=>{
   if(['bold','italic','underline'].includes(name))return <Text style={{fontSize:21,color,fontWeight:name==='bold'?'900':'600',fontStyle:name==='italic'?'italic':'normal',textDecorationLine:name==='underline'?'underline':'none'}}>{name==='bold'?'B':name==='italic'?'I':'U'}</Text>;
   const data=ICON_PATHS[name];
-  return data?<Svg width={23} height={23} viewBox="0 0 24 24"><Path d={data} fill="none" stroke={color} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"/></Svg>:<Text style={{fontSize:name==='Fit'?14:22,color,fontWeight:'700'}}>{name}</Text>;
+  return data?<Svg width={23} height={23} viewBox="0 0 24 24"><Path d={data} fill="none" stroke={color} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"/>{name==='centerFocus'&&<Circle cx={12} cy={12} r={3.6} fill={color}/>}</Svg>:<Text style={{fontSize:name==='Fit'?14:22,color,fontWeight:'700'}}>{name}</Text>;
 };
 const Upright=({angle,children}:{angle:SharedValue<number>;children:React.ReactNode})=>{
   const style=useAnimatedStyle(()=>({transform:[{rotateZ:`${-angle.value}rad`}]}));
@@ -816,7 +824,7 @@ const mapPreview=(root:Note)=>{
     </Svg>
   );
 };
-const applyNoteFormat=(kind:'bold'|'italic'|'underline'|'bullets'|'numbers')=>{if(richEditorRef.current)richEditorRef.current.format(kind);else setBody(value=>formatSelection(value,textSelection.start,textSelection.end,kind));};
+const applyNoteFormat=(kind:'bold'|'italic'|'underline'|'bullets'|'numbers'|'clear')=>{if(richEditorRef.current)richEditorRef.current.format(kind);else setBody(value=>formatSelection(value,textSelection.start,textSelection.end,kind));};
 const noteBodyView=(value:string)=>value.split('\n').map((line,index)=>(
   <View key={index} style={{minHeight:28}}>
     <Text style={{fontSize:17,lineHeight:27,color:palette.text}}>{parseRichLine(line).map((run,i)=><Text key={i} style={{fontWeight:run.bold?'700':'400',fontStyle:run.italic?'italic':'normal',textDecorationLine:run.underline?'underline':'none'}}>{run.text}</Text>)}</Text>
@@ -1533,6 +1541,7 @@ if(locked){
                   <IconButton label="underline" active={editorFormats.underline} accessibilityLabel="Underline text" onPress={()=>applyNoteFormat('underline')}/>
                   <IconButton label="bullets" active={editorFormats.bullets} accessibilityLabel="Bulleted list" onPress={()=>applyNoteFormat('bullets')}/>
                   <IconButton label="numbers" active={editorFormats.numbers} accessibilityLabel="Numbered list" onPress={()=>applyNoteFormat('numbers')}/>
+                   <IconButton label="Tx" accessibilityLabel="Remove formatting" onPress={()=>applyNoteFormat('clear')}/>
                   <IconButton label="palette" accessibilityLabel="Note color" onPress={()=>setColorTarget('note')}/>
                 </View>
               </KeyboardAvoidingView>
