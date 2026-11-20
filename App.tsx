@@ -341,6 +341,7 @@ const openReader=(target:string)=>{
 const beginEdit=(target:string)=>{
   const n=notes.find(x=>x.id===target);
   if(!n)return;
+  setFormatToolbar(false);
   setReader(target);
   setTitle(n.title);
   setBody(n.body);
@@ -857,6 +858,21 @@ const mapPreview=(root:Note,previewNotes:Note[]=notes)=>{
   );
 };
 const applyNoteFormat=(kind:'bold'|'italic'|'underline'|'bullets'|'numbers'|'clear')=>{if(richEditorRef.current)richEditorRef.current.format(kind);else if(kind!=='clear')setBody(value=>formatSelection(value,textSelection.start,textSelection.end,kind));};
+const withColor=(old:Record<string,string>,targets:string[],color:string)=>{
+ const next={...old};
+ for(const target of targets){if(color===CARD_PALETTE[0])delete next[target];else next[target]=color;}
+ return next;
+};
+const applyChosenColor=(color:string)=>{
+ if(colorTarget==='cards'){
+   setMapPrefs(p=>({...p,cardColors:withColor(p.cardColors,selected,color)}));setSelected([]);
+ }else if(colorTarget==='note'&&reader){
+   setMapPrefs(p=>({...p,noteColors:withColor(p.noteColors,[reader],color)}));
+ }else if(colorTarget==='node'){
+   setMapPrefs(p=>({...p,colors:withColor(p.colors,[focused],color)}));
+ }
+ setColorTarget(null);
+};
 const noteBodyView=(value:string)=>value.split('\n').map((line,index)=>(
   <View key={index} style={{minHeight:28}}>
     <Text style={{fontSize:17,lineHeight:27,color:palette.text}}>{parseRichLine(line).map((run,i)=><Text key={i} style={{fontWeight:run.bold?'700':'400',fontStyle:run.italic?'italic':'normal',textDecorationLine:run.underline?'underline':'none'}}>{run.text}</Text>)}</Text>
@@ -1579,14 +1595,20 @@ if(locked){
                   <RichNoteEditor key={reader||'note'} ref={richEditorRef} initialText={body} onChangeText={setBody} onFormatStateChange={setEditorFormats}
                      dark={effectiveTheme==='dark'} textColor={mapPrefs.noteColors[reader||'']?'#362722':palette.text} backgroundColor={palette.surface}/>
                 </View>
-                <View style={{flexDirection:'row',gap:8,alignItems:'center',flexWrap:'wrap'}}>
-                  <IconButton label="bold" active={editorFormats.bold} accessibilityLabel="Bold text" onPress={()=>applyNoteFormat('bold')}/>
-                  <IconButton label="italic" active={editorFormats.italic} accessibilityLabel="Italic text" onPress={()=>applyNoteFormat('italic')}/>
-                  <IconButton label="underline" active={editorFormats.underline} accessibilityLabel="Underline text" onPress={()=>applyNoteFormat('underline')}/>
-                  <IconButton label="bullets" active={editorFormats.bullets} accessibilityLabel="Bulleted list" onPress={()=>applyNoteFormat('bullets')}/>
-                  <IconButton label="numbers" active={editorFormats.numbers} accessibilityLabel="Numbered list" onPress={()=>applyNoteFormat('numbers')}/>
-                   <IconButton label="Tx" accessibilityLabel="Remove formatting" onPress={()=>applyNoteFormat('clear')}/>
-                  <IconButton label="palette" accessibilityLabel="Note color" onPress={()=>setColorTarget('note')}/>
+                <View style={{gap:5}}>
+                  {formatToolbar&&<View style={{flexDirection:'row',alignItems:'center',justifyContent:'space-between',borderRadius:16,borderWidth:1,borderColor:palette.border,backgroundColor:palette.surface,paddingHorizontal:2}}>
+                    <IconButton label="bold" active={editorFormats.bold} accessibilityLabel="Bold text" onPress={()=>applyNoteFormat('bold')}/>
+                    <IconButton label="italic" active={editorFormats.italic} accessibilityLabel="Italic text" onPress={()=>applyNoteFormat('italic')}/>
+                    <IconButton label="underline" active={editorFormats.underline} accessibilityLabel="Underline text" onPress={()=>applyNoteFormat('underline')}/>
+                    <IconButton label="Tx" accessibilityLabel="Remove formatting" onPress={()=>applyNoteFormat('clear')}/>
+                    <IconButton label="×" accessibilityLabel="Close formatting toolbar" onPress={()=>setFormatToolbar(false)}/>
+                  </View>}
+                  <View style={{flexDirection:'row',alignItems:'center',gap:5}}>
+                    <IconButton label="format" active={formatToolbar} accessibilityLabel="Text formatting" onPress={()=>setFormatToolbar(true)}/>
+                    <IconButton label="bullets" active={editorFormats.bullets} accessibilityLabel="Bulleted list" onPress={()=>applyNoteFormat('bullets')}/>
+                    <IconButton label="numbers" active={editorFormats.numbers} accessibilityLabel="Numbered list" onPress={()=>applyNoteFormat('numbers')}/>
+                    <IconButton label="palette" accessibilityLabel="Note color" onPress={()=>{setManualColor(mapPrefs.noteColors[reader||'']||'');setColorTarget('note');}}/>
+                  </View>
                 </View>
               </KeyboardAvoidingView>
             ):(
@@ -1640,7 +1662,7 @@ if(locked){
                     setMapPrefs(p=>{const allPinned=selected.every(id=>p.pinned.includes(id));return {...p,pinned:allPinned?p.pinned.filter(id=>!selected.includes(id)):[...new Set([...p.pinned,...selected])]};});
                     setSelected([]);
                   }}/>
-                  <IconButton label="palette" accessibilityLabel="Change selected card colors" onPress={()=>setColorTarget('cards')}/>
+                  <IconButton label="palette" accessibilityLabel="Change selected card colors" onPress={()=>{setManualColor(selected.length===1?mapPrefs.cardColors[selected[0]]||'':'');setColorTarget('cards');}}/>
                   <IconButton label="label" accessibilityLabel="Move selected maps to label" onPress={()=>setMoveFolderMenu(true)}/>
                   <IconButton label="⋮" accessibilityLabel="More selection actions" onPress={()=>setSelectionMenu(v=>!v)}/>
                 </View>
@@ -1934,28 +1956,26 @@ if(locked){
             </View>
           </View>
         </Modal>
-        <Modal visible={colorTarget!==null} transparent animationType="slide" onRequestClose={()=>setColorTarget(null)}>
+        <Modal visible={colorTarget!==null} transparent animationType="fade" onRequestClose={()=>setColorTarget(null)}>
           <View style={{flex:1,justifyContent:'flex-end',backgroundColor:'rgba(0,0,0,0.35)'}}>
+            <Pressable accessibilityLabel="Dismiss color palette" onPress={()=>setColorTarget(null)} style={StyleSheet.absoluteFill}/>
             <View style={{padding:20,gap:16,borderTopLeftRadius:24,borderTopRightRadius:24,backgroundColor:palette.surface}}>
-              <Text style={[styles.section,{color:palette.text}]}>Choose {colorTarget==='cards'?'card':'note'} color</Text>
+              <Text style={[styles.section,{color:palette.text}]}>Choose {colorTarget==='cards'?'card':colorTarget==='node'?'node':'note'} color</Text>
               <View style={{flexDirection:'row',flexWrap:'wrap',gap:14}}>
                 {CARD_PALETTE.map((color,index)=>{
-                  const targets=colorTarget==='cards'?selected:[reader||''];
-                  const chosen=targets.length>0&&targets.every(target=>((colorTarget==='cards'?mapPrefs.cardColors[target]:mapPrefs.noteColors[target])||CARD_PALETTE[0])===color);
-                  return <Pressable key={color} accessibilityRole="button" accessibilityState={{selected:chosen}} accessibilityLabel={index===0?'Default color':`Color ${index+1}`} onPress={()=>{
-                  if(colorTarget==='cards'){
-                    setMapPrefs(p=>({...p,cardColors:{...p.cardColors,...Object.fromEntries(selected.map(id=>[id,color]))}}));
-                    setSelected([]);
-                  }else if(reader){
-                    setMapPrefs(p=>({...p,noteColors:{...p.noteColors,[reader]:color}}));
-                  }
-                  setColorTarget(null);
-                }} style={{width:46,height:46,borderRadius:23,backgroundColor:color,borderWidth:chosen?3:2,borderColor:chosen?palette.accent:palette.border,alignItems:'center',justifyContent:'center'}}>
-                  {chosen?<View style={{width:24,height:24,borderRadius:12,backgroundColor:palette.surface,alignItems:'center',justifyContent:'center'}}><MaterialIcon name="✓" color={palette.text}/></View>:null}
-                </Pressable>;
+                  const targets=colorTarget==='cards'?selected:colorTarget==='node'?[focused]:[reader||''];
+                  const source=colorTarget==='cards'?mapPrefs.cardColors:colorTarget==='node'?mapPrefs.colors:mapPrefs.noteColors;
+                  const chosen=targets.length>0&&targets.every(target=>(source[target]||CARD_PALETTE[0])===color);
+                  return <Pressable key={color} accessibilityRole="button" accessibilityState={{selected:chosen}} accessibilityLabel={index===0?'Default color':`Color ${index+1}`} onPress={()=>applyChosenColor(color)} style={{width:46,height:46,borderRadius:23,backgroundColor:color,borderWidth:chosen?3:2,borderColor:chosen?palette.accent:palette.border,alignItems:'center',justifyContent:'center'}}>
+                    {chosen?<View style={{width:24,height:24,borderRadius:12,backgroundColor:palette.surface,alignItems:'center',justifyContent:'center'}}><MaterialIcon name="✓" color={palette.text}/></View>:null}
+                  </Pressable>;
                 })}
               </View>
-              <Button label="Cancel" onPress={()=>setColorTarget(null)}/>
+              <Text style={{fontSize:14,color:palette.muted}}>Manual color (hex)</Text>
+              <View style={{flexDirection:'row',alignItems:'center',gap:10}}>
+                <TextInput accessibilityLabel="Custom hex color" placeholder="#RRGGBB" placeholderTextColor={palette.muted} autoCapitalize="characters" maxLength={7} value={manualColor} onChangeText={setManualColor} style={[styles.input,{flex:1,color:palette.text,backgroundColor:palette.background,borderColor:palette.border}]}/>
+                <Button label="Apply color" primary onPress={()=>{const color=manualColor.trim();if(/^#[0-9A-Fa-f]{6}$/.test(color))applyChosenColor(color.toUpperCase());else showDialog('Invalid color','Enter a six-digit hex color, for example #AABBCC.');}}/>
+              </View>
             </View>
           </View>
         </Modal>
