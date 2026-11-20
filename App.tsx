@@ -1928,7 +1928,7 @@ if(locked){
               <View style={{flexDirection:'row',flexWrap:'wrap',gap:14}}>
                 {CARD_PALETTE.map((color,index)=>{
                   const targets=colorTarget==='cards'?selected:[reader||''];
-                  const chosen=targets.length>0&&targets.every(target=>(colorTarget==='cards'?mapPrefs.cardColors[target]:mapPrefs.noteColors[target])===color);
+                  const chosen=targets.length>0&&targets.every(target=>((colorTarget==='cards'?mapPrefs.cardColors[target]:mapPrefs.noteColors[target])||CARD_PALETTE[0])===color);
                   return <Pressable key={color} accessibilityRole="button" accessibilityState={{selected:chosen}} accessibilityLabel={index===0?'Default color':`Color ${index+1}`} onPress={()=>{
                   if(colorTarget==='cards'){
                     setMapPrefs(p=>({...p,cardColors:{...p.cardColors,...Object.fromEntries(selected.map(id=>[id,color]))}}));
