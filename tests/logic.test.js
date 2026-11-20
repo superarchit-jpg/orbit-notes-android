@@ -417,6 +417,8 @@ check(app.includes("setDeletedPreview(batch)")&&app.includes('onLongPress={()=>s
 check(app.includes('visible={deletedPreview!==null}')&&app.includes('Read only'), 'Deleted preview must not expose edit controls');
 check(app.includes('accessibilityLabel="New label name"')&&app.includes("setLabelManager(true)"), 'Label creation must share inline editing');
 check(app.includes("colorTarget==='node'")&&app.includes('Custom hex color')&&app.includes('accessibilityLabel="Dismiss color palette"'), 'All color palettes must support manual color and outside dismissal');
+check(app.includes("accessibilityLabel={'More actions for '")&&app.includes("setCardMenuPosition({top:")&&app.includes("cardMenuId&&<View"), 'Library and Archive cards require anchored overflow menus');
+check(app.includes("setCardMenuId(null)")&&app.includes("setSelected([cardMenuId!])"), 'Card menu must dismiss safely while supporting labels and color actions');
 check(app.includes('accessibilityLabel="Text formatting"')&&app.includes('accessibilityLabel="Close formatting toolbar"'), 'Formatting controls must use a persistent popover');
 check(richEditor.includes('flatMap(block)')&&richEditor.includes("clear:'removeFormat'"), 'Rich editor must serialize nested lists and support clear formatting');
 check(richMarkup.includes("'<ol start="), 'Numbered-list storage should retain semantic ol elements');
