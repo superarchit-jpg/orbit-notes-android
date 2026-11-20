@@ -1593,61 +1593,23 @@ if(locked){
             {(selectionMenu||moveFolderMenu||sidebar||sortMenu)&&<Pressable accessibilityLabel="Close menu" onPress={()=>{setSelectionMenu(false);setMoveFolderMenu(false);setSidebar(false);setSortMenu(false);}} style={[StyleSheet.absoluteFill,{zIndex:20,elevation:10,backgroundColor:sidebar?'rgba(0,0,0,0.32)':'transparent'}]}/>}
             {selectionMenu&&selected.length>0&&(
               <View style={[styles.bottomSheet,{backgroundColor:palette.surface,borderColor:palette.border}]}>
-                <Button label={selected.every(id=>mapPrefs.pinned.includes(id))?'Unpin selected maps':'Pin selected maps'} onPress={()=>{
-                  setMapPrefs(p=>{
-                    const allPinned=selected.every(id=>p.pinned.includes(id));
-                    return {...p,pinned:allPinned?p.pinned.filter(id=>!selected.includes(id)):[...new Set([...p.pinned,...selected])]};
-                  });
-                  setSelected([]);
-                  setSelectionMenu(false);
-                }}/>
-                <Button label="Change selected card colors" onPress={()=>{setColorTarget('cards');setSelectionMenu(false);}}/>
-                <Button
-                  label="Move to existing label"
-                  onPress={()=>{
-                    setMoveFolderMenu(true);
-                    setSelectionMenu(false);
-                  }}
-                />
-                <Button
-                  label="Move to new label"
-                  onPress={()=>{
-                    setCreatingFolder(true);
-                    setMoveFolderMenu(true);
-                    setSelectionMenu(false);
-                  }}
-                />
-                <Button
-                  label="Export selected as PDF"
-                  onPress={exportSelected}
-                />
-                <Button label={showArchive?'Unarchive selected maps':'Archive selected maps'} onPress={()=>archiveSelection(!showArchive)}/>
-                {selected.some(id=>notes.some(n=>n.id===id&&n.folderId!==null))&&(
-                  <Button
-                    label="Remove from label"
-                    danger
-                    onPress={()=>{
-                      setNotes(ns=>ns.map(n=>selected.includes(n.id)&&n.folderId!==null?{...n,folderId:null,updatedAt:Date.now()}:n));
-                      setSelected([]);
-                      setSelectionMenu(false);
-                    }}
-                  />
-                )}
-
+                <Button label={showArchive?'Unarchive':'Archive'} onPress={()=>archiveSelection(!showArchive)}/>
+                <Button label="Delete" danger onPress={()=>{setSelectionMenu(false);deleteSelected();}}/>
+                <Button label="Export" onPress={()=>{setSelectionMenu(false);exportSelected();}}/>
               </View>
             )}
 
-            {sortMenu&&<View style={[styles.bottomSheet,{backgroundColor:palette.surface,borderColor:palette.border,padding:18,borderTopLeftRadius:24,borderTopRightRadius:24,gap:8}]}>
-                <Text style={[styles.section,{color:palette.text,marginBottom:5}]}>Sort maps</Text>
-                {(['modified','title','created'] as const).map(option=>(
-                  <Pressable key={option} accessibilityRole="button" accessibilityState={{selected:librarySort===option}} onPress={()=>{setLibrarySort(option);setSortMenu(false);}} style={{minHeight:50,flexDirection:'row',alignItems:'center',gap:14,paddingHorizontal:14,borderRadius:14,backgroundColor:librarySort===option?palette.control:palette.surface}}>
-                    <Text style={{fontSize:19,color:palette.accent}}>{librarySort===option?'◉':'○'}</Text>
-                    <Text style={{color:palette.text,fontSize:15}}>{option==='modified'?'Last modified':option==='title'?'Title A–Z':'Date created'}</Text>
-                  </Pressable>
-                ))}
-                <Button label="Cancel" onPress={()=>setSortMenu(false)}/>
-              </View>}
-              {moveFolderMenu&&(
+                        {sortMenu&&<View style={[styles.bottomSheet,{left:0,right:0,bottom:0,borderRadius:0,borderTopLeftRadius:24,borderTopRightRadius:24,backgroundColor:palette.surface,borderColor:palette.border,padding:16,gap:4}]}>
+              <Text style={{fontSize:18,fontWeight:'600',color:palette.text,paddingVertical:10}}>Sort by</Text>
+              <View style={{height:1,backgroundColor:palette.border,marginHorizontal:-16}}/>
+              {(['created','modified','title'] as const).map(option=>(
+                <Pressable key={option} accessibilityRole="button" accessibilityState={{selected:librarySort===option}} onPress={()=>{setLibrarySort(option);setSortMenu(false);}} style={{minHeight:52,flexDirection:'row',alignItems:'center',gap:14,paddingHorizontal:12}}>
+                  <Text style={{fontSize:20,color:palette.accent}}>{librarySort===option?'◉':'○'}</Text>
+                  <Text style={{color:palette.text,fontSize:16}}>{option==='created'?'Date created':option==='modified'?'Date modified':'Title'}</Text>
+                </Pressable>
+              ))}
+            </View>}
+                          {moveFolderMenu&&(
               <View style={[styles.bottomSheet,{backgroundColor:palette.surface,borderColor:palette.border}]}>
                 {folders.map(f=>(
                   <Button
@@ -1771,22 +1733,6 @@ if(locked){
               </View>
             )}
 
-            {!showTrash&&<View style={{paddingHorizontal:16,paddingVertical:6,gap:6}}>
-              <View style={{flexDirection:'row',justifyContent:'space-between',alignItems:'center'}}>
-                <Text style={[styles.muted,{color:palette.muted,fontSize:13}]}>{showArchive?'Archive · ':''}{shown.length} {shown.length===1?'map':'maps'}{selected.length>0?` · ${selected.length} selected`:''}</Text>
-                <Pressable accessibilityRole="button" accessibilityLabel="Sort maps" onPress={()=>setSortMenu(v=>!v)} style={{minHeight:44,flexDirection:'row',alignItems:'center',gap:7,paddingHorizontal:14,borderRadius:22,backgroundColor:palette.control}}>
-                   <Text style={{color:palette.text,fontSize:14}}>⇅</Text>
-                   <Text style={{color:palette.text,fontSize:13,fontWeight:'600'}}>{librarySort==='modified'?'Last modified':librarySort==='title'?'Title A–Z':'Date created'}</Text>
-                   <Text style={{color:palette.muted}}>⌄</Text>
-                 </Pressable>
-              </View>
-              
-            </View>}
-            {!showTrash&&<ScrollView horizontal showsHorizontalScrollIndicator={false} style={{flexGrow:0}} contentContainerStyle={{paddingHorizontal:16,paddingVertical:6,gap:8,alignItems:'center'}}>
-              {[{id:null,name:'All maps'},...folders.map(f=>({id:f.id,name:f.name}))].map(f=><Pressable key={f.id||'all'} accessibilityRole="button" accessibilityLabel={`Filter ${f.name}`} onPress={()=>{setFolderFilter(f.id);setShowTrash(false);}} style={{backgroundColor:folderFilter===f.id?palette.accent:palette.control,borderRadius:20,paddingHorizontal:16,paddingVertical:10,minHeight:42,justifyContent:'center'}}>
-                <Text style={{color:folderFilter===f.id?'white':palette.text,fontWeight:'600',fontSize:14}}>{f.name}</Text>
-              </Pressable>)}
-            </ScrollView>}
             <ScrollView contentContainerStyle={{
               padding:12,
               gap:10,
