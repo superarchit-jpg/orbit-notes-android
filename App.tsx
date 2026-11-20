@@ -1284,13 +1284,28 @@ if(locked){
               or online accounts.
             </Text>
 
-            <View style={{backgroundColor:palette.surface,borderColor:palette.border,borderWidth:1,borderRadius:20,padding:16,gap:12}}>
-              <Text style={[styles.section,{color:palette.text}]}>Appearance</Text>
-              <Button label="Light" active={mapPrefs.themeMode==='light'} onPress={()=>setMapPrefs(p=>({...p,themeMode:'light',theme:'light'}))}/>
-               <Button label="Dark" active={mapPrefs.themeMode==='dark'} onPress={()=>setMapPrefs(p=>({...p,themeMode:'dark',theme:'dark'}))}/>
-               <Button label="Follow system" active={mapPrefs.themeMode==='system'} onPress={()=>setMapPrefs(p=>({...p,themeMode:'system'}))}/>
-              <Text style={[styles.muted,{color:palette.muted}]}>Your choice is saved on this device.</Text>
+            <View style={{backgroundColor:palette.surface,padding:12,gap:8}}>
+              <Text style={[styles.section,{color:palette.text}]}>Display options</Text>
+              <Pressable accessibilityRole="button" accessibilityLabel="Theme" onPress={()=>setThemeMenu(true)} style={{flexDirection:'row',justifyContent:'space-between',alignItems:'center',minHeight:54,paddingHorizontal:12}}>
+                <Text style={{color:palette.text,fontSize:16}}>Theme</Text>
+                <Text style={{color:palette.muted}}>{mapPrefs.themeMode==='system'?'System Default':mapPrefs.themeMode==='dark'?'Dark':'Light'}</Text>
+              </Pressable>
             </View>
+            <Modal visible={themeMenu} transparent animationType="fade" onRequestClose={()=>setThemeMenu(false)}>
+              <View style={{flex:1,justifyContent:'center',padding:28,backgroundColor:'rgba(0,0,0,0.38)'}}>
+                <Pressable style={StyleSheet.absoluteFill} accessibilityLabel="Dismiss theme options" onPress={()=>setThemeMenu(false)}/>
+                <View style={{backgroundColor:palette.surface,borderRadius:24,padding:20,gap:12}}>
+                  <Text style={{color:palette.text,fontSize:19,fontWeight:'600'}}>Theme</Text>
+                  {(['light','dark','system'] as const).map(choice=>(
+                    <Pressable key={choice} accessibilityRole="button" accessibilityState={{selected:mapPrefs.themeMode===choice}} onPress={()=>{setMapPrefs(p=>({...p,themeMode:choice,theme:choice==='system'?p.theme:choice}));setThemeMenu(false);}} style={{flexDirection:'row',alignItems:'center',gap:14,minHeight:50}}>
+                      <Text style={{color:palette.accent,fontSize:19}}>{mapPrefs.themeMode===choice?'◉':'○'}</Text>
+                      <Text style={{color:palette.text,fontSize:16}}>{choice==='system'?'System Default':choice==='light'?'Light':'Dark'}</Text>
+                    </Pressable>
+                  ))}
+                </View>
+              </View>
+            </Modal>
+            <Text style={[styles.section,{color:palette.text}]}>Security</Text>
             <View style={{backgroundColor:palette.surface,borderColor:palette.border,borderWidth:1,borderRadius:20,padding:16,gap:12}}>
             {!pinConfigured?(
               <>
@@ -1369,7 +1384,7 @@ if(locked){
             </View>
             <View style={{backgroundColor:palette.surface,borderColor:palette.border,borderWidth:1,borderRadius:20,padding:16,gap:12}}>
             <Text style={[styles.section,{color:palette.text}]}>
-              Personal encrypted backup
+              Back up
             </Text>
             <Text style={[styles.muted,{color:palette.muted}]}>
               Backups are encrypted with your password and saved
