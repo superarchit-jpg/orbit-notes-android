@@ -262,6 +262,20 @@ check(app.includes('accessibilityLabel="Edit labels"')&&app.includes('accessibil
 check(app.includes('label="parentNote" accessibilityLabel="Go to parent note"')&&app.includes('label="centerFocus" accessibilityLabel="Center focused note"'), 'Map quick actions must use accessible vector icons');
 console.log('PASS: Stage 4 correction regression guards');
 
+// REF-01 through REF-07: approved interaction parity without new note backgrounds.
+for(const marker of [
+  "const ActionRow=", "icon={showArchive?'unarchive':'archive'}",
+  'accessibilityLabel="Edit labels"', 'accessibilityRole="checkbox"',
+  'selected.includes(n.id)?3:1', 'labelIds(n).map(',
+  'accessibilityLabel="Restore selected deleted maps"',
+  'onFormatStateChange={setEditorFormats}', "CARD_PALETTE.map((color,index)=>"
+]) check(app.includes(marker),'Missing approved REF visual/interaction guard: '+marker);
+check(app.includes('accessibilityState={{selected:chosen}}'),'Selected palette swatch must have visible and accessible state');
+check(app.includes('backgroundColor:all?palette.accent'),'Label checkboxes must show multi-selection state');
+check(!app.includes("selected.includes(n.id)?'☑':'☐'"),'Map cards must not reintroduce selection checkboxes');
+console.log('PASS: REF parity actions, labels, selected colors and scope exclusions');
+
+
 
 // Upright labels during rotation
 check(
