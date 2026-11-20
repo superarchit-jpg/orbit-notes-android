@@ -16,6 +16,7 @@ import {radialLayout,overviewLayout} from './layout';
 import {TrashBatch,deleteBranches,restoreBatch,pruneTrash} from './trash';
 import {formatSelection,parseRichLine} from './noteFormatting';
 import RichNoteEditor,{RichNoteEditorHandle,RichEditorState} from './RichNoteEditor';
+import {labelIds,addLabel,removeLabel,hasLabel,normalizeLabels} from './labels';
 
 const SafeAreaView=InsetSafeAreaView;
 const W=Dimensions.get('window').width,H=Dimensions.get('window').height;
@@ -833,7 +834,7 @@ const noteBodyView=(value:string)=>value.split('\n').map((line,index)=>(
   </View>
 ));
 const listNotes=notes.filter(n=>n.parentId==='root'&&(showArchive?mapPrefs.archived.includes(n.id):!mapPrefs.archived.includes(n.id)));
-const shown=listNotes.filter(n=>(!folderFilter||n.folderId===folderFilter)&&n.title.toLowerCase().includes(librarySearch.toLowerCase())).sort((a,b)=>Number(mapPrefs.pinned.includes(b.id))-Number(mapPrefs.pinned.includes(a.id))||(librarySort==='title'?a.title.localeCompare(b.title):librarySort==='created'?Number(a.id.split('-')[0])-Number(b.id.split('-')[0]):b.updatedAt-a.updatedAt));
+const shown=listNotes.filter(n=>(!folderFilter||hasLabel(n,folderFilter))&&n.title.toLowerCase().includes(librarySearch.toLowerCase())).sort((a,b)=>Number(mapPrefs.pinned.includes(b.id))-Number(mapPrefs.pinned.includes(a.id))||(librarySort==='title'?a.title.localeCompare(b.title):librarySort==='created'?Number(a.id.split('-')[0])-Number(b.id.split('-')[0]):b.updatedAt-a.updatedAt));
 
 const archiveSelection=(archive:boolean)=>{
   const targetIds=new Set(selected.filter(x=>x!=='root'));
@@ -844,10 +845,9 @@ const archiveOne=(id:string,archive:boolean)=>{
   setMapPrefs(p=>({...p,archived:archive?[...new Set([...p.archived,id])]:p.archived.filter(x=>x!==id)}));
 };
 const moveSelection=(folderId:string|null)=>{
-  setNotes(ns=>ns.map(n=>selected.includes(n.id)?{
-    ...n,folderId,updatedAt:Date.now()
-  }:n));
-  setSelected([]);
+  if(!folderId)return;
+  const allAssigned=selected.length>0&&selected.every(id=>{const n=notes.find(x=>x.id===id);return n?hasLabel(n,folderId):false;});
+  setNotes(ns=>ns.map(n=>selected.includes(n.id)?{...(allAssigned?removeLabel(n,folderId):addLabel(n,folderId)),updatedAt:Date.now()}:n));
 };
 
 const exportOne=(kind:ExportFormat,targetId?:string)=>{
@@ -962,7 +962,7 @@ const runBackup=async()=>{
 
       if(restored){
         await saveSnapshot(restored);
-        setNotes(restored.notes);
+        setNotes(normalizeLabels(restored.notes));
         setFolders(restored.folders);
         setTrash(restored.trash);
          if(restored.trash.length>0&&!restored.mapPreferences?.trashRetentionAcknowledged)setRetentionNotice(true);
@@ -1708,7 +1708,7 @@ if(locked){
                         <>
                           <IconButton label="🗑" accessibilityLabel={'Delete label '+item.name} danger onPress={()=>showDialog('Delete label?', 'Maps assigned this label will remain available.',[
                             {text:'Cancel',style:'cancel'},
-                            {text:'Delete',style:'destructive',onPress:()=>{setNotes(ns=>ns.map(n=>n.folderId===item.id?{...n,folderId:null}:n));setFolders(fs=>fs.filter(x=>x.id!==item.id));if(folderFilter===item.id)setFolderFilter(null);setEditingFolderId(null);}}
+                            {text:'Delete',style:'destructive',onPress:()=>{setNotes(ns=>ns.map(n=>hasLabel(n,item.id)?removeLabel(n,item.id):n));setFolders(fs=>fs.filter(x=>x.id!==item.id));if(folderFilter===item.id)setFolderFilter(null);setEditingFolderId(null);}}
                           ])}/>
                           <TextInput accessibilityLabel="Rename label" value={folderName} onChangeText={setFolderName} autoFocus style={{flex:1,borderBottomWidth:1,borderBottomColor:palette.accent,color:palette.text,fontSize:16}}/>
                           <IconButton label="✓" accessibilityLabel="Save label name" onPress={()=>{if(folderName.trim())setFolders(fs=>fs.map(x=>x.id===item.id?{...x,name:folderName.trim()}:x));setEditingFolderId(null);}}/>
@@ -1750,7 +1750,7 @@ if(locked){
                     }else{
                       const newId=id();
                       setFolders(fs=>[...fs,{id:newId,name:nextName}]);
-                      if(selected.length)moveSelection(newId);
+                      if(selected.length){setNotes(ns=>ns.map(n=>selected.includes(n.id)?{...addLabel(n,newId),updatedAt:Date.now()}:n));}
                     }
                     setEditingFolderId(null);
                     setFolderName('');
