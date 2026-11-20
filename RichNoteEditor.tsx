@@ -4,7 +4,7 @@ import {View} from 'react-native';
 import WebView from 'react-native-webview';
 import {parseRichLine} from './noteFormatting';
 
-export type RichEditorAction='bold'|'italic'|'underline'|'bullets'|'numbers';
+export type RichEditorAction='bold'|'italic'|'underline'|'bullets'|'numbers'|'clear';
 export type RichNoteEditorHandle={format:(action:RichEditorAction)=>void};
 export type RichEditorState={bold:boolean;italic:boolean;underline:boolean;bullets:boolean;numbers:boolean};
 type Props={initialText:string;onChangeText:(text:string)=>void;onFormatStateChange?:(state:RichEditorState)=>void;dark:boolean;textColor:string;backgroundColor:string};
@@ -48,7 +48,7 @@ html,body{margin:0;padding:0;background:${background};color:${color};font-family
 const editor=document.getElementById('editor');editor.innerHTML=${safeContent};
 let selectionRange=null;
 document.execCommand('styleWithCSS',false,false);
-function sendState(){try{const keys={bold:'bold',italic:'italic',underline:'underline',bullets:'insertUnorderedList',numbers:'insertOrderedList'};const state={};Object.keys(keys).forEach(key=>{state[key]=!!document.queryCommandState(keys[key]);});window.ReactNativeWebView.postMessage(JSON.stringify({type:'formatState',state}));}catch{}}
+function sendState(){try{const keys={bold:'bold',italic:'italic',underline:'underline',bullets:'insertUnorderedList',numbers:'insertOrderedList',clear:'removeFormat'};const state={};Object.keys(keys).forEach(key=>{state[key]=!!document.queryCommandState(keys[key]);});window.ReactNativeWebView.postMessage(JSON.stringify({type:'formatState',state}));}catch{}}
 document.addEventListener('selectionchange',()=>{const s=getSelection();if(s&&s.rangeCount&&editor.contains(s.anchorNode)){selectionRange=s.getRangeAt(0).cloneRange();sendState();}});
 function inline(node){
  if(node.nodeType===3)return node.nodeValue||'';
