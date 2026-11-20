@@ -824,7 +824,7 @@ const mapPreview=(root:Note)=>{
     </Svg>
   );
 };
-const applyNoteFormat=(kind:'bold'|'italic'|'underline'|'bullets'|'numbers'|'clear')=>{if(richEditorRef.current)richEditorRef.current.format(kind);else setBody(value=>formatSelection(value,textSelection.start,textSelection.end,kind));};
+const applyNoteFormat=(kind:'bold'|'italic'|'underline'|'bullets'|'numbers'|'clear')=>{if(richEditorRef.current)richEditorRef.current.format(kind);else if(kind!=='clear')setBody(value=>formatSelection(value,textSelection.start,textSelection.end,kind));};
 const noteBodyView=(value:string)=>value.split('\n').map((line,index)=>(
   <View key={index} style={{minHeight:28}}>
     <Text style={{fontSize:17,lineHeight:27,color:palette.text}}>{parseRichLine(line).map((run,i)=><Text key={i} style={{fontWeight:run.bold?'700':'400',fontStyle:run.italic?'italic':'normal',textDecorationLine:run.underline?'underline':'none'}}>{run.text}</Text>)}</Text>
