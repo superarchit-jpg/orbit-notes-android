@@ -1205,8 +1205,8 @@ if(locked){
 
         {undoOpen&&(undoBatch||pendingBranch)&&(
           <GestureDetector gesture={Gesture.Pan().activeOffsetX([-20,20]).onEnd(e=>{if(Math.abs(e.translationX)>55){runOnJS(setUndoOpen)(false);runOnJS(setUndoBatch)(null);runOnJS(setPendingBranch)(null);}})}>
-          <View style={{position:'absolute',bottom:74,left:16,right:16,zIndex:42,backgroundColor:palette.control,borderRadius:12,padding:8,flexDirection:'row',alignItems:'center',justifyContent:'space-between'}}>
-            <Text style={{color:palette.text,flex:1}}>Deleted</Text>
+          <View style={{position:'absolute',bottom:74,left:16,right:16,zIndex:42,backgroundColor:'#202124',borderRadius:8,padding:8,flexDirection:'row',alignItems:'center',justifyContent:'space-between'}}>
+            <Text style={{color:'#ffffff',flex:1}}>Moved to Deleted</Text>
             <Button
               label="Undo deletion"
               onPress={()=>{
@@ -1607,7 +1607,9 @@ if(locked){
               <IconButton label={selected.length?'×':'☰'} accessibilityLabel={selected.length?'Clear selection':'Open sidebar'} onPress={()=>selected.length?setSelected([]):setSidebar(v=>!v)}/>
               {selected.length>0&&<Text accessibilityLabel={selected.length+' maps selected'} style={{fontSize:18,fontWeight:'600',color:palette.text,minWidth:24}}>{selected.length}</Text>}
               {showTrash?(
-                <Text style={{flex:1,color:palette.text,fontSize:21,fontWeight:'600'}}>Bin</Text>
+                <Text style={{flex:1,color:palette.text,fontSize:21,fontWeight:'600'}}>Deleted</Text>
+              ):selected.length===0&&showArchive?(
+                <Text style={{flex:1,color:palette.text,fontSize:21,fontWeight:'600'}}>Archive</Text>
               ):selected.length===0?(
                 <View style={{flex:1,flexDirection:'row',alignItems:'center',backgroundColor:palette.control,borderRadius:26,paddingLeft:12,minHeight:48}}>
                   <MaterialIcon name="search" color={palette.muted}/>
@@ -1911,10 +1913,10 @@ if(locked){
             </Pressable>}
           {undoOpen&&undoBatch&&(
             <GestureDetector gesture={Gesture.Pan().activeOffsetX([-20,20]).onEnd(e=>{if(Math.abs(e.translationX)>55){runOnJS(setUndoOpen)(false);runOnJS(setUndoBatch)(null);runOnJS(setPendingBranch)(null);}})}>
-              <View style={{position:'absolute',bottom:90,left:16,right:16,zIndex:60,backgroundColor:palette.control,borderRadius:12,padding:12,flexDirection:'row',alignItems:'center',justifyContent:'space-between',elevation:8}}>
-                <Text style={{color:palette.text}}>Moved to Recently Deleted</Text>
+              <View style={{position:'absolute',bottom:90,left:16,right:16,zIndex:60,backgroundColor:'#202124',borderRadius:8,padding:12,flexDirection:'row',alignItems:'center',justifyContent:'space-between',elevation:8}}> 
+                <Text style={{color:'#ffffff'}}>Moved to Deleted</Text>
                 <Pressable accessibilityRole="button" accessibilityLabel="Undo deletion" onPress={()=>{const batch=trash.find(t=>t.id===undoBatch);if(batch)restore(batch);setUndoOpen(false);setUndoBatch(null);}} style={{padding:8}}>
-                  <Text style={{color:palette.accent,fontWeight:'700'}}>Undo</Text>
+                  <Text style={{color:'#fbbc04',fontWeight:'700'}}>Undo</Text>
                 </Pressable>
               </View>
             </GestureDetector>
