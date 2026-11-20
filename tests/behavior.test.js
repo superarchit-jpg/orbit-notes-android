@@ -3,7 +3,7 @@ const {execFileSync}=require('node:child_process');
 const fs=require('node:fs');const os=require('node:os');const path=require('node:path');const assert=require('node:assert/strict');
 const temp=fs.mkdtempSync(path.join(os.tmpdir(),'orbit-tests-'));
 try{
- execFileSync('tsc',['layout.ts','trash.ts','mapGeometry.ts','noteFormatting.ts','--module','commonjs','--target','es2020','--outDir',temp,'--skipLibCheck','--noEmitOnError','false'],{stdio:'pipe'});
+ execFileSync('tsc',['layout.ts','trash.ts','mapGeometry.ts','noteFormatting.ts','labels.ts','--module','commonjs','--target','es2020','--outDir',temp,'--skipLibCheck','--noEmitOnError','false'],{stdio:'pipe'});
 }catch(e){if(!fs.existsSync(path.join(temp,'layout.js')))throw e;}
 const {radialLayout,overviewLayout}=require(path.join(temp,'layout.js'));
 const {deleteBranches,restoreBatch,pruneTrash}=require(path.join(temp,'trash.js'));
@@ -52,4 +52,21 @@ assert.deepEqual(parseRichLine('**bold *and italic* still bold**').filter(run=>r
 assert.equal(plainNoteText('literal **unclosed'),'literal **unclosed');
 assert.equal(plainNoteText('**bold *and italic* still bold**'),'bold and italic still bold');
 console.log('PASS: local rich-text helpers and checklist behavior');
+
+const {labelIds,withLabels,addLabel,removeLabel,hasLabel,normalizeLabels}=require(path.join(temp,'labels.js'));
+const legacy={id:'old-map',parentId:'root',folderId:'old-label'};
+assert.deepEqual(labelIds(legacy),['old-label']);
+const migrated=normalizeLabels([legacy])[0];
+assert.deepEqual(migrated.labelIds,['old-label']);
+const assigned=addLabel(addLabel(migrated,'second-label'),'second-label');
+assert.deepEqual(assigned.labelIds,['old-label','second-label']);
+assert.equal(assigned.folderId,'old-label');
+assert.equal(hasLabel(assigned,'second-label'),true);
+assert.deepEqual(labelIds(removeLabel(assigned,'old-label')),['second-label']);
+assert.deepEqual(labelIds(removeLabel(assigned,'second-label')),['old-label']);
+const restored=normalizeLabels([{...legacy,labelIds:['old-label','second-label']}]);
+assert.deepEqual(restored[0].labelIds,['old-label','second-label']);
+assert.deepEqual(labelIds(withLabels(legacy,[])),[]);
+console.log('PASS: legacy migration, multiple label assignments and recovery');
+
 console.log('PASS: executable layout and trash tests');
