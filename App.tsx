@@ -1673,6 +1673,39 @@ if(locked){
               </GestureDetector>
             )}
 
+            <Modal visible={labelManager} animationType="slide" onRequestClose={()=>{setLabelManager(false);setEditingFolderId(null);}}>
+              <SafeAreaView style={[styles.screen,{backgroundColor:palette.background,padding:18}]}>
+                <View style={[styles.header,{paddingHorizontal:0}]}>
+                  <Text style={[styles.section,{color:palette.text}]}>Edit labels</Text>
+                  <IconButton label="×" accessibilityLabel="Close label editor" onPress={()=>{setLabelManager(false);setEditingFolderId(null);}}/>
+                </View>
+                <ScrollView contentContainerStyle={{gap:4}}>
+                  <Pressable accessibilityRole="button" accessibilityLabel="Create new label" style={{flexDirection:'row',alignItems:'center',padding:12,gap:16}} onPress={()=>{setEditingFolderId(null);setFolderName('');setLabelManager(false);setCreatingFolder(true);}}>
+                    <MaterialIcon name="+" color={palette.text}/><Text style={{color:palette.text,fontSize:16}}>Create new label</Text>
+                  </Pressable>
+                  {folders.map(item=>(
+                    <View key={item.id} style={{flexDirection:'row',alignItems:'center',gap:10,padding:8,minHeight:56}}>
+                      {editingFolderId===item.id?(
+                        <>
+                          <IconButton label="🗑" accessibilityLabel={'Delete label '+item.name} danger onPress={()=>showDialog('Delete label?', 'Maps assigned this label will remain available.',[
+                            {text:'Cancel',style:'cancel'},
+                            {text:'Delete',style:'destructive',onPress:()=>{setNotes(ns=>ns.map(n=>n.folderId===item.id?{...n,folderId:null}:n));setFolders(fs=>fs.filter(x=>x.id!==item.id));if(folderFilter===item.id)setFolderFilter(null);setEditingFolderId(null);}}
+                          ])}/>
+                          <TextInput accessibilityLabel="Rename label" value={folderName} onChangeText={setFolderName} autoFocus style={{flex:1,borderBottomWidth:1,borderBottomColor:palette.accent,color:palette.text,fontSize:16}}/>
+                          <IconButton label="✓" accessibilityLabel="Save label name" onPress={()=>{if(folderName.trim())setFolders(fs=>fs.map(x=>x.id===item.id?{...x,name:folderName.trim()}:x));setEditingFolderId(null);}}/>
+                        </>
+                      ):(
+                        <>
+                          <MaterialIcon name="label" color={palette.text}/>
+                          <Text style={{flex:1,color:palette.text,fontSize:16}}>{item.name}</Text>
+                          <IconButton label="✎" accessibilityLabel={'Edit label '+item.name} onPress={()=>{setEditingFolderId(item.id);setFolderName(item.name);}}/>
+                        </>
+                      )}
+                    </View>
+                  ))}
+                </ScrollView>
+              </SafeAreaView>
+            </Modal>
             {creatingFolder&&(
               <View style={[StyleSheet.absoluteFill,{zIndex:50,justifyContent:'flex-end',backgroundColor:'rgba(0,0,0,0.42)'}]}>
                 <Pressable style={StyleSheet.absoluteFill} accessibilityLabel="Dismiss label editor" onPress={()=>{setCreatingFolder(false);setEditingFolderId(null);}}/>
