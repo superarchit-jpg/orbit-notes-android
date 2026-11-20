@@ -8,6 +8,12 @@ on:
 permissions:
   contents: read
 
+# Avoid concurrent Gradle dependency downloads on successive commits.
+# Only the newest candidate commit needs an APK and emulator run.
+concurrency:
+  group: orbit-notes-apk-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   build-android-apk:
     name: Build standalone Android APK
