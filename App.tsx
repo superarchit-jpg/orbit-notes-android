@@ -1155,7 +1155,7 @@ if(locked){
           <Button label="Cancel" onPress={()=>setNodeActions(null)}/>
         </View>}
         {mapMenu&&(
-          <View style={[styles.popup,{top:undefined,bottom:72,right:12,width:226,backgroundColor:palette.surface,borderColor:palette.border}]}>
+          <View style={[styles.popup,{top:'auto',bottom:72,right:12,width:226,backgroundColor:palette.surface,borderColor:palette.border}]}>
             <ActionRow label="Export" icon="exportIcon" onPress={()=>{setMapMenu(false);exportOne('pdf');}}/>
             {current.parentId==='root'&&<ActionRow icon={mapPrefs.archived.includes(current.id)?'unarchive':'archive'} label={mapPrefs.archived.includes(current.id)?'Unarchive':'Archive'} onPress={()=>{archiveOne(current.id,!mapPrefs.archived.includes(current.id));setMapMenu(false);setMenu(true);setShowArchive(false);}}/>}
             <ActionRow label="Help" icon="helpIcon" onPress={()=>{setGestureHelp(true);setMapMenu(false);}}/>
@@ -1674,14 +1674,14 @@ if(locked){
             {(selectionMenu||moveFolderMenu||sidebar||sortMenu||trashMenu||cardMenuId)&&<Pressable accessibilityLabel="Close menu" onPress={()=>{setSelectionMenu(false);setMoveFolderMenu(false);setSidebar(false);setSortMenu(false);setTrashMenu(false);setCardMenuId(null);}} style={[StyleSheet.absoluteFill,{zIndex:20,elevation:10,backgroundColor:sidebar?'rgba(0,0,0,0.32)':'transparent'}]}/>}
             {cardMenuId&&<View style={{position:'absolute',top:cardMenuPosition.top,left:cardMenuPosition.left,zIndex:34,elevation:22,width:220,borderRadius:15,padding:7,backgroundColor:palette.surface,borderWidth:1,borderColor:palette.border}}>
               <ActionRow label={mapPrefs.pinned.includes(cardMenuId)?'Unpin':'Pin'} icon="pin" onPress={()=>{
-                const target=cardMenuId;setMapPrefs(p=>({...p,pinned:p.pinned.includes(target)?p.pinned.filter(item=>item!==target):[...p.pinned,target]}));setCardMenuId(null);
+                const target=cardMenuId!;setMapPrefs(p=>({...p,pinned:p.pinned.includes(target)?p.pinned.filter(item=>item!==target):[...p.pinned,target]}));setCardMenuId(null);
               }}/>
-              <ActionRow label="Labels" icon="label" onPress={()=>{setSelected([cardMenuId]);setCardMenuId(null);setMoveFolderMenu(true);}}/>
-              <ActionRow label="Color" icon="palette" onPress={()=>{setSelected([cardMenuId]);setManualColor(mapPrefs.cardColors[cardMenuId]||'');setCardMenuId(null);setColorTarget('cards');}}/>
-              <ActionRow label={showArchive?'Unarchive':'Archive'} icon={showArchive?'unarchive':'archive'} onPress={()=>{archiveOne(cardMenuId,!showArchive);setCardMenuId(null);}}/>
-              <ActionRow label="Export PDF" icon="exportIcon" onPress={()=>{exportOne('pdf',cardMenuId);setCardMenuId(null);}}/>
+              <ActionRow label="Labels" icon="label" onPress={()=>{setSelected([cardMenuId!]);setCardMenuId(null);setMoveFolderMenu(true);}}/>
+              <ActionRow label="Color" icon="palette" onPress={()=>{setSelected([cardMenuId!]);setManualColor(mapPrefs.cardColors[cardMenuId!]||'');setCardMenuId(null);setColorTarget('cards');}}/>
+              <ActionRow label={showArchive?'Unarchive':'Archive'} icon={showArchive?'unarchive':'archive'} onPress={()=>{archiveOne(cardMenuId!,!showArchive);setCardMenuId(null);}}/>
+              <ActionRow label="Export PDF" icon="exportIcon" onPress={()=>{exportOne('pdf',cardMenuId!);setCardMenuId(null);}}/>
               <View style={{height:1,backgroundColor:palette.border,marginVertical:3}}/>
-              <ActionRow label="Delete" icon="🗑" danger onPress={()=>{removeBranch(cardMenuId);setCardMenuId(null);}}/>
+              <ActionRow label="Delete" icon="🗑" danger onPress={()=>{removeBranch(cardMenuId!);setCardMenuId(null);}}/>
             </View>}
             {trashMenu&&showTrash&&<View style={[styles.popup,{backgroundColor:palette.surface,borderColor:palette.border,top:56,right:12,zIndex:32,paddingVertical:6}]}>
               <ActionRow label={selectedTrash.length?'Delete forever':'Empty bin'} icon="🗑" danger onPress={()=>{setTrashMenu(false);if(selectedTrash.length)removeSelectedTrash();else if(trash.length)showDialog('Empty Deleted?','Permanently delete all items in Deleted?',[
