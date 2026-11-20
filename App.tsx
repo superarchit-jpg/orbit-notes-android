@@ -1801,7 +1801,7 @@ if(locked){
                       <Text style={{color:palette.muted,textAlign:'center'}}>Deleted maps will appear here for seven days.</Text>
                     </View>
                   ):trash.map(batch=>(
-                    <Pressable key={batch.id} accessibilityRole="button" accessibilityLabel={'Select deleted map '+(batch.notes[0]?.title||'Untitled')} onPress={()=>setSelectedTrash(v=>v.includes(batch.id)?v.filter(x=>x!==batch.id):[...v,batch.id]])}
+                    <Pressable key={batch.id} accessibilityRole="button" accessibilityLabel={'Select deleted map '+(batch.notes[0]?.title||'Untitled')} onPress={()=>setSelectedTrash(v=>v.includes(batch.id)?v.filter(x=>x!==batch.id):[...v,batch.id])}
                       style={{minHeight:120,borderRadius:16,padding:14,backgroundColor:palette.surface,borderColor:selectedTrash.includes(batch.id)?palette.accent:palette.border,borderWidth:selectedTrash.includes(batch.id)?3:1,gap:12}}>
                       <Text style={{color:palette.text,fontWeight:'600',fontSize:16}}>{batch.notes[0]?.title||'Untitled map'}</Text>
                       <Text style={{color:palette.muted,fontSize:12}}>Deleted {stamp(batch.deletedAt)}</Text>
