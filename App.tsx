@@ -423,13 +423,15 @@ const removeBranch=(target:string)=>{
   if(target==='root')return;
   const result=deleteBranches(notes,[target]);
   if(!result.batch.notes.length)return;
-  showDialog('Delete note?','This branch and its descendants will be permanently deleted after the five-second Undo period.',[
-    {text:'Cancel'},
-    {text:'Delete',style:'destructive',onPress:()=>{
+  showDialog('Move note to Recently Deleted?', 'This note and its descendants can be restored for seven days after the retention policy is activated.',[
+    {text:'Cancel',style:'cancel'},
+    {text:'Move',style:'destructive',onPress:()=>{
       setNotes(result.remaining);
-       setMapPrefs(p=>({...p,archived:p.archived.filter(item=>!result.batch.notes.some(n=>n.id===item))}));
-      setPendingBranch(result.batch);
-      setUndoBatch(null);setUndoOpen(true);
+      setMapPrefs(p=>({...p,archived:p.archived.filter(item=>!result.batch.notes.some(n=>n.id===item))}));
+      setTrash(t=>mapPrefs.trashRetentionAcknowledged?pruneTrash([result.batch,...t]):[result.batch,...t]);
+      setPendingBranch(null);
+      setUndoBatch(result.batch.id);
+      setUndoOpen(true);
       if(result.batch.notes.some(n=>n.id===focused))setFocused(notes.find(n=>n.id===target)?.parentId||'root');
       if(reader&&result.batch.notes.some(n=>n.id===reader))setReader(null);
     }}
@@ -1205,7 +1207,7 @@ if(locked){
             <Button
               label="Undo deletion"
               onPress={()=>{
-                if(pendingBranch){setNotes(ns=>[...ns,...pendingBranch.notes]);setPendingBranch(null);}
+                if(pendingBranch){setNotes(ns=>restoreBatch(ns,pendingBranch));setPendingBranch(null);}
                 else {const batch=trash.find(t=>t.id===undoBatch);if(batch)restore(batch);}
                 setUndoBatch(null);setUndoOpen(false);
               }}
