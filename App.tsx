@@ -1,5 +1,5 @@
 import React,{useEffect,useMemo,useState,useRef} from 'react';
-import {Alert,AppState,BackHandler,Dimensions,KeyboardAvoidingView,useColorScheme,Modal,Platform,Pressable,ScrollView,StatusBar,StyleSheet,Text,TextInput,View} from 'react-native';
+import {Alert,AppState,BackHandler,Dimensions,KeyboardAvoidingView,useColorScheme,Modal,Platform,Pressable,ScrollView,Keyboard,StatusBar,StyleSheet,Text,TextInput,View} from 'react-native';
 import Svg,{Line,Circle,Rect,Path} from 'react-native-svg';
 import {SafeAreaProvider,SafeAreaView as InsetSafeAreaView} from 'react-native-safe-area-context';
 import {Gesture,GestureDetector,GestureHandlerRootView} from 'react-native-gesture-handler';
@@ -17,6 +17,7 @@ import {TrashBatch,deleteBranches,restoreBatch,pruneTrash} from './trash';
 import {formatSelection,parseRichLine} from './noteFormatting';
 import RichNoteEditor,{RichNoteEditorHandle,RichEditorState} from './RichNoteEditor';
 import {labelIds,addLabel,removeLabel,hasLabel,normalizeLabels} from './labels';
+import {matchesMapQuery} from './librarySearch';
 
 const SafeAreaView=InsetSafeAreaView;
 const W=Dimensions.get('window').width,H=Dimensions.get('window').height;
@@ -62,7 +63,8 @@ const ICON_PATHS:Record<string,string>={
   'downLevel':'M12 4v16m-6-6 6 6 6-6',
   'helpIcon':'M12 18h.01M9.5 9a2.5 2.5 0 1 1 4.4 1.7c-1.3 1.6-1.9 1.6-1.9 3.3M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20z',
   'allMaps':'M4 4h7v7H4zM13 4h7v7h-7zM4 13h7v7H4zM13 13h7v7h-7z',
-  'settingsIcon':'M12 3v2M12 19v2M3 12h2M19 12h2M5.6 5.6l1.4 1.4M17 17l1.4 1.4M18.4 5.6L17 7M7 17l-1.4 1.4M12 8a4 4 0 1 0 0 8 4 4 0 0 0 0-8',
+  'settingsIcon':'M10 2h4l.7 2.3 1.5.7 2.2-1.2 2.8 2.8-1.2 2.2.7 1.5L22 11v3l-2.3.7-.7 1.5 1.2 2.2-2.8 2.8-2.2-1.2-1.5.7L14 23h-4l-.7-2.3-1.5-.7-2.2 1.2-2.8-2.8L4 16.2l-.7-1.5L1 14v-3l2.3-.7L4 8.8 2.8 6.6l2.8-2.8L7.8 5l1.5-.7L10 2zM12 8a4 4 0 1 0 0 8 4 4 0 0 0 0-8',
+  'format':'M4 5h16M4 11h16M4 17h10M17 15l4 4m0-4-4 4',
   'centerFocus':'M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20z',
   'parentNote':'M12 3a3 3 0 1 0 0 6 3 3 0 0 0 0-6zM6 13c0-5 12-5 12 0v2H6zM12 15v3M4 18h16M4 18v2M12 18v2M20 18v2',
   'miniMapIcon':'M5 12h14M12 5v14M12 12m-7 5-2 2m16-2 2 2M12 5a3 3 0 1 0 0 6M5 16a2 2 0 1 0 0 4M19 16a2 2 0 1 0 0 4',
@@ -112,7 +114,7 @@ const [labelManager,setLabelManager]=useState(false);
 const bioPromptInProgress=useRef(false),bioPrompted=useRef(false);
 const richEditorRef=useRef<RichNoteEditorHandle|null>(null);
 const [editorFormats,setEditorFormats]=useState<RichEditorState>({bold:false,italic:false,underline:false,bullets:false,numbers:false});
-const [colorTarget,setColorTarget]=useState<'cards'|'note'|null>(null);
+const [colorTarget,setColorTarget]=useState<'cards'|'note'|'node'|null>(null);
 const deviceTheme=useColorScheme();
 const effectiveTheme=mapPrefs.themeMode==='system'?(deviceTheme==='dark'?'dark':'light'):mapPrefs.theme;
 const palette=effectiveTheme==='dark'?DARK:LIGHT;
@@ -123,6 +125,10 @@ const [draftChildId,setDraftChildId]=useState<string|null>(null);
 const [readerTapAt,setReaderTapAt]=useState(0);
 const [textSelection,setTextSelection]=useState({start:0,end:0});
 const [librarySearch,setLibrarySearch]=useState('');
+const [librarySearching,setLibrarySearching]=useState(false);
+const [deletedPreview,setDeletedPreview]=useState<TrashBatch|null>(null);
+const [formatToolbar,setFormatToolbar]=useState(false);
+const [manualColor,setManualColor]=useState('');
 const [zoomPercent,setZoomPercent]=useState(100);
 const [librarySort,setLibrarySort]=useState<'modified'|'title'|'created'>('modified');
 type DialogAction={text:string;style?:string;onPress?:()=>void};
@@ -403,7 +409,7 @@ const deleteSelected=()=>{
   if(!ids.length)return;
   const result=deleteBranches(notes,ids);
   if(!result.batch.notes.length)return;
-  showDialog('Move to Recently Deleted',`Move ${result.batch.notes.length} note(s), including descendants, to Recently Deleted?`,[
+  showDialog('Move to Deleted',`Move ${result.batch.notes.length} note(s), including descendants, to Deleted? Items can be restored for seven days before permanent removal.`,[
     {text:'Cancel',style:'cancel'},
     {text:'Move',style:'destructive',onPress:()=>{
       setNotes(result.remaining);
@@ -426,7 +432,7 @@ const removeBranch=(target:string)=>{
   if(target==='root')return;
   const result=deleteBranches(notes,[target]);
   if(!result.batch.notes.length)return;
-  showDialog('Move note to Recently Deleted?', 'This note and its descendants can be restored for seven days after the retention policy is activated.',[
+  showDialog('Move note to Deleted?', 'This note and its descendants remain recoverable for seven days before permanent removal.',[
     {text:'Cancel',style:'cancel'},
     {text:'Move',style:'destructive',onPress:()=>{
       setNotes(result.remaining);
@@ -490,17 +496,19 @@ const newMap=()=>{
 
 useEffect(()=>{
   const sub=BackHandler.addEventListener('hardwareBackPress',()=>{
-    if(reader||settings||backupMode||exportKind)return false;
+    if(reader||settings||backupMode||exportKind||labelManager||creatingFolder)return false;
     if(menu){
-      BackHandler.exitApp();
-      return true;
+      if(sidebar){setSidebar(false);return true;}
+      if(selectionMenu||moveFolderMenu||sortMenu||trashMenu){setSelectionMenu(false);setMoveFolderMenu(false);setSortMenu(false);setTrashMenu(false);return true;}
+      if(selected.length){setSelected([]);return true;}
+      if(selectedTrash.length){setSelectedTrash([]);return true;}
+      BackHandler.exitApp();return true;
     }
-    setMenu(true);
-    setMapMenu(false);
-    return true;
+    if(mapMenu||nodeActions){setMapMenu(false);setNodeActions(null);return true;}
+    setMenu(true);return true;
   });
   return()=>sub.remove();
-},[menu,reader,settings,backupMode,exportKind]);
+},[menu,reader,settings,backupMode,exportKind,labelManager,creatingFolder,sidebar,selectionMenu,moveFolderMenu,sortMenu,trashMenu,selected,selectedTrash,mapMenu,nodeActions]);
 
 const acknowledgeTrashRetention=()=>{
   const expired=trash.filter(b=>Date.now()-b.deletedAt>=7*86400000).length;
@@ -826,8 +834,9 @@ const centerX=canvasW/2,centerY=canvasH/2;
 const activeReader=notes.find(n=>n.id===reader)||initial[0];
 const mapPreview=(root:Note,previewNotes:Note[]=notes)=>{
   const points=radialTree(root,previewNotes,mapPrefs.offsets);
-  const visiblePoints=points.slice(0,90);
-  const thumbnailHeight=Math.min(244,Math.max(142,110+Math.ceil(Math.log2(points.length+1))*24));
+  const visiblePoints=points;
+  const maxDepth=points.reduce((depth,point)=>Math.max(depth,point.level),0);
+  const thumbnailHeight=Math.min(284,Math.max(132,102+Math.ceil(Math.log2(points.length+1))*21+maxDepth*9));
   // Thumbnail framing must not inherit the interactive canvas's minimum zoom.
   const bounds=points.reduce((v,p)=>({
     minX:Math.min(v.minX,p.x),maxX:Math.max(v.maxX,p.x),
@@ -854,7 +863,7 @@ const noteBodyView=(value:string)=>value.split('\n').map((line,index)=>(
   </View>
 ));
 const listNotes=notes.filter(n=>n.parentId==='root'&&(showArchive?mapPrefs.archived.includes(n.id):!mapPrefs.archived.includes(n.id)));
-const shown=listNotes.filter(n=>(!folderFilter||hasLabel(n,folderFilter))&&n.title.toLowerCase().includes(librarySearch.toLowerCase())).sort((a,b)=>Number(mapPrefs.pinned.includes(b.id))-Number(mapPrefs.pinned.includes(a.id))||(librarySort==='title'?a.title.localeCompare(b.title):librarySort==='created'?Number(a.id.split('-')[0])-Number(b.id.split('-')[0]):b.updatedAt-a.updatedAt));
+const shown=listNotes.filter(n=>(!folderFilter||hasLabel(n,folderFilter))&&matchesMapQuery(n,notes,librarySearch)).sort((a,b)=>Number(mapPrefs.pinned.includes(b.id))-Number(mapPrefs.pinned.includes(a.id))||(librarySort==='title'?a.title.localeCompare(b.title):librarySort==='created'?Number(a.id.split('-')[0])-Number(b.id.split('-')[0]):b.updatedAt-a.updatedAt));
 
 const archiveSelection=(archive:boolean)=>{
   const targetIds=new Set(selected.filter(x=>x!=='root'));
@@ -1197,7 +1206,7 @@ if(locked){
           </View>
           <View style={{flexDirection:'row',alignItems:'center'}}>
             <IconButton label={mapPrefs.collapsed[focused]?'expandBranch':'collapseBranch'} accessibilityLabel={mapPrefs.collapsed[focused]?'Expand branch':'Collapse branch'} onPress={()=>setMapPrefs(p=>({...p,collapsed:{...p.collapsed,[focused]:!p.collapsed[focused]}}))}/>
-            <IconButton label="palette" accessibilityLabel="Node color" onPress={()=>setMapPrefs(p=>{const colors=['#dbeafe','#dcfce7','#fef3c7','#fce7f3','#e9d5ff'];const current=p.colors[focused]||colors[0];return {...p,colors:{...p.colors,[focused]:colors[(colors.indexOf(current)+1)%colors.length]}};})}/>
+            <IconButton label="palette" accessibilityLabel="Node color" onPress={()=>{setManualColor(mapPrefs.colors[focused]||'');setColorTarget('node');}}/>
             <IconButton label="⋮" accessibilityLabel="More map actions" onPress={()=>setMapMenu(v=>!v)}/>
           </View>
         </View>}
@@ -1224,7 +1233,7 @@ if(locked){
             <View style={{backgroundColor:palette.surface,borderTopLeftRadius:24,borderTopRightRadius:24,padding:20,gap:12}}>
               <Text style={[styles.section,{color:palette.text}]}>Map gestures</Text>
               <Text style={{color:palette.text,fontSize:15,lineHeight:24}}>Tap to focus a node.{"\n"}Double-tap to read.{"\n"}Triple-tap to edit.{"\n"}Long-press for note actions.{"\n"}Drag around a branch to rotate children.{"\n"}Use two fingers to zoom or rotate the map.{"\n"}Fit shows the visible map.</Text>
-              <Button label="Close" onPress={()=>setGestureHelp(false)}/>
+
             </View>
           </View>
         </Modal>
@@ -1600,9 +1609,9 @@ if(locked){
         <Modal
           visible={menu}
           animationType="slide"
-          onRequestClose={()=>{if(sidebar)setSidebar(false);else if(selectionMenu||moveFolderMenu||sortMenu){setSelectionMenu(false);setMoveFolderMenu(false);setSortMenu(false);}else BackHandler.exitApp();}}
+          onRequestClose={()=>{if(sidebar)setSidebar(false);else if(selectionMenu||moveFolderMenu||sortMenu||trashMenu){setSelectionMenu(false);setMoveFolderMenu(false);setSortMenu(false);setTrashMenu(false);}else if(selected.length)setSelected([]);else if(selectedTrash.length)setSelectedTrash([]);else BackHandler.exitApp();}}
         >
-          <InsetSafeAreaView style={[styles.screen,{backgroundColor:palette.background}]} edges={['top','bottom']}>
+          <GestureHandlerRootView style={{flex:1}}><InsetSafeAreaView style={[styles.screen,{backgroundColor:palette.background}]} edges={['top','bottom']}>
             <View style={[styles.header,{gap:2}]}>
               <IconButton label={selected.length?'×':'☰'} accessibilityLabel={selected.length?'Clear selection':'Open sidebar'} onPress={()=>selected.length?setSelected([]):setSidebar(v=>!v)}/>
               {selected.length>0&&<Text accessibilityLabel={selected.length+' maps selected'} style={{fontSize:18,fontWeight:'600',color:palette.text,minWidth:24}}>{selected.length}</Text>}
@@ -1613,9 +1622,11 @@ if(locked){
               ):selected.length===0?(
                 <View style={{flex:1,flexDirection:'row',alignItems:'center',backgroundColor:palette.control,borderRadius:26,paddingLeft:12,minHeight:48}}>
                   <MaterialIcon name="search" color={palette.muted}/>
-                  <TextInput accessibilityLabel="Search map titles" placeholder="Search Orbit Notes" placeholderTextColor={palette.muted} value={librarySearch} onChangeText={setLibrarySearch} style={{flex:1,minWidth:20,fontSize:15,color:palette.text,paddingVertical:7}}/>
-                  <IconButton label="sort" accessibilityLabel="Sort maps" onPress={()=>setSortMenu(v=>!v)}/>
-                  <IconButton label={mapPrefs.viewMode==='grid'?'listView':'gridView'} accessibilityLabel={mapPrefs.viewMode==='grid'?'Switch to list view':'Switch to card view'} onPress={()=>setMapPrefs(p=>({...p,viewMode:p.viewMode==='grid'?'list':'grid'}))}/>
+                  <TextInput accessibilityLabel="Search all map contents" placeholder="Search Orbit Notes" placeholderTextColor={palette.muted} value={librarySearch} onFocus={()=>{setLibrarySearching(true);setSortMenu(false);}} onChangeText={setLibrarySearch} style={{flex:1,minWidth:20,fontSize:15,color:palette.text,paddingVertical:7}}/>
+                  {librarySearching||librarySearch.length>0?<IconButton label="×" accessibilityLabel="Clear search" onPress={()=>{setLibrarySearch('');setLibrarySearching(false);Keyboard.dismiss();}}/>:<>
+                    <IconButton label="sort" accessibilityLabel="Sort maps" onPress={()=>setSortMenu(v=>!v)}/>
+                    <IconButton label={mapPrefs.viewMode==='grid'?'listView':'gridView'} accessibilityLabel={mapPrefs.viewMode==='grid'?'Switch to list view':'Switch to card view'} onPress={()=>setMapPrefs(p=>({...p,viewMode:p.viewMode==='grid'?'list':'grid'}))}/>
+                  </>}
                 </View>
               ):(
                 <View style={{flex:1,flexDirection:'row',alignItems:'center',justifyContent:'flex-end'}}>
@@ -1682,8 +1693,8 @@ if(locked){
                   gap:10
                 }}>
 
-                  <Pressable accessibilityRole="button" accessibilityLabel="All maps" onPress={()=>{setFolderFilter(null);setShowTrash(false);setShowArchive(false);setSidebar(false);}} style={{flexDirection:'row',alignItems:'center',gap:14,padding:12,borderRadius:28,backgroundColor:!showArchive&&!showTrash&&!folderFilter?(effectiveTheme==='dark'?'#473e2e':'#fef3c7'):'transparent'}}>
-                    <MaterialIcon name="allMaps" color={palette.text}/><Text style={{color:palette.text}}>All maps</Text>
+                  <Pressable accessibilityRole="button" accessibilityLabel="Maps" onPress={()=>{setFolderFilter(null);setShowTrash(false);setShowArchive(false);setSidebar(false);}} style={{flexDirection:'row',alignItems:'center',gap:14,padding:12,borderRadius:28,backgroundColor:!showArchive&&!showTrash&&!folderFilter?(effectiveTheme==='dark'?'#473e2e':'#fef3c7'):'transparent'}}>
+                    <MaterialIcon name="allMaps" color={palette.text}/><Text style={{color:palette.text}}>Maps</Text>
                   </Pressable>
                   {folders.length>0&&<>
                     <View style={{height:1,backgroundColor:palette.border,marginVertical:5}}/>
@@ -1705,8 +1716,8 @@ if(locked){
                   <Pressable accessibilityRole="button" accessibilityLabel="Archive" onPress={()=>{setShowArchive(true);setShowTrash(false);setFolderFilter(null);setSelected([]);setSidebar(false);}} style={{flexDirection:'row',alignItems:'center',gap:14,padding:12,borderRadius:28,backgroundColor:showArchive?(effectiveTheme==='dark'?'#473e2e':'#fef3c7'):'transparent'}}>
                     <MaterialIcon name="archive" color={palette.text}/><Text style={{color:palette.text}}>Archive</Text>
                   </Pressable>
-                  <Pressable accessibilityRole="button" accessibilityLabel="Recently Deleted" onPress={()=>{setShowTrash(true);setShowArchive(false);setFolderFilter(null);setSelectedTrash([]);setSelected([]);setSidebar(false);}} style={{flexDirection:'row',alignItems:'center',gap:14,padding:12,borderRadius:28,backgroundColor:showTrash?(effectiveTheme==='dark'?'#473e2e':'#fef3c7'):'transparent'}}>
-                    <MaterialIcon name="🗑" color={palette.text}/><Text style={{color:palette.text}}>Recently Deleted</Text>
+                  <Pressable accessibilityRole="button" accessibilityLabel="Deleted" onPress={()=>{setShowTrash(true);setShowArchive(false);setFolderFilter(null);setSelectedTrash([]);setSelected([]);setSidebar(false);}} style={{flexDirection:'row',alignItems:'center',gap:14,padding:12,borderRadius:28,backgroundColor:showTrash?(effectiveTheme==='dark'?'#473e2e':'#fef3c7'):'transparent'}}>
+                    <MaterialIcon name="🗑" color={palette.text}/><Text style={{color:palette.text}}>Deleted</Text>
                   </Pressable>
                   <Pressable accessibilityRole="button" accessibilityLabel="Settings" onPress={()=>{setSettings(true);setSidebar(false);}} style={{flexDirection:'row',alignItems:'center',gap:14,padding:12}}>
                     <MaterialIcon name="settingsIcon" color={palette.text}/><Text style={{color:palette.text}}>Settings</Text>
@@ -1926,7 +1937,7 @@ if(locked){
               </View>
             </GestureDetector>
           )}
-          </InsetSafeAreaView>
+          </InsetSafeAreaView></GestureHandlerRootView>
         </Modal>
         <Modal visible={retentionNotice} transparent animationType="fade" onRequestClose={()=>{setRetentionNotice(false);setMapPrefs(p=>({...p,trashRetentionWarningSeen:true}));}}>
           <View style={{flex:1,justifyContent:'center',padding:24,backgroundColor:'rgba(0,0,0,0.55)'}}>
