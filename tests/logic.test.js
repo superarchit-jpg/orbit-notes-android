@@ -52,8 +52,8 @@ for (const name of [
 }
 
 check(
-  app.includes('Recently Deleted'),
-  'Missing Recently Deleted interface'
+  app.includes('No notes in Deleted') && app.includes('showTrash'),
+  'Missing Deleted recovery interface'
 );
 
 console.log('PASS: deletion and recovery wiring');
