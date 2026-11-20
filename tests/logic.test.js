@@ -276,7 +276,7 @@ check(app.includes('backgroundColor:all?palette.accent'),'Label checkboxes must 
 check(!app.includes("selected.includes(n.id)?'☑':'☐'"),'Map cards must not reintroduce selection checkboxes');
 for(const marker of [
   "selected.length+' maps selected'",
-  "label=\"Delete label \"",
+  "accessibilityLabel={\'Delete label \'+item.name}",
   'fontFamily:\'Roboto\'',
   "icon=\"upLevel\"",
   "icon=\"downLevel\"",
