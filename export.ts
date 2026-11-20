@@ -3,7 +3,7 @@ import * as Print from 'expo-print';
 import {radialTree} from './mapGeometry';
 import {plainNoteText} from './noteFormatting';
 import * as FileSystem from 'expo-file-system/legacy';
-export type Note = {id:string;parentId:string|null;title:string;body:string;updatedAt:number;folderId:string|null};
+export type Note = {id:string;parentId:string|null;title:string;body:string;updatedAt:number;folderId:string|null;labelIds?:string[]};
 const esc=(s:string)=>s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
 export function subtree(root:Note,notes:Note[]):{note:Note;depth:number}[]{
  const children=new Map<string,Note[]>();for(const n of notes)if(n.parentId){const a=children.get(n.parentId)||[];a.push(n);children.set(n.parentId,a);}
