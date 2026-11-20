@@ -24,12 +24,12 @@ const initial:Note[]=[{id:'root',parentId:null,title:'My Notes',body:'',updatedA
 type Folder={id:string;name:string};
 const stamp=(t:number)=>new Date(t).toLocaleString();
 const id=()=>`${Date.now()}-${Math.random().toString(36).slice(2,8)}`;
-const LIGHT={background:'#f8f9ff',surface:'#ffffff',control:'#e9edf5',text:'#202124',muted:'#60656b',border:'#dadce0',accent:'#495f8e',canvas:'#f8f9ff',node:'#e5eaf5',subnode:'#f0f2f8',connector:'#a0a9b9'};
-const DARK={background:'#17191f',surface:'#252830',control:'#363b46',text:'#e6e9f0',muted:'#b7bdca',border:'#505562',accent:'#aac5fb',canvas:'#1d2027',node:'#3c475d',subnode:'#353b49',connector:'#8692a6'};
+const LIGHT={background:'#ffffff',surface:'#ffffff',control:'#e8eef7',text:'#202124',muted:'#5f6368',border:'#dadce0',accent:'#52658e',canvas:'#ffffff',node:'#e8eef7',subnode:'#f4f6fa',connector:'#9aa4b4'};
+const DARK={background:'#202124',surface:'#292a2d',control:'#3c4043',text:'#e8eaed',muted:'#bdc1c6',border:'#5f6368',accent:'#a8c7fa',canvas:'#202124',node:'#414852',subnode:'#363a41',connector:'#80868b'};
 const PaletteContext=React.createContext(LIGHT);
 const CARD_PALETTE=['#fffdfb','#fce7df','#fff3c9','#e8f3dd','#e6ecfc','#f5e6f4'];
 
-const Button=({label,onPress,primary=false,danger=false,active=false}:{label:string;onPress:()=>void;primary?:boolean;danger?:boolean;active?:boolean})=>{const palette=React.useContext(PaletteContext);return <Pressable accessibilityRole="button" accessibilityLabel={label} onPress={onPress} style={[styles.button,{backgroundColor:active?palette.accent:palette.control},primary&&{backgroundColor:palette.accent},danger&&styles.danger]}><Text style={[styles.buttonText,{color:palette.text},(primary||danger||active)&&{color:'white'}]}>{label==='🗑'?<Svg width={23} height={23} viewBox="0 0 24 24"><Line x1={4} y1={7} x2={20} y2={7} stroke="#dc2626" strokeWidth={1.8}/><Line x1={9} y1={4} x2={15} y2={4} stroke="#dc2626" strokeWidth={1.8}/><Rect x={6} y={7} width={12} height={14} rx={2} stroke="#dc2626" strokeWidth={1.8} fill="none"/><Line x1={10} y1={11} x2={10} y2={17} stroke="#dc2626" strokeWidth={1.5}/><Line x1={14} y1={11} x2={14} y2={17} stroke="#dc2626" strokeWidth={1.5}/></Svg>:label}</Text></Pressable>;}
+const Button=({label,onPress,primary=false,danger=false,active=false}:{label:string;onPress:()=>void;primary?:boolean;danger?:boolean;active?:boolean})=>{const palette=React.useContext(PaletteContext);return <Pressable accessibilityRole="button" accessibilityLabel={label} onPress={onPress} style={[styles.button,{backgroundColor:active?palette.control:'transparent'},primary&&{backgroundColor:palette.accent}]}><Text style={[styles.buttonText,{color:danger?'#dc2626':active?palette.accent:palette.text},primary&&{color:'white'}]}>{label==='🗑'?<Svg width={23} height={23} viewBox="0 0 24 24"><Line x1={4} y1={7} x2={20} y2={7} stroke="#dc2626" strokeWidth={1.8}/><Line x1={9} y1={4} x2={15} y2={4} stroke="#dc2626" strokeWidth={1.8}/><Rect x={6} y={7} width={12} height={14} rx={2} stroke="#dc2626" strokeWidth={1.8} fill="none"/><Line x1={10} y1={11} x2={10} y2={17} stroke="#dc2626" strokeWidth={1.5}/><Line x1={14} y1={11} x2={14} y2={17} stroke="#dc2626" strokeWidth={1.5}/></Svg>:label}</Text></Pressable>;}
 
 const ICON_PATHS:Record<string,string>={
   '☰':'M4 6h16M4 12h16M4 18h16',
@@ -116,7 +116,7 @@ const renderAppDialog=()=>(
        {!!appDialog?.message&&<Text style={{fontSize:15,lineHeight:23,color:palette.muted}}>{appDialog.message}</Text>}
        <View style={[styles.wrap,{justifyContent:'flex-end'}]}>
          {(appDialog?.buttons?.length?appDialog.buttons:[{text:'OK'}]).map((action,index)=>(
-           <Button key={index} label={action.text} danger={action.style==='destructive'} primary={action.style!=='cancel'&&action.style!=='destructive'} onPress={()=>{setAppDialog(null);action.onPress?.();}}/>
+           <Pressable key={index} accessibilityRole="button" accessibilityLabel={action.text} onPress={()=>{setAppDialog(null);action.onPress?.();}} style={{paddingHorizontal:12,paddingVertical:12}}><Text style={{color:action.style==='destructive'?'#dc2626':palette.accent,fontWeight:'600',fontSize:15}}>{action.text}</Text></Pressable>
          ))}
        </View>
      </View>
@@ -1924,7 +1924,7 @@ if(locked){
                       <View style={{flex:1,width:'100%'}}>
                         <Text style={[styles.listTitle,{color:mapPrefs.cardColors[n.id]?'#362722':palette.text,paddingRight:mapPrefs.pinned.includes(n.id)?29:0}]} numberOfLines={2}>{n.title||'Untitled map'}</Text>
                         {mapPrefs.viewMode==='grid'&&mapPreview(n)}
-                         {n.folderId&&<Text style={{color:palette.muted,fontSize:11,marginTop:4}}>◩ {folders.find(f=>f.id===n.folderId)?.name||''}</Text>}
+                         {n.folderId&&<View style={{alignSelf:'flex-start',borderColor:palette.muted,borderWidth:1,borderRadius:6,marginTop:7,paddingVertical:3,paddingHorizontal:7}}><Text style={{color:palette.muted,fontSize:11}}>{folders.find(f=>f.id===n.folderId)?.name||''}</Text></View>}
  
                       </View>
 
