@@ -1583,7 +1583,9 @@ if(locked){
           <InsetSafeAreaView style={[styles.screen,{backgroundColor:palette.background}]} edges={['top','bottom']}>
             <View style={[styles.header,{gap:2}]}>
               <IconButton label={selected.length?'×':'☰'} accessibilityLabel={selected.length?'Clear selection':'Open sidebar'} onPress={()=>selected.length?setSelected([]):setSidebar(v=>!v)}/>
-              {selected.length===0?(
+              {showTrash?(
+                <Text style={{flex:1,color:palette.text,fontSize:21,fontWeight:'600'}}>Bin</Text>
+              ):selected.length===0?(
                 <View style={{flex:1,flexDirection:'row',alignItems:'center',backgroundColor:palette.control,borderRadius:26,paddingLeft:12,minHeight:48}}>
                   <Text style={{fontSize:20,color:palette.muted,marginRight:5}}>⌕</Text>
                   <TextInput accessibilityLabel="Search map titles" placeholder="Search Orbit Notes" placeholderTextColor={palette.muted} value={librarySearch} onChangeText={setLibrarySearch} style={{flex:1,minWidth:20,fontSize:15,color:palette.text,paddingVertical:7}}/>
