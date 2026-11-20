@@ -274,6 +274,19 @@ for(const marker of [
 check(app.includes('accessibilityState={{selected:chosen}}'),'Selected palette swatch must have visible and accessible state');
 check(app.includes('backgroundColor:all?palette.accent'),'Label checkboxes must show multi-selection state');
 check(!app.includes("selected.includes(n.id)?'☑':'☐'"),'Map cards must not reintroduce selection checkboxes');
+for(const marker of [
+  "selected.length+' maps selected'",
+  "label=\"Delete label \"",
+  'fontFamily:\'Roboto\'',
+  "icon=\"upLevel\"",
+  "icon=\"downLevel\"",
+  "icon=\"exportIcon\"",
+  "icon=\"helpIcon\"",
+  'fontWeight:\'600\'',
+  "backgroundColor:'#202124'",
+  "showArchive?("
+]) check(app.includes(marker),'Missing consolidated candidate interaction parity: '+marker);
+check(app.includes("setUndoBatch(result.batch.id)")&&app.includes("setTrash(t=>mapPrefs.trashRetentionAcknowledged?pruneTrash([result.batch,...t]):[result.batch,...t])"),'Note deletion must enter Recently Deleted, never bypass seven-day recovery');
 console.log('PASS: REF parity actions, labels, selected colors and scope exclusions');
 
 
