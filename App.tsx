@@ -824,8 +824,8 @@ const node=(n:Note,x:number,y:number,level:number)=>{
 const centerX=canvasW/2,centerY=canvasH/2;
 
 const activeReader=notes.find(n=>n.id===reader)||initial[0];
-const mapPreview=(root:Note)=>{
-  const points=radialTree(root,notes,mapPrefs.offsets);
+const mapPreview=(root:Note,previewNotes:Note[]=notes)=>{
+  const points=radialTree(root,previewNotes,mapPrefs.offsets);
   const visiblePoints=points.slice(0,90);
   const thumbnailHeight=Math.min(244,Math.max(142,110+Math.ceil(Math.log2(points.length+1))*24));
   // Thumbnail framing must not inherit the interactive canvas's minimum zoom.
@@ -1727,7 +1727,7 @@ if(locked){
                     <MaterialIcon name="+" color={palette.text}/><Text style={{color:palette.text,fontSize:16}}>Create new label</Text>
                   </Pressable>
                   {folders.map(item=>(
-                    <View key={item.id} style={{flexDirection:'row',alignItems:'center',gap:10,padding:8,minHeight:56}}>
+                    <View key={item.id} style={{flexDirection:'row',alignItems:'center',gap:10,padding:8,minHeight:56,borderBottomWidth:1,borderBottomColor:palette.border,backgroundColor:editingFolderId===item.id?palette.control:'transparent'}}>
                       {editingFolderId===item.id?(
                         <>
                           <IconButton label="🗑" accessibilityLabel={'Delete label '+item.name} danger onPress={()=>showDialog('Delete label?', 'Maps assigned this label will remain available.',[
@@ -1829,13 +1829,18 @@ if(locked){
                     <View style={{alignItems:'center',paddingVertical:64,gap:10}}>
                       <MaterialIcon name="🗑" color={palette.muted}/>
                       <Text style={{color:palette.muted,fontSize:16}}>Nothing in the bin</Text>
-                      <Text style={{color:palette.muted,textAlign:'center'}}>Deleted maps will appear here for seven days.</Text>
+                      <Text style={{color:palette.muted,textAlign:'center'}}>Deleted maps will appear here for seven days. Restore items before their recovery period ends.</Text>
                     </View>
                   ):trash.map(batch=>(
                     <Pressable key={batch.id} accessibilityRole="button" accessibilityLabel={'Select deleted map '+(batch.notes[0]?.title||'Untitled')} onPress={()=>setSelectedTrash(v=>v.includes(batch.id)?v.filter(x=>x!==batch.id):[...v,batch.id])}
                       style={{minHeight:120,borderRadius:16,padding:14,backgroundColor:palette.surface,borderColor:selectedTrash.includes(batch.id)?palette.accent:palette.border,borderWidth:selectedTrash.includes(batch.id)?3:1,gap:12}}>
                       <Text style={{color:palette.text,fontWeight:'600',fontSize:16}}>{batch.notes[0]?.title||'Untitled map'}</Text>
-                      <Text style={{color:palette.muted,fontSize:12}}>Deleted {stamp(batch.deletedAt)}</Text>
+                      <View style={{overflow:'hidden',borderRadius:10}}>{mapPreview(batch.notes.find(n=>n.parentId==='root')||batch.notes[0],batch.notes)}</View>
+                       {labelIds(batch.notes[0]).length>0&&<View style={{flexDirection:'row',flexWrap:'wrap',gap:5}}>{labelIds(batch.notes[0]).map(id=>{const label=folders.find(f=>f.id===id)?.name;return label?<View key={id} style={{paddingHorizontal:7,paddingVertical:3,borderRadius:6,borderWidth:1,borderColor:palette.border}}><Text style={{fontSize:11,color:palette.muted}}>{label}</Text></View>:null;})}</View>}
+                       <View style={{flexDirection:'row',justifyContent:'space-between',alignItems:'center'}}>
+                         <Text style={{color:palette.muted,fontSize:12}}>Deleted {stamp(batch.deletedAt)}</Text>
+                         <Pressable accessibilityRole="button" accessibilityLabel={'Restore '+(batch.notes[0]?.title||'deleted map')} onPress={()=>restore(batch)} style={{flexDirection:'row',alignItems:'center',gap:5,padding:8}}><MaterialIcon name="restoreIcon" color={palette.accent}/><Text style={{color:palette.accent,fontWeight:'600'}}>Restore</Text></Pressable>
+                       </View>
                     </Pressable>
                   ))}
                 </View>
@@ -1891,7 +1896,7 @@ if(locked){
                             <Path d="M12 16v6" stroke={palette.accent} strokeWidth={2} strokeLinecap="round"/>
                           </Svg>
                         </Pressable>}
-                      {showArchive&&selected.length===0&&<Pressable accessibilityRole="button" accessibilityLabel="Unarchive map" onPress={()=>archiveOne(n.id,false)}><Text style={{color:palette.accent,fontWeight:'700'}}>Unarchive</Text></Pressable>}
+                      {showArchive&&selected.length===0&&<Pressable accessibilityRole="button" accessibilityLabel="Unarchive map" onPress={()=>archiveOne(n.id,false)} style={{flexDirection:'row',alignItems:'center',alignSelf:'flex-start',gap:7,minHeight:42,paddingHorizontal:7}}><MaterialIcon name="unarchive" color={palette.accent}/><Text style={{color:palette.accent,fontWeight:'600'}}>Unarchive</Text></Pressable>}
                     </Pressable>
                   ))}
                     </View>
