@@ -1568,56 +1568,26 @@ if(locked){
           onRequestClose={()=>{if(sidebar)setSidebar(false);else if(selectionMenu||moveFolderMenu||sortMenu){setSelectionMenu(false);setMoveFolderMenu(false);setSortMenu(false);}else BackHandler.exitApp();}}
         >
           <InsetSafeAreaView style={[styles.screen,{backgroundColor:palette.background}]} edges={['top','bottom']}>
-            <View style={styles.header}>
-              <IconButton
-                label="☰"
-                accessibilityLabel="Open folders and tools"
-                onPress={()=>setSidebar(v=>!v)}
-              />
+            <View style={[styles.header,{gap:2}]}>
+              <IconButton label={selected.length?'×':'☰'} accessibilityLabel={selected.length?'Clear selection':'Open sidebar'} onPress={()=>selected.length?setSelected([]):setSidebar(v=>!v)}/>
               {selected.length===0?(
-                <View style={{flex:1,flexDirection:'row',alignItems:'center',backgroundColor:palette.control,borderRadius:26,marginHorizontal:6,paddingHorizontal:12,minHeight:48}}>
-                  <Text style={{fontSize:20,color:palette.muted,marginRight:8}}>⌕</Text>
-                  <TextInput accessibilityLabel="Search map titles" placeholder="Search Orbit Notes" placeholderTextColor={palette.muted} value={librarySearch} onChangeText={setLibrarySearch} style={{flex:1,fontSize:15,color:palette.text,paddingVertical:7,fontFamily:'sans-serif'}}/>
+                <View style={{flex:1,flexDirection:'row',alignItems:'center',backgroundColor:palette.control,borderRadius:26,paddingLeft:12,minHeight:48}}>
+                  <Text style={{fontSize:20,color:palette.muted,marginRight:5}}>⌕</Text>
+                  <TextInput accessibilityLabel="Search map titles" placeholder="Search Orbit Notes" placeholderTextColor={palette.muted} value={librarySearch} onChangeText={setLibrarySearch} style={{flex:1,minWidth:20,fontSize:15,color:palette.text,paddingVertical:7}}/>
+                  <IconButton label="sort" accessibilityLabel="Sort maps" onPress={()=>setSortMenu(v=>!v)}/>
+                  <IconButton label={mapPrefs.viewMode==='grid'?'listView':'gridView'} accessibilityLabel={mapPrefs.viewMode==='grid'?'Switch to list view':'Switch to card view'} onPress={()=>setMapPrefs(p=>({...p,viewMode:p.viewMode==='grid'?'list':'grid'}))}/>
                 </View>
               ):(
-                <View style={{flex:1,paddingHorizontal:10,minHeight:48,justifyContent:'center'}}>
-                  <Text style={{fontSize:21,fontWeight:'600',color:palette.text}}>{selected.length} selected</Text>
+                <View style={{flex:1,flexDirection:'row',alignItems:'center',justifyContent:'flex-end'}}>
+                  <IconButton label={selected.every(id=>mapPrefs.pinned.includes(id))?'★':'pin'} accessibilityLabel="Pin or unpin selected maps" onPress={()=>{
+                    setMapPrefs(p=>{const allPinned=selected.every(id=>p.pinned.includes(id));return {...p,pinned:allPinned?p.pinned.filter(id=>!selected.includes(id)):[...new Set([...p.pinned,...selected])]};});
+                    setSelected([]);
+                  }}/>
+                  <IconButton label="palette" accessibilityLabel="Change selected card colors" onPress={()=>setColorTarget('cards')}/>
+                  <IconButton label="label" accessibilityLabel="Move selected maps to label" onPress={()=>setMoveFolderMenu(true)}/>
+                  <IconButton label="⋮" accessibilityLabel="More selection actions" onPress={()=>setSelectionMenu(v=>!v)}/>
                 </View>
               )}
-              <View style={{
-                flexDirection:'row',
-                alignItems:'center'
-              }}>
-                {selected.length>0?(
-                  <>
-                    <IconButton
-                      label="selectAll"
-                      accessibilityLabel="Select all visible maps"
-                      onPress={()=>setSelected(
-                        shown.map(n=>n.id)
-                      )}
-                    />
-                    <IconButton
-                      label="×"
-                      accessibilityLabel="Clear map selection"
-                      onPress={()=>setSelected([])}
-                    />
-                    <IconButton
-                      label="🗑"
-                      accessibilityLabel="Move selected maps to Recently Deleted"
-                      danger
-                      onPress={deleteSelected}
-                    />
-                    <IconButton
-                      label="⋮"
-                      accessibilityLabel="More selection actions"
-                      onPress={()=>setSelectionMenu(v=>!v)}
-                    />
-                  </>
-                ):(
-                  <IconButton label={mapPrefs.viewMode==='grid'?'gridView':'listView'} accessibilityLabel={mapPrefs.viewMode==='grid'?'Switch to list view':'Switch to card view'} onPress={()=>setMapPrefs(p=>({...p,viewMode:p.viewMode==='grid'?'list':'grid'}))}/>
-                )}
-              </View>
             </View>
 
             {(selectionMenu||moveFolderMenu||sidebar||sortMenu)&&<Pressable accessibilityLabel="Close menu" onPress={()=>{setSelectionMenu(false);setMoveFolderMenu(false);setSidebar(false);setSortMenu(false);}} style={[StyleSheet.absoluteFill,{zIndex:20,elevation:10,backgroundColor:sidebar?'rgba(0,0,0,0.32)':'transparent'}]}/>}
