@@ -1752,64 +1752,41 @@ if(locked){
               justifyContent:'space-between'
             }}>
               {showTrash?(
-                <View style={{gap:12,backgroundColor:palette.surface,borderColor:palette.border,borderWidth:1,borderRadius:16,padding:12}}>
-                  <Text style={[styles.section,{color:'#9f1239'}]}>
-                    Recently Deleted
-                  </Text>
-
-                  {!mapPrefs.trashRetentionAcknowledged&&<View style={{gap:8,padding:12,borderWidth:1,borderColor:'#d97706',borderRadius:16,backgroundColor:palette.surface}}>
-                     <Text style={{fontWeight:'700',color:palette.text}}>Seven-day retention change</Text>
-                     <Text style={{color:palette.muted}}>Review or restore older deleted notes before activating seven-day cleanup. Items older than seven days will then be removed.</Text>
-                     <Button label="Apply seven-day retention" onPress={acknowledgeTrashRetention}/>
-                   </View>}
-                   {trash.length>0&&<View style={styles.wrap}>
-                     <Button label={selectedTrash.length===trash.length?'Clear selection':'Select all deleted'} onPress={()=>setSelectedTrash(v=>v.length===trash.length?[]:trash.map(b=>b.id))}/>
-                     {selectedTrash.length>0&&<><Button label={`Restore selected (${selectedTrash.length})`} onPress={restoreSelectedTrash}/><Button label="Delete selected forever" danger onPress={removeSelectedTrash}/></>}
-                   </View>}
-                   {trash.length===0&&(
-                    <Text style={styles.muted}>
-                      No deleted notes. Notes moved here will appear for recovery.
-                    </Text>
-                  )}
-
-                  {trash.map(b=>(
-                    <View
-                      key={b.id}
-                      style={[styles.listRow,{borderColor:selectedTrash.includes(b.id)?palette.accent:palette.border,borderWidth:selectedTrash.includes(b.id)?3:1}]}
-                     >
-                       <Pressable accessibilityRole="button" accessibilityLabel="Select deleted batch" onPress={()=>setSelectedTrash(v=>v.includes(b.id)?v.filter(x=>x!==b.id):[...v,b.id])}><Text style={{fontSize:22,color:palette.text}}>{selectedTrash.includes(b.id)?'◉':'○'}</Text></Pressable>
-                       <View style={{flex:1}}>
-                        <Text style={styles.listTitle}>
-                          {b.notes[0]?.title||'Deleted notes'}
-                        </Text>
-                        <Text style={styles.muted}>
-                          Deleted {stamp(b.deletedAt)}
-                        </Text>
-                      </View>
-                      <Button
-                        label="Restore"
-                        primary
-                        onPress={()=>restore(b)}
-                      />
-                      <Button
-                        label="Delete forever"
-                        danger
-                        onPress={()=>showDialog(
-                          'Delete permanently?',
-                          'These notes cannot be recovered.',
-                          [
-                            {text:'Cancel'},
-                            {
-                              text:'Delete',
-                              style:'destructive',
-                              onPress:()=>setTrash(t=>
-                                t.filter(x=>x.id!==b.id)
-                              )
-                            }
-                          ]
-                        )}
-                      />
+                <View style={{width:'100%',gap:12,padding:8}}>
+                  <Text style={[styles.section,{color:palette.text}]}>Recently Deleted</Text>
+                  <Text style={{color:palette.muted,fontSize:13}}>Items in the bin are permanently deleted after seven days.</Text>
+                  {!mapPrefs.trashRetentionAcknowledged&&(
+                    <View style={{gap:8,padding:12,borderColor:palette.border,borderWidth:1,borderRadius:14}}>
+                      <Text style={{color:palette.text}}>Review existing deleted items before activating the seven-day retention policy.</Text>
+                      <Button label="Apply seven-day retention" onPress={acknowledgeTrashRetention}/>
                     </View>
+                  )}
+                  <View style={{flexDirection:'row',justifyContent:'flex-end',alignItems:'center',gap:8}}>
+                    {selectedTrash.length>0&&<IconButton label="restoreIcon" accessibilityLabel="Restore selected deleted maps" onPress={restoreSelectedTrash}/>}
+                    <IconButton label="⋮" accessibilityLabel="Deleted items menu" onPress={()=>setTrashMenu(v=>!v)}/>
+                  </View>
+                  {trashMenu&&<View style={{backgroundColor:palette.surface,borderRadius:16,padding:8}}>
+                    {selectedTrash.length?(
+                      <Button label="Delete forever" danger onPress={()=>{setTrashMenu(false);removeSelectedTrash();}}/>
+                    ):(
+                      <Button label="Empty bin" danger onPress={()=>{setTrashMenu(false);if(trash.length)showDialog('Empty bin?','Permanently delete all items in Recently Deleted?',[
+                        {text:'Cancel',style:'cancel'},
+                        {text:'Empty bin',style:'destructive',onPress:()=>{setTrash([]);setSelectedTrash([]);}}
+                      ]);}}/>
+                    )}
+                  </View>}
+                  {trash.length===0?(
+                    <View style={{alignItems:'center',paddingVertical:64,gap:10}}>
+                      <MaterialIcon name="🗑" color={palette.muted}/>
+                      <Text style={{color:palette.muted,fontSize:16}}>Nothing in the bin</Text>
+                      <Text style={{color:palette.muted,textAlign:'center'}}>Deleted maps will appear here for seven days.</Text>
+                    </View>
+                  ):trash.map(batch=>(
+                    <Pressable key={batch.id} accessibilityRole="button" accessibilityLabel={'Select deleted map '+(batch.notes[0]?.title||'Untitled')} onPress={()=>setSelectedTrash(v=>v.includes(batch.id)?v.filter(x=>x!==batch.id):[...v,batch.id]])}
+                      style={{minHeight:120,borderRadius:16,padding:14,backgroundColor:palette.surface,borderColor:selectedTrash.includes(batch.id)?palette.accent:palette.border,borderWidth:selectedTrash.includes(batch.id)?3:1,gap:12}}>
+                      <Text style={{color:palette.text,fontWeight:'600',fontSize:16}}>{batch.notes[0]?.title||'Untitled map'}</Text>
+                      <Text style={{color:palette.muted,fontSize:12}}>Deleted {stamp(batch.deletedAt)}</Text>
+                    </Pressable>
                   ))}
                 </View>
               ):(
