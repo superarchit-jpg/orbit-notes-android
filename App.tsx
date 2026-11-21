@@ -32,7 +32,7 @@ const DARK={background:KEEP_DARK_BACKGROUND,surface:KEEP_DARK_SURFACE,control:'#
 const PaletteContext=React.createContext(LIGHT);
 const CARD_PALETTE=[...KEEP_LIGHT_PRESETS];
 
-const Button=({label,onPress,primary=false,danger=false,active=false}:{label:string;onPress:()=>void;primary?:boolean;danger?:boolean;active?:boolean})=>{const palette=React.useContext(PaletteContext);return <Pressable accessibilityRole="button" accessibilityLabel={label} onPress={onPress} style={[styles.button,{backgroundColor:active?palette.control:'transparent'},primary&&{backgroundColor:palette.accent}]}><Text style={[styles.buttonText,{color:danger?'#dc2626':active?palette.accent:palette.text},primary&&{color:'white'}]}>{label==='🗑'?<Svg width={23} height={23} viewBox="0 0 24 24"><Line x1={4} y1={7} x2={20} y2={7} stroke="#dc2626" strokeWidth={1.8}/><Line x1={9} y1={4} x2={15} y2={4} stroke="#dc2626" strokeWidth={1.8}/><Rect x={6} y={7} width={12} height={14} rx={2} stroke="#dc2626" strokeWidth={1.8} fill="none"/><Line x1={10} y1={11} x2={10} y2={17} stroke="#dc2626" strokeWidth={1.5}/><Line x1={14} y1={11} x2={14} y2={17} stroke="#dc2626" strokeWidth={1.5}/></Svg>:label}</Text></Pressable>;}
+const Button=({label,onPress,primary=false,danger=false,active=false}:{label:string;onPress:()=>void;primary?:boolean;danger?:boolean;active?:boolean})=>{const palette=React.useContext(PaletteContext);return <Pressable accessibilityRole="button" accessibilityLabel={label} onPress={onPress} style={[styles.button,{backgroundColor:active?palette.control:'transparent'},primary&&{backgroundColor:palette.accent}]}><Text style={[styles.buttonText,{color:danger?'#dc2626':active?palette.accent:palette.text},primary&&{color:keepForeground(palette.accent)}]}>{label==='🗑'?<Svg width={23} height={23} viewBox="0 0 24 24"><Line x1={4} y1={7} x2={20} y2={7} stroke="#dc2626" strokeWidth={1.8}/><Line x1={9} y1={4} x2={15} y2={4} stroke="#dc2626" strokeWidth={1.8}/><Rect x={6} y={7} width={12} height={14} rx={2} stroke="#dc2626" strokeWidth={1.8} fill="none"/><Line x1={10} y1={11} x2={10} y2={17} stroke="#dc2626" strokeWidth={1.5}/><Line x1={14} y1={11} x2={14} y2={17} stroke="#dc2626" strokeWidth={1.5}/></Svg>:label}</Text></Pressable>;}
 
 const ICON_PATHS:Record<string,string>={
   '☰':'M4 6h16M4 12h16M4 18h16',
@@ -1962,7 +1962,7 @@ if(locked){
               )}
             </ScrollView>
             {!showTrash&&!showArchive&&selected.length===0&&<Pressable accessibilityRole="button" accessibilityLabel="Create new map" onPress={newMap} style={{position:'absolute',right:22,bottom:26,width:60,height:60,borderRadius:20,backgroundColor:palette.accent,alignItems:'center',justifyContent:'center',elevation:5,zIndex:10}}>
-              <Text style={{fontSize:32,color:'white'}}>+</Text>
+              <Text style={{fontSize:32,color:keepForeground(palette.accent)}}>+</Text>
             </Pressable>}
           {undoOpen&&undoBatch&&(
             <GestureDetector gesture={Gesture.Pan().activeOffsetX([-20,20]).onEnd(e=>{if(Math.abs(e.translationX)>55){runOnJS(setUndoOpen)(false);runOnJS(setUndoBatch)(null);runOnJS(setPendingBranch)(null);}})}>
