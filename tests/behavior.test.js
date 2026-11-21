@@ -3,7 +3,7 @@ const {execFileSync}=require('node:child_process');
 const fs=require('node:fs');const os=require('node:os');const path=require('node:path');const assert=require('node:assert/strict');
 const temp=fs.mkdtempSync(path.join(os.tmpdir(),'orbit-tests-'));
 try{
- execFileSync('tsc',['layout.ts','trash.ts','mapGeometry.ts','noteFormatting.ts','labels.ts','librarySearch.ts','richTextMarkup.ts','--module','commonjs','--target','es2020','--outDir',temp,'--skipLibCheck','--noEmitOnError','false'],{stdio:'pipe'});
+ execFileSync('tsc',['layout.ts','trash.ts','mapGeometry.ts','noteFormatting.ts','labels.ts','librarySearch.ts','richTextMarkup.ts','keepTheme.ts','--module','commonjs','--target','es2020','--outDir',temp,'--skipLibCheck','--noEmitOnError','false'],{stdio:'pipe'});
 }catch(e){if(!fs.existsSync(path.join(temp,'layout.js')))throw e;}
 const {radialLayout,overviewLayout}=require(path.join(temp,'layout.js'));
 const {deleteBranches,restoreBatch,pruneTrash}=require(path.join(temp,'trash.js'));
@@ -95,3 +95,18 @@ assert.equal(formatSelection('one\ntwo',0,7,'numbers'),'1. one\n2. two');
 console.log('PASS: numbered lists and combined formatting emit semantic ordered-list HTML');
 
 console.log('PASS: executable layout and trash tests');
+
+const {KEEP_LIGHT_PRESETS,KEEP_DARK_PRESETS,KEEP_DARK_BACKGROUND,displayKeepColor,swatchKeepColor,keepForeground,keepChipStyle}=require(path.join(temp,'keepTheme.js'));
+assert.equal(KEEP_LIGHT_PRESETS.length,12);
+assert.equal(KEEP_DARK_PRESETS.length,12);
+assert.equal(KEEP_DARK_BACKGROUND,'#11182A');
+assert.equal(swatchKeepColor(1,'light'),'#FAAFA9');
+assert.equal(swatchKeepColor(1,'dark'),'#740D32');
+assert.equal(displayKeepColor('#FAAFA9','dark','#11182A'),'#740D32');
+assert.equal(displayKeepColor('#FAAFA9','light','#ffffff'),'#FAAFA9');
+assert.equal(displayKeepColor('#123456','dark','#11182A'),'#123456','manual colors must survive theme changes');
+assert.equal(displayKeepColor(undefined,'dark','#0A0E1A'),'#0A0E1A');
+assert.equal(keepForeground('#740D32'),'#F4F5FF');
+assert.equal(keepForeground('#FAAFA9'),'#202A42');
+assert.notEqual(keepChipStyle('#740D32').backgroundColor,keepChipStyle('#FAAFA9').backgroundColor);
+console.log('PASS: paired Keep palettes, readable dark cards and distinct label chips');
