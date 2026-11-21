@@ -1986,24 +1986,27 @@ if(locked){
           </View>
         </Modal>
         <Modal visible={colorTarget!==null} transparent animationType="fade" onRequestClose={()=>setColorTarget(null)}>
-          <View style={{flex:1,justifyContent:'flex-end',backgroundColor:'rgba(0,0,0,0.35)'}}>
+          <View style={{flex:1,justifyContent:'center',alignItems:'center',paddingHorizontal:24,backgroundColor:'rgba(0,0,0,0.48)'}}>
             <Pressable accessibilityLabel="Dismiss color palette" onPress={()=>setColorTarget(null)} style={StyleSheet.absoluteFill}/>
-            <View style={{padding:20,gap:16,borderTopLeftRadius:24,borderTopRightRadius:24,backgroundColor:palette.surface}}>
-              <Text style={[styles.section,{color:palette.text}]}>Choose {colorTarget==='cards'?'card':colorTarget==='node'?'node':'note'} color</Text>
-              <View style={{flexDirection:'row',flexWrap:'wrap',gap:14}}>
+            <View style={{width:'100%',maxWidth:380,borderRadius:28,padding:22,gap:18,backgroundColor:palette.surface,elevation:14}}>
+              <Text style={{fontSize:20,fontWeight:'600',color:palette.text}}>Note colour</Text>
+              <View style={{flexDirection:'row',flexWrap:'wrap',justifyContent:'space-around',gap:14}}>
                 {CARD_PALETTE.map((color,index)=>{
                   const targets=colorTarget==='cards'?selected:colorTarget==='node'?[focused]:[reader||''];
                   const source=colorTarget==='cards'?mapPrefs.cardColors:colorTarget==='node'?mapPrefs.colors:mapPrefs.noteColors;
-                  const chosen=targets.length>0&&targets.every(target=>(source[target]||CARD_PALETTE[0])===color);
-                  return <Pressable key={color} accessibilityRole="button" accessibilityState={{selected:chosen}} accessibilityLabel={index===0?'Default color':`Color ${index+1}`} onPress={()=>applyChosenColor(color)} style={{width:46,height:46,borderRadius:23,backgroundColor:color,borderWidth:chosen?3:2,borderColor:chosen?palette.accent:palette.border,alignItems:'center',justifyContent:'center'}}>
-                    {chosen?<View style={{width:24,height:24,borderRadius:12,backgroundColor:palette.surface,alignItems:'center',justifyContent:'center'}}><MaterialIcon name="✓" color={palette.text}/></View>:null}
+                  const chosen=targets.length>0&&targets.every(target=>(source[target]||CARD_PALETTE[0]).toLowerCase()===color.toLowerCase());
+                  const swatch=swatchKeepColor(index,effectiveTheme);
+                  return <Pressable key={color} accessibilityRole="button" accessibilityState={{selected:chosen}} accessibilityLabel={index===0?'Default color':`Color ${index+1}`} onPress={()=>applyChosenColor(color)}
+                    style={{width:54,height:54,borderRadius:27,backgroundColor:swatch,borderWidth:chosen?3:1.3,borderColor:chosen?palette.accent:palette.border,alignItems:'center',justifyContent:'center'}}>
+                    {index===0&&<Svg width={27} height={27} viewBox="0 0 24 24"><Circle cx={12} cy={12} r={8.5} stroke={palette.muted} strokeWidth={2} fill="none"/><Line x1={6} y1={18} x2={18} y2={6} stroke={palette.muted} strokeWidth={2}/></Svg>}
+                    {chosen&&<View style={{position:'absolute',top:-6,right:-7,width:22,height:22,borderRadius:11,backgroundColor:palette.accent,alignItems:'center',justifyContent:'center'}}><MaterialIcon name="✓" color={keepForeground(palette.accent)}/></View>}
                   </Pressable>;
                 })}
               </View>
-              <Text style={{fontSize:14,color:palette.muted}}>Manual color (hex)</Text>
-              <View style={{flexDirection:'row',alignItems:'center',gap:10}}>
+              <Text style={{fontSize:13,color:palette.muted}}>Custom colour (hex)</Text>
+              <View style={{flexDirection:'row',alignItems:'center',gap:8}}>
                 <TextInput accessibilityLabel="Custom hex color" placeholder="#RRGGBB" placeholderTextColor={palette.muted} autoCapitalize="characters" maxLength={7} value={manualColor} onChangeText={setManualColor} style={[styles.input,{flex:1,color:palette.text,backgroundColor:palette.background,borderColor:palette.border}]}/>
-                <Button label="Apply color" primary onPress={()=>{const color=manualColor.trim();if(/^#[0-9A-Fa-f]{6}$/.test(color))applyChosenColor(color.toUpperCase());else showDialog('Invalid color','Enter a six-digit hex color, for example #AABBCC.');}}/>
+                <Button label="Apply color" onPress={()=>{const color=manualColor.trim();if(/^#[0-9A-Fa-f]{6}$/.test(color))applyChosenColor(color.toUpperCase());else showDialog('Invalid color','Enter a six-digit hex color, for example #AABBCC.');}}/>
               </View>
             </View>
           </View>
