@@ -811,7 +811,7 @@ const node=(n:Note,x:number,y:number,level:number)=>{
           borderRadius:size/2,
           left:touchMargin,
           top:touchMargin,
-          backgroundColor:mapPrefs.colors[n.id]|| (n.id===focused?palette.accent:level<=1?palette.node:palette.subnode),
+          backgroundColor:displayKeepColor(mapPrefs.colors[n.id],effectiveTheme,n.id===focused?palette.accent:level<=1?palette.node:palette.subnode),
           borderColor:n.id===focused?palette.accent:palette.border
         }
       ]}>
@@ -821,7 +821,7 @@ const node=(n:Note,x:number,y:number,level:number)=>{
             style={[
               styles.nodeTitle,
               {
-                color:n.id===focused&&!mapPrefs.colors[n.id]?'#ffffff':palette.text,
+                color:keepForeground(displayKeepColor(mapPrefs.colors[n.id],effectiveTheme,n.id===focused?palette.accent:palette.node)),
                 fontSize:level>=2?14:16
               }
             ]}
@@ -830,7 +830,7 @@ const node=(n:Note,x:number,y:number,level:number)=>{
           </Text>
           {Boolean(n.body.trim())&&(
             <Text style={{
-              color:n.id===focused&&!mapPrefs.colors[n.id]?'#fff0e9':palette.muted,
+              color:keepForeground(displayKeepColor(mapPrefs.colors[n.id],effectiveTheme,n.id===focused?palette.accent:palette.node)),
               fontSize:15
             }}>≡</Text>
           )}
@@ -864,7 +864,7 @@ const mapPreview=(root:Note,previewNotes:Note[]=notes)=>{
         const parent=byId.get(v.note.parentId||'');
         return parent?<Line key={v.note.id} x1={thumbX+parent.x*thumbScale} y1={thumbY+parent.y*thumbScale} x2={thumbX+v.x*thumbScale} y2={thumbY+v.y*thumbScale} stroke={palette.connector} strokeWidth={1.2}/>:null;
       })}
-      {visiblePoints.map(v=><Circle key={v.note.id} cx={thumbX+v.x*thumbScale} cy={thumbY+v.y*thumbScale} r={v.note.id===root.id?4:2.7} fill={mapPrefs.colors[v.note.id]|| (v.note.id===root.id?palette.accent:palette.node)} stroke={palette.border} strokeWidth={0.8}/>)}
+      {visiblePoints.map(v=><Circle key={v.note.id} cx={thumbX+v.x*thumbScale} cy={thumbY+v.y*thumbScale} r={v.note.id===root.id?4:2.7} fill={displayKeepColor(mapPrefs.colors[v.note.id],effectiveTheme,v.note.id===root.id?palette.accent:palette.node)} stroke={palette.border} strokeWidth={0.8}/>)}
     </Svg>
   );
 };
@@ -886,7 +886,7 @@ const applyChosenColor=(color:string)=>{
 };
 const noteBodyView=(value:string)=>value.split('\n').map((line,index)=>(
   <View key={index} style={{minHeight:28}}>
-    <Text style={{fontSize:17,lineHeight:27,color:palette.text}}>{parseRichLine(line).map((run,i)=><Text key={i} style={{fontWeight:run.bold?'700':'400',fontStyle:run.italic?'italic':'normal',textDecorationLine:run.underline?'underline':'none'}}>{run.text}</Text>)}</Text>
+    <Text style={{fontSize:17,lineHeight:27,color:reader?noteDisplayText:palette.text}}>{parseRichLine(line).map((run,i)=><Text key={i} style={{fontWeight:run.bold?'700':'400',fontStyle:run.italic?'italic':'normal',textDecorationLine:run.underline?'underline':'none'}}>{run.text}</Text>)}</Text>
   </View>
 ));
 const listNotes=notes.filter(n=>n.parentId==='root'&&(showArchive?mapPrefs.archived.includes(n.id):!mapPrefs.archived.includes(n.id)));
@@ -1572,7 +1572,7 @@ if(locked){
           animationType="slide"
           onRequestClose={cancelReader}
         >
-          <SafeAreaView style={[styles.screen,{backgroundColor:mapPrefs.noteColors[reader||'']||palette.background}]}>
+          <SafeAreaView style={[styles.screen,{backgroundColor:noteDisplayColor}]}>
             <View style={styles.header}>
               <IconButton label="←" accessibilityLabel="Back to map" onPress={cancelReader}/>
               <View style={styles.wrap}>
@@ -1590,21 +1590,21 @@ if(locked){
             </View>
 
             {editing?(
-              <KeyboardAvoidingView behavior={Platform.OS==='ios'?'padding':'height'} style={[styles.editor,{backgroundColor:mapPrefs.noteColors[reader||'']||palette.background}]}>
+              <KeyboardAvoidingView behavior={Platform.OS==='ios'?'padding':'height'} style={[styles.editor,{backgroundColor:noteDisplayColor}]}>
                 <View style={styles.editorField}>
-                  <Text style={styles.editorLabel}>Note title</Text>
+                  <Text style={[styles.editorLabel,{color:palette.muted}]}>Note title</Text>
                   <TextInput
                     accessibilityLabel="Note title"
-                    style={[styles.input,{backgroundColor:palette.surface,color:mapPrefs.noteColors[reader||'']?'#362722':palette.text,borderColor:palette.border}]}
+                    style={[styles.input,{backgroundColor:noteDisplayColor,color:noteDisplayText,borderColor:palette.border}]}
                     value={title}
                     onChangeText={setTitle}
                     placeholder="Heading"
                   />
                 </View>
                 <View style={[styles.editorField,{flex:1}]}>
-                  <Text style={styles.editorLabel}>Note content</Text>
+                  <Text style={[styles.editorLabel,{color:palette.muted}]}>Note content</Text>
                   <RichNoteEditor key={reader||'note'} ref={richEditorRef} initialText={body} onChangeText={setBody} onFormatStateChange={setEditorFormats}
-                     dark={effectiveTheme==='dark'} textColor={mapPrefs.noteColors[reader||'']?'#362722':palette.text} backgroundColor={palette.surface}/>
+                     dark={effectiveTheme==='dark'} textColor={noteDisplayText} backgroundColor={noteDisplayColor}/>
                 </View>
                 <View style={{gap:5}}>
                   {formatToolbar&&<View style={{flexDirection:'row',alignItems:'center',justifyContent:'space-between',borderRadius:16,borderWidth:1,borderColor:palette.border,backgroundColor:palette.surface,paddingHorizontal:2}}>
@@ -1623,9 +1623,9 @@ if(locked){
                 </View>
               </KeyboardAvoidingView>
             ):(
-              <ScrollView contentContainerStyle={[styles.editor,{backgroundColor:mapPrefs.noteColors[reader||'']||palette.background}]}>
+              <ScrollView contentContainerStyle={[styles.editor,{backgroundColor:noteDisplayColor}]}>
                 <Pressable onPress={()=>{const now=Date.now();if(now-readerTapAt<360&&reader)beginEdit(reader);setReaderTapAt(now);}}>
-                  <Text style={[styles.readerTitle,{color:palette.text}]}>{activeReader?.title}</Text>
+                  <Text style={[styles.readerTitle,{color:noteDisplayText}]}>{activeReader?.title}</Text>
                 </Pressable>
                 <Pressable onPress={()=>{const now=Date.now();if(now-readerTapAt<360&&reader)beginEdit(reader);setReaderTapAt(now);}}>
                   {activeReader?.body?<View style={{marginVertical:15,gap:3}}>{noteBodyView(activeReader.body)}</View>:<Text style={[styles.readBody,{color:palette.muted}]}>This note is empty.</Text>}
@@ -1749,8 +1749,8 @@ if(locked){
                   gap:10
                 }}>
 
-                  <Pressable accessibilityRole="button" accessibilityLabel="Maps" onPress={()=>{setFolderFilter(null);setShowTrash(false);setShowArchive(false);setSidebar(false);}} style={{flexDirection:'row',alignItems:'center',gap:14,padding:12,borderRadius:28,backgroundColor:!showArchive&&!showTrash&&!folderFilter?(effectiveTheme==='dark'?'#473e2e':'#fef3c7'):'transparent'}}>
-                    <MaterialIcon name="allMaps" color={palette.text}/><Text style={{color:palette.text}}>Maps</Text>
+                  <Pressable accessibilityRole="button" accessibilityLabel="Maps" onPress={()=>{setFolderFilter(null);setShowTrash(false);setShowArchive(false);setSidebar(false);}} style={{flexDirection:'row',alignItems:'center',gap:14,padding:12,borderRadius:28,backgroundColor:!showArchive&&!showTrash&&!folderFilter?selectedSidebarColor:'transparent'}}>
+                    <MaterialIcon name="allMaps" color={!showArchive&&!showTrash&&!folderFilter?selectedSidebarText:palette.text}/><Text style={{color:!showArchive&&!showTrash&&!folderFilter?selectedSidebarText:palette.text}}>Maps</Text>
                   </Pressable>
                   {folders.length>0&&<>
                     <View style={{height:1,backgroundColor:palette.border,marginVertical:5}}/>
@@ -1759,8 +1759,8 @@ if(locked){
                       <Pressable accessibilityRole="button" accessibilityLabel="Edit labels" onPress={()=>{setLabelManager(true);setSidebar(false);}} style={{padding:8}}><Text style={{color:palette.accent,fontWeight:'600'}}>Edit</Text></Pressable>
                     </View>
                     {folders.map(item=>(
-                      <Pressable key={item.id} accessibilityRole="button" accessibilityLabel={'Filter '+item.name} onPress={()=>{setFolderFilter(item.id);setShowTrash(false);setShowArchive(false);setSidebar(false);}} style={{flexDirection:'row',alignItems:'center',gap:14,padding:12,borderRadius:28,backgroundColor:folderFilter===item.id?(effectiveTheme==='dark'?'#473e2e':'#fef3c7'):'transparent'}}>
-                        <MaterialIcon name="label" color={folderFilter===item.id?palette.accent:palette.text}/>
+                      <Pressable key={item.id} accessibilityRole="button" accessibilityLabel={'Filter '+item.name} onPress={()=>{setFolderFilter(item.id);setShowTrash(false);setShowArchive(false);setSidebar(false);}} style={{flexDirection:'row',alignItems:'center',gap:14,padding:12,borderRadius:28,backgroundColor:folderFilter===item.id?selectedSidebarColor:'transparent'}}>
+                        <MaterialIcon name="label" color={folderFilter===item.id?selectedSidebarText:palette.text}/>
                         <Text style={{color:palette.text,flex:1}}>{item.name}</Text>
                       </Pressable>
                     ))}
@@ -1769,11 +1769,11 @@ if(locked){
                     <MaterialIcon name="+" color={palette.text}/><Text style={{color:palette.text}}>Create new label</Text>
                   </Pressable>
                   {folders.length>0&&<View style={{height:1,backgroundColor:palette.border,marginVertical:5}}/>}
-                  <Pressable accessibilityRole="button" accessibilityLabel="Archive" onPress={()=>{setShowArchive(true);setShowTrash(false);setFolderFilter(null);setSelected([]);setSidebar(false);}} style={{flexDirection:'row',alignItems:'center',gap:14,padding:12,borderRadius:28,backgroundColor:showArchive?(effectiveTheme==='dark'?'#473e2e':'#fef3c7'):'transparent'}}>
-                    <MaterialIcon name="archive" color={palette.text}/><Text style={{color:palette.text}}>Archive</Text>
+                  <Pressable accessibilityRole="button" accessibilityLabel="Archive" onPress={()=>{setShowArchive(true);setShowTrash(false);setFolderFilter(null);setSelected([]);setSidebar(false);}} style={{flexDirection:'row',alignItems:'center',gap:14,padding:12,borderRadius:28,backgroundColor:showArchive?selectedSidebarColor:'transparent'}}>
+                    <MaterialIcon name="archive" color={showArchive?selectedSidebarText:palette.text}/><Text style={{color:showArchive?selectedSidebarText:palette.text}}>Archive</Text>
                   </Pressable>
-                  <Pressable accessibilityRole="button" accessibilityLabel="Deleted" onPress={()=>{setShowTrash(true);setShowArchive(false);setFolderFilter(null);setSelectedTrash([]);setSelected([]);setSidebar(false);}} style={{flexDirection:'row',alignItems:'center',gap:14,padding:12,borderRadius:28,backgroundColor:showTrash?(effectiveTheme==='dark'?'#473e2e':'#fef3c7'):'transparent'}}>
-                    <MaterialIcon name="🗑" color={palette.text}/><Text style={{color:palette.text}}>Deleted</Text>
+                  <Pressable accessibilityRole="button" accessibilityLabel="Deleted" onPress={()=>{setShowTrash(true);setShowArchive(false);setFolderFilter(null);setSelectedTrash([]);setSelected([]);setSidebar(false);}} style={{flexDirection:'row',alignItems:'center',gap:14,padding:12,borderRadius:28,backgroundColor:showTrash?selectedSidebarColor:'transparent'}}>
+                    <MaterialIcon name="🗑" color={showTrash?selectedSidebarText:palette.text}/><Text style={{color:showTrash?selectedSidebarText:palette.text}}>Deleted</Text>
                   </Pressable>
                   <Pressable accessibilityRole="button" accessibilityLabel="Settings" onPress={()=>{setSettings(true);setSidebar(false);}} style={{flexDirection:'row',alignItems:'center',gap:14,padding:12}}>
                     <MaterialIcon name="settingsIcon" color={palette.text}/><Text style={{color:palette.text}}>Settings</Text>
@@ -1858,7 +1858,7 @@ if(locked){
                       style={{minHeight:120,borderRadius:16,padding:14,backgroundColor:palette.surface,borderColor:selectedTrash.includes(batch.id)?palette.accent:palette.border,borderWidth:selectedTrash.includes(batch.id)?3:1,gap:12}}>
                       <Text style={{color:palette.text,fontWeight:'600',fontSize:16}}>{batch.notes[0]?.title||'Untitled map'}</Text>
                       <View style={{overflow:'hidden',borderRadius:10}}>{mapPreview(batch.notes.find(n=>n.parentId==='root')||batch.notes[0],batch.notes)}</View>
-                       {labelIds(batch.notes[0]).length>0&&<View style={{flexDirection:'row',flexWrap:'wrap',gap:5}}>{labelIds(batch.notes[0]).map(id=>{const label=folders.find(f=>f.id===id)?.name;return label?<View key={id} style={{paddingHorizontal:7,paddingVertical:3,borderRadius:6,borderWidth:1,borderColor:palette.border}}><Text style={{fontSize:11,color:palette.muted}}>{label}</Text></View>:null;})}</View>}
+                       {labelIds(batch.notes[0]).length>0&&<View style={{flexDirection:'row',flexWrap:'wrap',gap:5}}>{labelIds(batch.notes[0]).map(id=>{const label=folders.find(f=>f.id===id)?.name;return label?<View key={id} style={{paddingHorizontal:8,paddingVertical:4,borderRadius:8,borderWidth:1,...keepChipStyle(palette.surface)}}><Text style={{fontSize:11,color:keepChipStyle(palette.surface).color}}>{label}</Text></View>:null;})}</View>}
                        <View style={{flexDirection:'row',justifyContent:'space-between',alignItems:'center'}}>
                          <Text style={{color:palette.muted,fontSize:12}}>Deleted {stamp(batch.deletedAt)}</Text>
                          <Pressable accessibilityRole="button" accessibilityLabel={'Restore '+(batch.notes[0]?.title||'deleted map')} onPress={event=>{event.stopPropagation();restore(batch);}} style={{flexDirection:'row',alignItems:'center',gap:5,padding:8}}><MaterialIcon name="restoreIcon" color={palette.accent}/><Text style={{color:palette.accent,fontWeight:'600'}}>Restore</Text></Pressable>
@@ -1876,7 +1876,7 @@ if(locked){
                       accessibilityRole="button"
                       accessibilityLabel={`${n.title||'Untitled map'}${mapPrefs.pinned.includes(n.id)?', pinned':''}${selected.includes(n.id)?', selected':''}`}
                       accessibilityHint="Tap to open; long press to select"
-                      style={[styles.listRow,{backgroundColor:mapPrefs.cardColors[n.id]||palette.surface,borderColor:selected.includes(n.id)?palette.accent:palette.border,borderWidth:selected.includes(n.id)?3:1},mapPrefs.viewMode==='grid'&&{width:'100%',alignItems:'stretch',flexDirection:'column',padding:10}]}
+                      style={[styles.listRow,{backgroundColor:displayKeepColor(mapPrefs.cardColors[n.id],effectiveTheme,palette.surface),borderColor:selected.includes(n.id)?palette.accent:palette.border,borderWidth:selected.includes(n.id)?3:1},mapPrefs.viewMode==='grid'&&{width:'100%',alignItems:'stretch',flexDirection:'column',padding:10}]}
                       onPress={()=>{
                         if(selected.length){
                           setSelected(v=>
@@ -1902,10 +1902,10 @@ if(locked){
                       }
                     >
                       <View style={{flex:1,width:'100%'}}>
-                        <Text style={[styles.listTitle,{color:mapPrefs.cardColors[n.id]?'#362722':palette.text,paddingRight:mapPrefs.pinned.includes(n.id)?80:43}]} numberOfLines={2}>{n.title||'Untitled map'}</Text>
+                        <Text style={[styles.listTitle,{color:keepForeground(displayKeepColor(mapPrefs.cardColors[n.id],effectiveTheme,palette.surface)),paddingRight:mapPrefs.pinned.includes(n.id)?80:43}]} numberOfLines={2}>{n.title||'Untitled map'}</Text>
                         {mapPrefs.viewMode==='grid'&&mapPreview(n)}
                          {labelIds(n).length>0&&<View style={{flexDirection:'row',flexWrap:'wrap',gap:5,marginTop:7}}>
-                         {labelIds(n).map(labelId=>{const name=folders.find(f=>f.id===labelId)?.name;return name?<View key={labelId} style={{borderColor:palette.muted,borderWidth:1,borderRadius:6,paddingVertical:3,paddingHorizontal:7}}><Text style={{color:palette.muted,fontSize:11}}>{name}</Text></View>:null;})}
+                         {labelIds(n).map(labelId=>{const name=folders.find(f=>f.id===labelId)?.name;return name?<View key={labelId} style={{...keepChipStyle(displayKeepColor(mapPrefs.cardColors[n.id],effectiveTheme,palette.surface)),borderWidth:1,borderRadius:8,paddingVertical:4,paddingHorizontal:9}}><Text style={{color:keepChipStyle(displayKeepColor(mapPrefs.cardColors[n.id],effectiveTheme,palette.surface)).color,fontSize:11}}>{name}</Text></View>:null;})}
                        </View>}
  
                       </View>
