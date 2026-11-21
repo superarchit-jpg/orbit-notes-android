@@ -115,6 +115,7 @@ const [undoOpen,setUndoOpen]=useState(false);
 const [trashMenu,setTrashMenu]=useState(false);
 const [themeMenu,setThemeMenu]=useState(false);
 const [labelManager,setLabelManager]=useState(false);
+const [labelQuery,setLabelQuery]=useState('');
 const bioPromptInProgress=useRef(false),bioPrompted=useRef(false);
 const richEditorRef=useRef<RichNoteEditorHandle|null>(null);
 const [editorFormats,setEditorFormats]=useState<RichEditorState>({bold:false,italic:false,underline:false,bullets:false,numbers:false});
@@ -1674,7 +1675,7 @@ if(locked){
                     setSelected([]);
                   }}/>
                   <IconButton label="palette" accessibilityLabel="Change selected card colors" onPress={()=>{setManualColor(selected.length===1?mapPrefs.cardColors[selected[0]]||'':'');setColorTarget('cards');}}/>
-                  <IconButton label="label" accessibilityLabel="Move selected maps to label" onPress={()=>setMoveFolderMenu(true)}/>
+                  <IconButton label="label" accessibilityLabel="Assign labels to selected maps" onPress={()=>{setLabelQuery('');setMoveFolderMenu(true);}}/>
                   <IconButton label="⋮" accessibilityLabel="More selection actions" onPress={()=>setSelectionMenu(v=>!v)}/>
                 </View>
               )}
@@ -1685,7 +1686,7 @@ if(locked){
               <ActionRow label={mapPrefs.pinned.includes(cardMenuId)?'Unpin':'Pin'} icon="pin" onPress={()=>{
                 const target=cardMenuId!;setMapPrefs(p=>({...p,pinned:p.pinned.includes(target)?p.pinned.filter(item=>item!==target):[...p.pinned,target]}));setCardMenuId(null);
               }}/>
-              <ActionRow label="Labels" icon="label" onPress={()=>{setSelected([cardMenuId!]);setCardMenuId(null);setMoveFolderMenu(true);}}/>
+              <ActionRow label="Labels" icon="label" onPress={()=>{setSelected([cardMenuId!]);setCardMenuId(null);setLabelQuery('');setMoveFolderMenu(true);}}/>
               <ActionRow label="Color" icon="palette" onPress={()=>{setSelected([cardMenuId!]);setManualColor(mapPrefs.cardColors[cardMenuId!]||'');setCardMenuId(null);setColorTarget('cards');}}/>
               <ActionRow label={showArchive?'Unarchive':'Archive'} icon={showArchive?'unarchive':'archive'} onPress={()=>{archiveOne(cardMenuId!,!showArchive);setCardMenuId(null);}}/>
               <ActionRow label="Export PDF" icon="exportIcon" onPress={()=>{exportOne('pdf',cardMenuId!);setCardMenuId(null);}}/>
@@ -1717,24 +1718,42 @@ if(locked){
                 </Pressable>
               ))}
             </View>}
-                          {moveFolderMenu&&(
-              <View style={[styles.bottomSheet,{backgroundColor:palette.surface,borderColor:palette.border}]}>
-                <Text style={{color:palette.text,fontWeight:'600',fontSize:17,marginVertical:6}}>Labels</Text>
-                <Text style={{color:palette.muted,fontSize:12}}>Select one or more labels for the selected maps.</Text>
-                {folders.map(f=>{
-                  const all=selected.length>0&&selected.every(id=>{const n=notes.find(x=>x.id===id);return n?hasLabel(n,f.id):false;});
-                  const some=selected.some(id=>{const n=notes.find(x=>x.id===id);return n?hasLabel(n,f.id):false;});
-                  return <Pressable key={f.id} accessibilityRole="checkbox" accessibilityState={{checked:all}} accessibilityLabel={f.name} onPress={()=>moveSelection(f.id)} style={{flexDirection:'row',gap:12,alignItems:'center',minHeight:48,paddingHorizontal:10}}>
-                    <View style={{width:24,height:24,borderWidth:2,borderColor:all||some?palette.accent:palette.muted,borderRadius:3,alignItems:'center',justifyContent:'center',backgroundColor:all?palette.accent:'transparent'}}>
-                       {all?<MaterialIcon name="✓" color={palette.background}/>:some?<View style={{width:11,height:3,backgroundColor:palette.accent,borderRadius:1}}/>:null}
-                     </View>
-                    <Text style={{color:palette.text,flex:1,fontSize:15}}>{f.name}</Text>
-                  </Pressable>;
-                })}
-                <Button label="+ Create new label" onPress={()=>{setEditingFolderId(null);setFolderName('');setCreatingFolder(true);setMoveFolderMenu(false);setLabelManager(true);}}/>
-                <Button label="Done" onPress={()=>{setSelected([]);setMoveFolderMenu(false);}}/>
-              </View>
-            )}
+            <Modal visible={moveFolderMenu} animationType="slide" onRequestClose={()=>{setMoveFolderMenu(false);setLabelQuery('');}}>
+              <InsetSafeAreaView edges={['top','bottom']} style={[styles.screen,{backgroundColor:effectiveTheme==='dark'?palette.background:'#FAF7FE'}]}>
+                <View style={{minHeight:74,flexDirection:'row',alignItems:'center',paddingHorizontal:10,gap:4}}>
+                  <IconButton label="←" accessibilityLabel="Back to selected maps" onPress={()=>{setMoveFolderMenu(false);setLabelQuery('');Keyboard.dismiss();}}/>
+                  <TextInput accessibilityLabel="Search or create labels" value={labelQuery} onChangeText={setLabelQuery} placeholder="Enter label name" placeholderTextColor={palette.muted} autoCapitalize="sentences"
+                    returnKeyType="done" onSubmitEditing={()=>{
+                      const name=labelQuery.trim();if(!name||folders.some(f=>f.name.toLocaleLowerCase()===name.toLocaleLowerCase()))return;
+                      const newId=id();setFolders(fs=>[...fs,{id:newId,name}]);setNotes(ns=>ns.map(note=>selected.includes(note.id)?{...addLabel(note,newId),updatedAt:Date.now()}:note));setLabelQuery('');Keyboard.dismiss();
+                    }}
+                    style={{flex:1,fontSize:17,color:palette.text,paddingVertical:10,paddingHorizontal:8}}/>
+                  {labelQuery.length>0&&<IconButton label="×" accessibilityLabel="Clear label search" onPress={()=>setLabelQuery('')}/>}
+                </View>
+                <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={{paddingBottom:40}}>
+                  {folders.filter(f=>f.name.toLocaleLowerCase().includes(labelQuery.trim().toLocaleLowerCase())).map(f=>{
+                    const all=selected.length>0&&selected.every(target=>{const note=notes.find(n=>n.id===target);return note?hasLabel(note,f.id):false;});
+                    const some=selected.some(target=>{const note=notes.find(n=>n.id===target);return note?hasLabel(note,f.id):false;});
+                    return <Pressable key={f.id} accessibilityRole="checkbox" accessibilityState={{checked:all}} accessibilityLabel={'Assign label '+f.name} onPress={()=>moveSelection(f.id)}
+                      style={{minHeight:64,flexDirection:'row',alignItems:'center',gap:22,paddingHorizontal:20}}>
+                      <MaterialIcon name="label" color={palette.accent}/>
+                      <Text style={{flex:1,fontSize:17,color:palette.text}}>{f.name}</Text>
+                      <View style={{width:23,height:23,borderRadius:3,borderWidth:2.1,borderColor:all||some?palette.accent:palette.muted,backgroundColor:all?palette.accent:'transparent',alignItems:'center',justifyContent:'center'}}>
+                        {all?<Svg width={17} height={17} viewBox="0 0 24 24"><Path d="M4 12l5 5L20 6" fill="none" stroke={keepForeground(palette.accent)} strokeWidth={3} strokeLinecap="round" strokeLinejoin="round"/></Svg>:some?<View style={{width:11,height:3,backgroundColor:palette.accent,borderRadius:1}}/>:null}
+                      </View>
+                    </Pressable>;
+                  })}
+                  {labelQuery.trim().length>0&&!folders.some(f=>f.name.toLocaleLowerCase()===labelQuery.trim().toLocaleLowerCase())&&
+                    <Pressable accessibilityRole="button" accessibilityLabel={'Create and assign label '+labelQuery.trim()} onPress={()=>{
+                      const name=labelQuery.trim();if(!name)return;
+                      const newId=id();setFolders(fs=>[...fs,{id:newId,name}]);setNotes(ns=>ns.map(note=>selected.includes(note.id)?{...addLabel(note,newId),updatedAt:Date.now()}:note));setLabelQuery('');Keyboard.dismiss();
+                    }} style={{minHeight:60,flexDirection:'row',alignItems:'center',gap:20,paddingHorizontal:20}}>
+                      <MaterialIcon name="+" color={palette.accent}/>
+                      <Text style={{color:palette.text,fontSize:16}}>Create “{labelQuery.trim()}”</Text>
+                    </Pressable>}
+                </ScrollView>
+              </InsetSafeAreaView>
+            </Modal>
 
             {sidebar&&(
               <GestureDetector gesture={Gesture.Pan().activeOffsetX([-40,40]).onEnd(e=>{if(e.translationX<-55)runOnJS(setSidebar)(false);})}>
