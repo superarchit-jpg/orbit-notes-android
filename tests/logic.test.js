@@ -424,6 +424,17 @@ check(richEditor.includes('flatMap(block)')&&richEditor.includes("clear:'removeF
 check(richMarkup.includes("'<ol start="), 'Numbered-list storage should retain semantic ol elements');
 check(!app.includes('<Button label="Close" onPress={()=>setGestureHelp(false)}/>'), 'Guide must not show Close');
 check(!app.includes('<Button label="Cancel" onPress={()=>setColorTarget(null)}/>'), 'Palettes must not show Cancel');
+const keepTheme=read('keepTheme.ts');
+check(app.includes("const DARK={background:KEEP_DARK_BACKGROUND")&&keepTheme.includes("KEEP_DARK_SELECTED='#ADC3F9'"),'Dark mode must use the blue reference palette');
+check(app.includes("selectedSidebarColor=darkSelection?'#AFC3F9'")&&app.includes('selectedSidebarText'),'Dark selected navigation must use a blue highlight with contrasting text');
+check(app.includes('displayKeepColor(mapPrefs.cardColors[n.id],effectiveTheme,palette.surface)')&&app.includes('keepChipStyle(displayKeepColor('),'Cards and label chips must adapt to Dark mode');
+check(app.includes('displayKeepColor(mapPrefs.colors[n.id],effectiveTheme')&&app.includes('noteDisplayColor'),'Node and note colors must adapt to Dark mode');
+check(app.includes('visible={moveFolderMenu} animationType="slide"')&&app.includes('accessibilityRole="checkbox"')&&app.includes('Search or create labels'),'Label assignment must use searchable checkbox modal');
+check(app.includes("selected.includes(note.id)?{...addLabel(note,newId)"),'Label creation must assign new label to the selected maps');
+check(app.includes('if(name===\'restoreIcon\')return <Svg')&&app.includes('fill={color}'),'Restore must use a filled history-clock icon');
+check(app.includes("name==='format'")&&app.includes("name==='clearFormat'"),'Editor must use underlined-A and slashed-T reference icons');
+check(!app.includes('accessibilityLabel="Unarchive map"'),'Unarchive must not appear as a standalone card action');
+console.log('PASS: Google Keep video-reference styling, controls and icons');
 console.log('PASS: outstanding correction functional wiring guards');
 
 console.log(
