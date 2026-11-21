@@ -55,7 +55,7 @@ const ICON_PATHS:Record<string,string>={
   'sort':'M4 6h12M4 12h9M4 18h6M19 6v12m-3-3 3 3 3-3',
   'pin':'M8 3h8v2l-1.5 2v5l3 3v1H6v-1l3-3V7L8 5zM12 16v6',
   'label':'M4 5h11l6 7-6 7H4a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2zM7 12h.01',
-  'archive':'M3 4h18v5H3zM5 10h14v10H5zM9 14h6',
+  'archive':'M3 4h18v5H3zM5 10h14v10H5zM12 12v6m-3-3 3 3 3-3',
   'unarchive':'M3 4h18v5H3zM5 10h14v10H5zM9 16h6M12 11v8m-4-4 4-4 4 4',
   'exportIcon':'M12 3v12m-5-5 5 5 5-5M5 17v4h14v-4',
   'readIcon':'M4 4h16v16H4zM8 9h8M8 13h8M8 17h5',
@@ -97,11 +97,11 @@ const IconButton=({label,onPress,danger=false,active=false,accessibilityLabel}:{
   </Pressable>;
 };
 
-const ActionRow=({label,icon,onPress,danger=false}:{label:string;icon:string;onPress:()=>void;danger?:boolean})=>{
+const ActionRow=({label,icon,onPress,danger=false}:{label:string;icon?:string;onPress:()=>void;danger?:boolean})=>{
   const theme=React.useContext(PaletteContext);
   const foreground=danger?'#dc2626':theme.text;
   return <Pressable accessibilityRole="button" accessibilityLabel={label} onPress={onPress} style={{minHeight:52,flexDirection:'row',alignItems:'center',gap:18,paddingHorizontal:14,borderRadius:12}}>
-    <MaterialIcon name={icon} color={foreground}/>
+    {icon&&<MaterialIcon name={icon} color={foreground}/>}
     <Text style={{fontSize:16,color:foreground,flex:1}}>{label}</Text>
   </Pressable>;
 };
@@ -1160,14 +1160,14 @@ if(locked){
           <ActionRow label="Add child" icon="childIcon" onPress={()=>{addChild(nodeActions);setNodeActions(null);}}/>
           <ActionRow label="Move up a level" icon="upLevel" onPress={()=>{reparent(nodeActions,'up');setNodeActions(null);}}/>
           <ActionRow label="Move down a level" icon="downLevel" onPress={()=>{reparent(nodeActions,'down');setNodeActions(null);}}/>
-          {notes.find(n=>n.id===nodeActions)?.parentId==='root'&&<ActionRow icon={mapPrefs.archived.includes(nodeActions)?'unarchive':'archive'} label={mapPrefs.archived.includes(nodeActions)?'Unarchive map':'Archive map'} onPress={()=>{archiveOne(nodeActions,!mapPrefs.archived.includes(nodeActions));setNodeActions(null);setMenu(true);setShowArchive(false);}}/>}
+          {notes.find(n=>n.id===nodeActions)?.parentId==='root'&&<ActionRow icon={mapPrefs.archived.includes(nodeActions)?undefined:'archive'} label={mapPrefs.archived.includes(nodeActions)?'Unarchive map':'Archive map'} onPress={()=>{archiveOne(nodeActions,!mapPrefs.archived.includes(nodeActions));setNodeActions(null);setMenu(true);setShowArchive(false);}}/>}
           <ActionRow label="Delete branch" icon="🗑" danger onPress={()=>{removeBranch(nodeActions);setNodeActions(null);}}/>
           <Button label="Cancel" onPress={()=>setNodeActions(null)}/>
         </View>}
         {mapMenu&&(
           <View style={[styles.popup,{top:'auto',bottom:72,right:12,width:226,backgroundColor:palette.surface,borderColor:palette.border}]}>
             <ActionRow label="Export" icon="exportIcon" onPress={()=>{setMapMenu(false);exportOne('pdf');}}/>
-            {current.parentId==='root'&&<ActionRow icon={mapPrefs.archived.includes(current.id)?'unarchive':'archive'} label={mapPrefs.archived.includes(current.id)?'Unarchive':'Archive'} onPress={()=>{archiveOne(current.id,!mapPrefs.archived.includes(current.id));setMapMenu(false);setMenu(true);setShowArchive(false);}}/>}
+            {current.parentId==='root'&&<ActionRow icon={mapPrefs.archived.includes(current.id)?undefined:'archive'} label={mapPrefs.archived.includes(current.id)?'Unarchive':'Archive'} onPress={()=>{archiveOne(current.id,!mapPrefs.archived.includes(current.id));setMapMenu(false);setMenu(true);setShowArchive(false);}}/>}
             <ActionRow label="Help" icon="helpIcon" onPress={()=>{setGestureHelp(true);setMapMenu(false);}}/>
           </View>
         )}
@@ -1688,7 +1688,7 @@ if(locked){
               }}/>
               <ActionRow label="Labels" icon="label" onPress={()=>{setSelected([cardMenuId!]);setCardMenuId(null);setLabelQuery('');setMoveFolderMenu(true);}}/>
               <ActionRow label="Color" icon="palette" onPress={()=>{setSelected([cardMenuId!]);setManualColor(mapPrefs.cardColors[cardMenuId!]||'');setCardMenuId(null);setColorTarget('cards');}}/>
-              <ActionRow label={showArchive?'Unarchive':'Archive'} icon={showArchive?'unarchive':'archive'} onPress={()=>{archiveOne(cardMenuId!,!showArchive);setCardMenuId(null);}}/>
+              <ActionRow label={showArchive?'Unarchive':'Archive'} icon={showArchive?undefined:'archive'} onPress={()=>{archiveOne(cardMenuId!,!showArchive);setCardMenuId(null);}}/>
               <ActionRow label="Export PDF" icon="exportIcon" onPress={()=>{exportOne('pdf',cardMenuId!);setCardMenuId(null);}}/>
               <View style={{height:1,backgroundColor:palette.border,marginVertical:3}}/>
               <ActionRow label="Delete" icon="🗑" danger onPress={()=>{removeBranch(cardMenuId!);setCardMenuId(null);}}/>
@@ -1701,7 +1701,7 @@ if(locked){
             </View>}
             {selectionMenu&&selected.length>0&&(
               <View style={[styles.popup,{top:56,right:12,left:undefined,bottom:undefined,width:236,backgroundColor:palette.surface,borderColor:palette.border,zIndex:32}]}>
-                <ActionRow icon={showArchive?'unarchive':'archive'} label={showArchive?'Unarchive':'Archive'} onPress={()=>archiveSelection(!showArchive)}/>
+                <ActionRow icon={showArchive?undefined:'archive'} label={showArchive?'Unarchive':'Archive'} onPress={()=>archiveSelection(!showArchive)}/>
                 <ActionRow label="Export" icon="exportIcon" onPress={()=>{setSelectionMenu(false);exportSelected();}}/>
                 <View style={{height:1,backgroundColor:palette.border,marginVertical:4}}/>
                 <ActionRow label="Delete" icon="🗑" danger onPress={()=>{setSelectionMenu(false);deleteSelected();}}/>
@@ -1780,7 +1780,7 @@ if(locked){
                     {folders.map(item=>(
                       <Pressable key={item.id} accessibilityRole="button" accessibilityLabel={'Filter '+item.name} onPress={()=>{setFolderFilter(item.id);setShowTrash(false);setShowArchive(false);setSidebar(false);}} style={{flexDirection:'row',alignItems:'center',gap:14,padding:12,borderRadius:28,backgroundColor:folderFilter===item.id?selectedSidebarColor:'transparent'}}>
                         <MaterialIcon name="label" color={folderFilter===item.id?selectedSidebarText:palette.text}/>
-                        <Text style={{color:palette.text,flex:1}}>{item.name}</Text>
+                        <Text style={{color:folderFilter===item.id?selectedSidebarText:palette.text,flex:1}}>{item.name}</Text>
                       </Pressable>
                     ))}
                   </>}
@@ -1944,7 +1944,7 @@ if(locked){
                             <Path d="M12 16v6" stroke={palette.accent} strokeWidth={2} strokeLinecap="round"/>
                           </Svg>
                         </Pressable>}
-                      {showArchive&&selected.length===0&&<Pressable accessibilityRole="button" accessibilityLabel="Unarchive map" onPress={()=>archiveOne(n.id,false)} style={{flexDirection:'row',alignItems:'center',alignSelf:'flex-start',gap:7,minHeight:42,paddingHorizontal:7}}><MaterialIcon name="unarchive" color={palette.accent}/><Text style={{color:palette.accent,fontWeight:'600'}}>Unarchive</Text></Pressable>}
+
                     </Pressable>
                   ))}
                     </View>
