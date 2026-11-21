@@ -257,7 +257,7 @@ check(app.includes('setTrash(t=>mapPrefs.trashRetentionAcknowledged?pruneTrash([
 check(app.includes('setTimeout(()=>{setUndoOpen(false)')&&app.includes('},5000)'), 'Undo notification must auto-dismiss after five seconds');
 check(app.includes('remain recoverable for seven days before permanent removal'), 'Retention information must be shown during deletion');
 check(app.includes('accessibilityLabel="Restore selected deleted maps"')&&app.includes("label={selectedTrash.length?'Delete forever':'Empty bin'}"), 'Deleted header selection and empty-bin controls must remain available');
-check(app.includes('label="Tx" accessibilityLabel="Remove formatting"')&&richEditor.includes("clear:'removeFormat'"), 'Remove formatting must be available in the local rich editor');
+check(app.includes('label="clearFormat" accessibilityLabel="Remove formatting"')&&richEditor.includes("clear:'removeFormat'"), 'Remove formatting must be available in the local rich editor');
 check(app.includes('accessibilityLabel="Edit labels"')&&app.includes('accessibilityLabel="Rename label"'), 'Label-management flow must support inline rename');
 check(app.includes('label="parentNote" accessibilityLabel="Go to parent note"')&&app.includes('label="centerFocus" accessibilityLabel="Center focused note"'), 'Map quick actions must use accessible vector icons');
 check(!app.includes('permanently deleted after the five-second Undo period'), 'Branch deletion must not bypass seven-day recovery');
@@ -265,7 +265,7 @@ console.log('PASS: Stage 4 correction regression guards');
 
 // REF-01 through REF-07: approved interaction parity without new note backgrounds.
 for(const marker of [
-  "const ActionRow=", "icon={showArchive?'unarchive':'archive'}",
+  "const ActionRow=", "icon={showArchive?undefined:'archive'}",
   'accessibilityLabel="Edit labels"', 'accessibilityRole="checkbox"',
   'selected.includes(n.id)?3:1', 'labelIds(n).map(',
   'accessibilityLabel="Restore selected deleted maps"',
