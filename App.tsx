@@ -1,6 +1,6 @@
 import React,{useEffect,useMemo,useState,useRef} from 'react';
 import {Alert,AppState,BackHandler,Dimensions,KeyboardAvoidingView,useColorScheme,Modal,Platform,Pressable,ScrollView,Keyboard,StatusBar,StyleSheet,Text,TextInput,View} from 'react-native';
-import Svg,{Line,Circle,Rect,Path} from 'react-native-svg';
+import Svg,{Line,Circle,Rect,Path,Text as SvgText} from 'react-native-svg';
 import {SafeAreaProvider,SafeAreaView as InsetSafeAreaView} from 'react-native-safe-area-context';
 import {Gesture,GestureDetector,GestureHandlerRootView} from 'react-native-gesture-handler';
 import Animated,{FadeInLeft,FadeOutLeft,runOnJS,useAnimatedReaction,useAnimatedStyle,useSharedValue,withTiming} from 'react-native-reanimated';
@@ -18,6 +18,7 @@ import {formatSelection,parseRichLine} from './noteFormatting';
 import RichNoteEditor,{RichNoteEditorHandle,RichEditorState} from './RichNoteEditor';
 import {labelIds,addLabel,removeLabel,hasLabel,normalizeLabels} from './labels';
 import {matchesMapQuery} from './librarySearch';
+import {KEEP_LIGHT_PRESETS,KEEP_DARK_SELECTED,KEEP_DARK_SURFACE,KEEP_DARK_BACKGROUND,displayKeepColor,swatchKeepColor,keepForeground,keepChipStyle} from './keepTheme';
 
 const SafeAreaView=InsetSafeAreaView;
 const W=Dimensions.get('window').width,H=Dimensions.get('window').height;
@@ -26,10 +27,10 @@ const initial:Note[]=[{id:'root',parentId:null,title:'My Notes',body:'',updatedA
 type Folder={id:string;name:string};
 const stamp=(t:number)=>new Date(t).toLocaleString();
 const id=()=>`${Date.now()}-${Math.random().toString(36).slice(2,8)}`;
-const LIGHT={background:'#ffffff',surface:'#ffffff',control:'#e8eef7',text:'#202124',muted:'#5f6368',border:'#dadce0',accent:'#52658e',canvas:'#ffffff',node:'#e8eef7',subnode:'#f4f6fa',connector:'#9aa4b4'};
-const DARK={background:'#202124',surface:'#292a2d',control:'#3c4043',text:'#e8eaed',muted:'#bdc1c6',border:'#5f6368',accent:'#a8c7fa',canvas:'#202124',node:'#414852',subnode:'#363a41',connector:'#80868b'};
+const LIGHT={background:'#ECEEFF',surface:'#FAF9FF',control:'#F8F7FD',text:'#24334F',muted:'#626D89',border:'#A7B3D0',accent:'#52658E',canvas:'#F7F8FF',node:'#DDE6F9',subnode:'#F0F3FC',connector:'#909AB4'};
+const DARK={background:KEEP_DARK_BACKGROUND,surface:KEEP_DARK_SURFACE,control:'#212A47',text:'#F1F3FE',muted:'#A9B2CD',border:'#536080',accent:KEEP_DARK_SELECTED,canvas:'#11182A',node:'#293751',subnode:'#1B293E',connector:'#7B86A5'};
 const PaletteContext=React.createContext(LIGHT);
-const CARD_PALETTE=['#ffffff','#FAAFA9','#F29F75','#FFF8B9','#E2F6D3','#B4DED4','#D5E3EE','#AFCCDC','#D3BFDB','#F5E2DC','#E9E3D3','#EFEFF1'];
+const CARD_PALETTE=[...KEEP_LIGHT_PRESETS];
 
 const Button=({label,onPress,primary=false,danger=false,active=false}:{label:string;onPress:()=>void;primary?:boolean;danger?:boolean;active?:boolean})=>{const palette=React.useContext(PaletteContext);return <Pressable accessibilityRole="button" accessibilityLabel={label} onPress={onPress} style={[styles.button,{backgroundColor:active?palette.control:'transparent'},primary&&{backgroundColor:palette.accent}]}><Text style={[styles.buttonText,{color:danger?'#dc2626':active?palette.accent:palette.text},primary&&{color:'white'}]}>{label==='🗑'?<Svg width={23} height={23} viewBox="0 0 24 24"><Line x1={4} y1={7} x2={20} y2={7} stroke="#dc2626" strokeWidth={1.8}/><Line x1={9} y1={4} x2={15} y2={4} stroke="#dc2626" strokeWidth={1.8}/><Rect x={6} y={7} width={12} height={14} rx={2} stroke="#dc2626" strokeWidth={1.8} fill="none"/><Line x1={10} y1={11} x2={10} y2={17} stroke="#dc2626" strokeWidth={1.5}/><Line x1={14} y1={11} x2={14} y2={17} stroke="#dc2626" strokeWidth={1.5}/></Svg>:label}</Text></Pressable>;}
 
@@ -64,11 +65,11 @@ const ICON_PATHS:Record<string,string>={
   'helpIcon':'M12 18h.01M9.5 9a2.5 2.5 0 1 1 4.4 1.7c-1.3 1.6-1.9 1.6-1.9 3.3M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20z',
   'allMaps':'M4 4h7v7H4zM13 4h7v7h-7zM4 13h7v7H4zM13 13h7v7h-7z',
   'settingsIcon':'M10 2h4l.7 2.3 1.5.7 2.2-1.2 2.8 2.8-1.2 2.2.7 1.5L22 11v3l-2.3.7-.7 1.5 1.2 2.2-2.8 2.8-2.2-1.2-1.5.7L14 23h-4l-.7-2.3-1.5-.7-2.2 1.2-2.8-2.8L4 16.2l-.7-1.5L1 14v-3l2.3-.7L4 8.8 2.8 6.6l2.8-2.8L7.8 5l1.5-.7L10 2zM12 8a4 4 0 1 0 0 8 4 4 0 0 0 0-8',
-  'format':'M4 5h16M4 11h16M4 17h10M17 15l4 4m0-4-4 4',
+  'format':'M4 20h16',
   'centerFocus':'M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20z',
   'parentNote':'M12 3a3 3 0 1 0 0 6 3 3 0 0 0 0-6zM6 13c0-5 12-5 12 0v2H6zM12 15v3M4 18h16M4 18v2M12 18v2M20 18v2',
   'miniMapIcon':'M5 12h14M12 5v14M12 12m-7 5-2 2m16-2 2 2M12 5a3 3 0 1 0 0 6M5 16a2 2 0 1 0 0 4M19 16a2 2 0 1 0 0 4',
-  'restoreIcon':'M3 11v-7h7M3 4l6 6M4 13a8 8 0 1 0 7-9',
+  'restoreIcon':'M13 3c-4.97 0-9 4.03-9 9H1l4 4 4-4H6c0-3.87 3.13-7 7-7s7 3.13 7 7-3.13 7-7 7c-1.93 0-3.68-.79-4.95-2.05l-1.42 1.42C8.26 20 10.51 21 13 21c4.97 0 9-4.03 9-9s-4.03-9-9-9zm-1 5v5l4.25 2.52.77-1.28-3.52-2.09V8H12z',
   'gridView':'M3 3h8v8H3zM13 3h8v8h-8zM3 13h8v8H3zM13 13h8v8h-8z',
   'palette':'M12 3a9 9 0 1 0 0 18h1.2c1.1 0 1.9-.9 1.9-2 0-.7-.4-1.3-.8-1.8-.3-.4-.5-.8-.5-1.3 0-1.1.9-2 2-2H19A7 7 0 0 0 12 3zM6.9 12h.01M8.5 7.9h.01M13.4 6.8h.01M17.1 9.4h.01',
   'collapseBranch':'M5 12h14M12 5l7 7-7 7',
@@ -77,6 +78,9 @@ const ICON_PATHS:Record<string,string>={
   'numbers':'M9 6h12M9 12h12M9 18h12M3 4h2v4M3 12h2l-2 3h2M3 17h2v4H3'
 };
 const MaterialIcon=({name,color}:{name:string;color:string})=>{
+  if(name==='restoreIcon')return <Svg width={25} height={25} viewBox="0 0 24 24"><Path d={ICON_PATHS.restoreIcon} fill={color}/></Svg>;
+  if(name==='format')return <Svg width={25} height={25} viewBox="0 0 24 24"><SvgText x={5} y={17} fontSize={17} fontWeight="bold" fill={color}>A</SvgText><Line x1={4} y1={20} x2={20} y2={20} stroke={color} strokeWidth={2}/></Svg>;
+  if(name==='clearFormat')return <Svg width={25} height={25} viewBox="0 0 24 24"><SvgText x={4} y={18} fontSize={18} fontWeight="bold" fill={color}>T</SvgText><Line x1={4} y1={20} x2={21} y2={3} stroke={color} strokeWidth={2.5} strokeLinecap="round"/></Svg>;
   if(['bold','italic','underline'].includes(name))return <Text style={{fontSize:21,color,fontWeight:name==='bold'?'900':'600',fontStyle:name==='italic'?'italic':'normal',textDecorationLine:name==='underline'?'underline':'none'}}>{name==='bold'?'B':name==='italic'?'I':'U'}</Text>;
   const data=ICON_PATHS[name];
   return data?<Svg width={23} height={23} viewBox="0 0 24 24"><Path d={data} fill="none" stroke={color} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"/>{name==='centerFocus'&&<Circle cx={12} cy={12} r={3.6} fill={color}/>}</Svg>:<Text style={{fontSize:name==='Fit'?14:22,color,fontWeight:'700'}}>{name}</Text>;
@@ -118,6 +122,11 @@ const [colorTarget,setColorTarget]=useState<'cards'|'note'|'node'|null>(null);
 const deviceTheme=useColorScheme();
 const effectiveTheme=mapPrefs.themeMode==='system'?(deviceTheme==='dark'?'dark':'light'):mapPrefs.theme;
 const palette=effectiveTheme==='dark'?DARK:LIGHT;
+const darkSelection=effectiveTheme==='dark';
+const selectedSidebarColor=darkSelection?'#AFC3F9':'#FEF3C7';
+const selectedSidebarText=darkSelection?'#172441':palette.text;
+const noteDisplayColor=displayKeepColor(mapPrefs.noteColors[reader||''],effectiveTheme,palette.background);
+const noteDisplayText=keepForeground(noteDisplayColor);
 const [showMiniMap,setShowMiniMap]=useState(false);
 const [gestureHelp,setGestureHelp]=useState(false);
 const [nodeActions,setNodeActions]=useState<string|null>(null);
@@ -1602,7 +1611,7 @@ if(locked){
                     <IconButton label="bold" active={editorFormats.bold} accessibilityLabel="Bold text" onPress={()=>applyNoteFormat('bold')}/>
                     <IconButton label="italic" active={editorFormats.italic} accessibilityLabel="Italic text" onPress={()=>applyNoteFormat('italic')}/>
                     <IconButton label="underline" active={editorFormats.underline} accessibilityLabel="Underline text" onPress={()=>applyNoteFormat('underline')}/>
-                    <IconButton label="Tx" accessibilityLabel="Remove formatting" onPress={()=>applyNoteFormat('clear')}/>
+                    <IconButton label="clearFormat" accessibilityLabel="Remove formatting" onPress={()=>applyNoteFormat('clear')}/>
                     <IconButton label="×" accessibilityLabel="Close formatting toolbar" onPress={()=>setFormatToolbar(false)}/>
                   </View>}
                   <View style={{flexDirection:'row',alignItems:'center',gap:5}}>
