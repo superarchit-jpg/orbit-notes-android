@@ -291,7 +291,7 @@ for(const token of [
   'mapPreview(batch.notes.find(n=>n.parentId',
   "previewNotes:Note[]=notes",
   "accessibilityLabel={'Restore '+",
-  'accessibilityLabel="Unarchive map"',
+  "label={showArchive?'Unarchive':'Archive'}",
   'borderBottomColor:palette.border,backgroundColor:editingFolderId'
 ]) check(app.includes(token),'Missing visible REF recovery/label UI: '+token);
 console.log('PASS: REF Deleted recovery previews, action affordances and label edit states');
