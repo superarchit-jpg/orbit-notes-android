@@ -408,7 +408,7 @@ check(
 
 check(
   exp.includes('export async function exportMultipleMapsPDF') &&
-  exp.includes('roots.map(root=>pdfMapPage(root,notes))') &&
+  exp.includes('roots.map(root=>pdfMapPage(root,notes,colors,theme))') &&
   exp.includes("pages.join('')") &&
   app.includes('await exportMultipleMapsPDF(notes.filter(n=>selected.includes(n.id)),notes,mapPrefs.colors,effectiveTheme)'),
   'Combined PDF export must render every selected map as its own page'
