@@ -1112,7 +1112,15 @@ if(locked){
             style={[styles.input,{backgroundColor:palette.surface,color:palette.text,borderColor:palette.border}]}
           />
           <Button label="Unlock" primary onPress={unlock}/>
-          {biometrics&&<Button label="Use biometrics" onPress={()=>{setCredentialFallback(false);bioPrompted.current=false;}}/>}
+          {biometrics&&<Button label="Use biometrics" onPress={async()=>{
+            setCredentialFallback(false);
+            if(bioPromptInProgress.current)return;
+            bioPromptInProgress.current=true;
+            try{if(await authenticateBiometric()){setLocked(false);setPinInput('');}}
+            catch(e){showDialog('Biometric authentication',String(e));}
+            finally{bioPromptInProgress.current=false;}
+          }}/>}
+
         </>
       )}
     {renderAppDialog()}
