@@ -1,5 +1,5 @@
 /** Settings redesign: UI isolated from stored SQLite data and secure credential material. */
-import React,{useState} from 'react';
+import React,{useEffect,useState} from 'react';
 import {Keyboard,Modal,Pressable,ScrollView,Switch,Text,TextInput,View} from 'react-native';
 import {SafeAreaView} from 'react-native-safe-area-context';
 import Svg,{Path,Circle} from 'react-native-svg';
@@ -18,12 +18,16 @@ type Props={
  onToggleBiometric:(on:boolean)=>Promise<void>;
  onVerify:(oldValue:string)=>Promise<boolean>;
  onSaveCredential:(value:string,kind:CredentialKind)=>Promise<void>;
+ onResetCredential:()=>Promise<void>;
+ onVerifyBiometric:()=>Promise<boolean>;
+ registerBack:(handler:()=>void)=>void;
+ appVersion:string; buildNumber:string;
  onBackup:(kind:'save'|'restore')=>void;
  onLockNow:()=>void;
  onClose:()=>void;
 };
 const glyph=(d:string,color:string)=><Svg width={23} height={23} viewBox="0 0 24 24"><Path d={d} fill="none" stroke={color} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"/></Svg>;
-export default function OrbitSettings({palette,themeMode,onTheme,lockEnabled,configured,selectedKind,biometric,onToggleLock,onToggleBiometric,onVerify,onSaveCredential,onBackup,onLockNow,onClose}:Props){
+export default function OrbitSettings({palette,themeMode,onTheme,lockEnabled,configured,selectedKind,biometric,onToggleLock,onToggleBiometric,onVerify,onSaveCredential,onResetCredential,onVerifyBiometric,registerBack,appVersion,buildNumber,onBackup,onLockNow,onClose}:Props){
  const [page,setPage]=useState<Page>('home');
  const [credentialModal,setCredentialModal]=useState<CredentialKind|null>(null);
  const [stage,setStage]=useState<Stage>('new');
@@ -33,8 +37,12 @@ export default function OrbitSettings({palette,themeMode,onTheme,lockEnabled,con
  const [message,setMessage]=useState('');
  const [busy,setBusy]=useState(false);
  const [showSecret,setShowSecret]=useState(false);
+ const [pendingFirstSetup,setPendingFirstSetup]=useState(false);
+ const [securityAction,setSecurityAction]=useState<'change'|'toggle'|'reset'>('change');
+ const [requestedLockState,setRequestedLockState]=useState<boolean|null>(null);
  const goBack=()=>{if(credentialModal){setCredentialModal(null);setMessage('');Keyboard.dismiss();return;}if(page!=='home'){setPage('home');setMessage('');return;}onClose();};
- const openCredential=(kind:CredentialKind)=>{setCredentialModal(kind);setStage(configured?'verify':'new');setOldValue('');setNewValue('');setConfirmValue('');setShowSecret(false);setMessage('');};
+ useEffect(()=>{registerBack(goBack);},[page,credentialModal]);
+ const openCredential=(kind:CredentialKind)=>{setSecurityAction('change');setCredentialModal(kind);setStage(configured?'verify':'new');setOldValue('');setNewValue('');setConfirmValue('');setShowSecret(false);setMessage('');};
  const submit=async()=>{
   if(!credentialModal||busy)return;
   const kind=credentialModal;
@@ -50,9 +58,23 @@ export default function OrbitSettings({palette,themeMode,onTheme,lockEnabled,con
    return;
   }
   setBusy(true);
-  try{if(await onVerify(oldValue)){setStage('new');setMessage('');setOldValue('');}else setMessage('Incorrect existing PIN or password.');}
+  try{if(await onVerify(oldValue)){
+    if(securityAction==='reset'){await onResetCredential();setPendingFirstSetup(false);setCredentialModal(null);}
+    else if(securityAction==='toggle'&&requestedLockState!==null){await onToggleLock(requestedLockState);setCredentialModal(null);}
+    else setStage('new');
+    setMessage('');setOldValue('');
+   }else setMessage('Incorrect existing PIN or password.');}
   catch(e){setMessage(String(e));}finally{setBusy(false);}
  };
+ const requestLockChange=(enabled:boolean)=>{
+  if(!configured){setPendingFirstSetup(enabled);return;}
+  setSecurityAction('toggle');setRequestedLockState(enabled);setCredentialModal(selectedKind);setStage('verify');setOldValue('');setMessage('');
+ };
+ const requestReset=()=>{setSecurityAction('reset');setCredentialModal(selectedKind);setStage('verify');setOldValue('');setMessage('');};
+ const verifyWithBiometrics=async()=>{if(busy)return;setBusy(true);try{if(!await onVerifyBiometric()){setMessage('Biometric verification was not successful.');return;}
+  if(securityAction==='reset'){await onResetCredential();setPendingFirstSetup(false);}else if(securityAction==='toggle'&&requestedLockState!==null){await onToggleLock(requestedLockState);}else {setStage('new');return;}
+  setCredentialModal(null);setMessage('');
+ }catch(e){setMessage(String(e));}finally{setBusy(false);}};
  const text={color:palette.text,fontSize:16};
  const detail={color:palette.muted,fontSize:12};
  const label=(value:string)=><Text style={{color:palette.muted,fontWeight:'600',fontSize:12,letterSpacing:0.4}}>{value}</Text>;
@@ -86,22 +108,22 @@ export default function OrbitSettings({palette,themeMode,onTheme,lockEnabled,con
     <View style={{flexDirection:'row',alignItems:'center',minHeight:52,justifyContent:'space-between'}}>
      <Text style={[text,{fontWeight:'600'}]}>App Lock</Text>
      <Switch accessibilityLabel="Enable app lock" value={lockEnabled} trackColor={{false:palette.border,true:palette.accent}} thumbColor="#ffffff" onValueChange={async enabled=>{
-       if(enabled&&!configured){openCredential(selectedKind);return;}
-       try{await onToggleLock(enabled);setMessage('');}catch(e){setMessage(String(e));}
+       requestLockChange(enabled);
      }}/>
     </View>
-    {lockEnabled&&<>
+    {(lockEnabled||pendingFirstSetup)&&<>
      {divider}
      {(['pin','password'] as const).map(kind=><View key={kind} style={{flexDirection:'row',alignItems:'center',minHeight:56,gap:16}}>
       <Text style={[text,{flex:1}]}>{kind==='pin'?'PIN':'Password'}</Text>
-      <Pressable accessibilityRole="radio" accessibilityState={{selected:kind===selectedKind}} accessibilityLabel={kind==='pin'?'Select PIN':'Select Password'} onPress={()=>openCredential(kind)} style={{padding:9}}><Svg width={23} height={23} viewBox="0 0 24 24"><Circle cx={12} cy={12} r={9} stroke={kind===selectedKind?palette.accent:palette.muted} fill="none" strokeWidth={2}/>{kind===selectedKind&&<Circle cx={12} cy={12} r={5} fill={palette.accent}/>}</Svg></Pressable>
+      <Pressable accessibilityRole="radio" accessibilityState={{selected:configured&&kind===selectedKind}} accessibilityLabel={kind==='pin'?'Select PIN':'Select Password'} onPress={()=>openCredential(kind)} style={{padding:9}}><Svg width={23} height={23} viewBox="0 0 24 24"><Circle cx={12} cy={12} r={9} stroke={configured&&kind===selectedKind?palette.accent:palette.muted} fill="none" strokeWidth={2}/>{configured&&kind===selectedKind&&<Circle cx={12} cy={12} r={5} fill={palette.accent}/>}</Svg></Pressable>
       <Pressable accessibilityRole="button" accessibilityLabel={kind==='pin'?'Configure PIN':'Configure Password'} onPress={()=>openCredential(kind)} style={{padding:9}}>{glyph('m9 18 6-6-6-6',palette.text)}</Pressable>
      </View>)}
      {divider}
-     <View style={{flexDirection:'row',alignItems:'center',minHeight:58,justifyContent:'space-between'}}>
+     {lockEnabled&&<View style={{flexDirection:'row',alignItems:'center',minHeight:58,justifyContent:'space-between'}}>
       <Text style={text}>Biometric Unlock</Text>
       <Switch accessibilityLabel="Biometric Unlock" value={biometric} trackColor={{false:palette.border,true:palette.accent}} thumbColor="#ffffff" onValueChange={async enabled=>{try{await onToggleBiometric(enabled);setMessage('');}catch(e){setMessage(String(e));}}}/>
-     </View>
+     </View>}
+     {configured&&<Pressable accessibilityRole="button" accessibilityLabel="Reset security credentials" onPress={requestReset} style={{minHeight:48,justifyContent:'center'}}><Text style={{color:palette.text,fontWeight:'600'}}>Reset</Text></Pressable>}
      {divider}
      <Pressable accessibilityRole="button" accessibilityLabel="Lock now" onPress={onLockNow} style={{minHeight:52,borderRadius:14,alignItems:'center',justifyContent:'center',backgroundColor:palette.control}}>
        <Text style={[text,{fontWeight:'600'}]}>Lock now</Text>
@@ -115,6 +137,7 @@ export default function OrbitSettings({palette,themeMode,onTheme,lockEnabled,con
    </>:<View style={{alignItems:'center',padding:20,gap:10}}>
      <Text style={{fontSize:23,fontWeight:'600',color:palette.text}}>Orbit Notes</Text>
      <Text style={{fontSize:14,color:palette.muted}}>Android · Offline</Text>
+     <Text style={{fontSize:14,color:palette.muted}}>Version {appVersion} · Build {buildNumber}</Text>
     </View>}
   </ScrollView>
   <Modal visible={credentialModal!==null} transparent animationType="fade" onRequestClose={()=>{if(!busy)setCredentialModal(null);}}>
@@ -122,17 +145,18 @@ export default function OrbitSettings({palette,themeMode,onTheme,lockEnabled,con
     <Pressable style={{position:'absolute',top:0,bottom:0,left:0,right:0}} accessibilityLabel="Dismiss credential setup" onPress={()=>{if(!busy)setCredentialModal(null);}}/>
     <View style={{padding:22,gap:18,borderRadius:26,backgroundColor:palette.surface}}>
      <Text style={{fontSize:20,fontWeight:'600',color:palette.text}}>{credentialModal==='pin'?'PIN':'Password'}</Text>
-     <Text style={{color:palette.muted,fontSize:14}}>{stage==='verify'?'Enter the existing PIN or password.':stage==='new'?'Enter a new '+(credentialModal==='pin'?'PIN.':'password.'):'Confirm the new '+(credentialModal==='pin'?'PIN.':'password.')}</Text>
+     <Text style={{color:palette.muted,fontSize:14}}>{stage==='verify'?'Enter the existing '+(selectedKind==='pin'?'PIN.':'password.'):stage==='new'?'Enter a new '+(credentialModal==='pin'?'PIN.':'password.'):'Confirm the new '+(credentialModal==='pin'?'PIN.':'password.')}</Text>
      <View style={{flexDirection:'row',gap:6,alignItems:'center'}}>
-      <TextInput accessibilityLabel={stage==='verify'?'Existing credential':stage==='new'?'New credential':'Confirm new credential'} value={stage==='verify'?oldValue:stage==='new'?newValue:confirmValue}
+      <TextInput accessibilityLabel={stage==='verify'?(selectedKind==='pin'?'Existing PIN':'Existing Password'):stage==='new'?'New credential':'Confirm new credential'} value={stage==='verify'?oldValue:stage==='new'?newValue:confirmValue}
        onChangeText={stage==='verify'?setOldValue:stage==='new'?setNewValue:setConfirmValue}
        secureTextEntry={!showSecret} keyboardType={stage==='verify'?(selectedKind==='pin'?'number-pad':'default'):(credentialModal==='pin'?'number-pad':'default')}
-       autoCapitalize="none" autoCorrect={false} placeholder={stage==='verify'?'Existing credential':stage==='new'?'New credential':'Confirm credential'}
+       autoCapitalize="none" autoCorrect={false} placeholder={stage==='verify'?(selectedKind==='pin'?'Existing PIN':'Existing Password'):stage==='new'?'New credential':'Confirm credential'}
        placeholderTextColor={palette.muted} style={{flex:1,minHeight:52,borderWidth:1,borderColor:palette.border,borderRadius:12,paddingHorizontal:12,color:palette.text,backgroundColor:palette.background,fontSize:16}}/>
       <Pressable accessibilityRole="button" accessibilityLabel={showSecret?'Hide credential':'Show credential'} onPress={()=>setShowSecret(v=>!v)} style={{padding:9}}>{glyph('M2 12s4-7 10-7 10 7 10 7-4 7-10 7S2 12 2 12zM12 9a3 3 0 1 0 0 6 3 3 0 0 0 0-6',palette.text)}</Pressable>
      </View>
      {!!message&&<Text style={{color:'#DC4444',fontSize:13}}>{message}</Text>}
      <View style={{flexDirection:'row',justifyContent:'flex-end',alignItems:'center',gap:8}}>
+      {stage==='verify'&&<Pressable accessibilityRole="button" accessibilityLabel="Verify with biometrics" onPress={verifyWithBiometrics} disabled={busy} style={{padding:12}}><Text style={{color:palette.text}}>Biometrics</Text></Pressable>}
       <Pressable accessibilityRole="button" accessibilityLabel="Cancel credential change" onPress={()=>{if(!busy)setCredentialModal(null);}} style={{padding:12}}><Text style={{color:palette.text}}>Cancel</Text></Pressable>
       <Pressable accessibilityRole="button" accessibilityLabel={stage==='confirm'?'Save credential':'Continue credential setup'} onPress={submit} disabled={busy} style={{padding:12,borderRadius:14,backgroundColor:palette.accent,opacity:busy?0.5:1}}><Text style={{color:'#15233B',fontWeight:'600'}}>{stage==='confirm'?'Save':'Continue'}</Text></Pressable>
      </View>
