@@ -433,7 +433,7 @@ check(richMarkup.includes("'<ol start="), 'Numbered-list storage should retain s
 check(!app.includes('<Button label="Close" onPress={()=>setGestureHelp(false)}/>'), 'Guide must not show Close');
 check(!app.includes('<Button label="Cancel" onPress={()=>setColorTarget(null)}/>'), 'Palettes must not show Cancel');
 const keepTheme=read('keepTheme.ts');
-check(app.includes("const DARK={background:KEEP_DARK_BACKGROUND")&&keepTheme.includes("KEEP_DARK_SELECTED='#ADC3F9'"),'Dark mode must use the blue reference palette');
+check(themeTokens.includes("export const DARK={background:KEEP_DARK_BACKGROUND")&&keepTheme.includes("KEEP_DARK_SELECTED='#ADC3F9'"),'Dark mode must use the blue reference palette');
 check(app.includes("selectedSidebarColor=darkSelection?'#AFC3F9'")&&app.includes('selectedSidebarText'),'Dark selected navigation must use a blue highlight with contrasting text');
 check(app.includes('displayKeepColor(mapPrefs.cardColors[n.id],effectiveTheme,palette.surface)')&&app.includes('keepChipStyle(displayKeepColor('),'Cards and label chips must adapt to Dark mode');
 check(app.includes('displayKeepColor(mapPrefs.colors[n.id],effectiveTheme')&&app.includes('noteDisplayColor'),'Node and note colors must adapt to Dark mode');
@@ -455,7 +455,7 @@ check(deletedViewer.includes('Gesture.Simultaneous(pan,pinch,rotate)')&&deletedV
 check(!app.includes('Deleted {stamp(batch.deletedAt)}')&&!app.includes("accessibilityLabel={'Restore '+"),'Deleted cards must not show timestamp or restore controls');
 check(app.includes("width:mapPrefs.viewMode==='grid'?'48.2%':'100%'"),'Deleted list/grid layout must follow library preference');
 check(app.includes('miniRotationStyle')&&app.includes('<Animated.View style={miniRotationStyle}>'),'Mini-map must rotate with the main map');
-check(app.includes("'allMaps':'M5 12L20 2M5 12H20M5 12L20 22'"),'Approved LIB-03 icon required');
+check(iconPaths.includes("'allMaps':'M5 12L20 2M5 12H20M5 12L20 22'"),'Approved LIB-03 icon required');
 check(richEditor.includes('Empty formatted spans are editor artifacts'),'Rich editor must preserve blank lines without formatting tokens');
 console.log('PASS: REG-07, DEL-05/06, COL-03, MAP-11 and EDT-04 source regression guards');
 console.log('PASS: Google Keep video-reference styling, controls and icons');
