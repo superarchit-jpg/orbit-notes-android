@@ -5,9 +5,9 @@ import WebView from 'react-native-webview';
 import {markupToHtml} from './richTextMarkup';
 export {markupToHtml} from './richTextMarkup';
 
-export type RichEditorAction='bold'|'italic'|'underline'|'bullets'|'numbers'|'clear';
+export type RichEditorAction='bold'|'italic'|'underline'|'bullets'|'numbers'|'clear'|'undo'|'redo';
 export type RichNoteEditorHandle={format:(action:RichEditorAction)=>void};
-export type RichEditorState={bold:boolean;italic:boolean;underline:boolean;bullets:boolean;numbers:boolean};
+export type RichEditorState={bold:boolean;italic:boolean;underline:boolean;bullets:boolean;numbers:boolean;canUndo:boolean;canRedo:boolean};
 type Props={initialText:string;onChangeText:(text:string)=>void;onFormatStateChange?:(state:RichEditorState)=>void;dark:boolean;textColor:string;backgroundColor:string};
 
 const RichNoteEditor=forwardRef<RichNoteEditorHandle,Props>(function RichNoteEditor({initialText,onChangeText,onFormatStateChange,dark,textColor,backgroundColor},ref){
@@ -26,7 +26,10 @@ html,body{margin:0;padding:0;background:${background};color:${color};font-family
 </style></head><body><main id="editor" contenteditable="true" role="textbox" aria-label="Note content"></main>
 <script>(function(){
 const editor=document.getElementById('editor');editor.innerHTML=${safeContent};
-let selectionRange=null;
+let selectionRange=null;let undoStack=[],redoStack=[];let lastSnapshot=editor.innerHTML;
+function historyState(){window.ReactNativeWebView.postMessage(JSON.stringify({type:'historyState',canUndo:undoStack.length>0,canRedo:redoStack.length>0}));}
+function recordHistory(){const value=editor.innerHTML;if(value===lastSnapshot)return;undoStack.push(lastSnapshot);if(undoStack.length>100)undoStack.shift();redoStack=[];lastSnapshot=value;historyState();}
+function restoreHistory(type){const from=type==='undo'?undoStack:redoStack,to=type==='undo'?redoStack:undoStack;if(!from.length)return;to.push(editor.innerHTML);editor.innerHTML=from.pop();lastSnapshot=editor.innerHTML;send();sendState();historyState();}
 document.execCommand('styleWithCSS',false,false);
 function sendState(){try{const keys={bold:'bold',italic:'italic',underline:'underline',bullets:'insertUnorderedList',numbers:'insertOrderedList',clear:'removeFormat'};const state={};Object.keys(keys).forEach(key=>{state[key]=!!document.queryCommandState(keys[key]);});window.ReactNativeWebView.postMessage(JSON.stringify({type:'formatState',state}));}catch{}}
 document.addEventListener('selectionchange',()=>{const s=getSelection();if(s&&s.rangeCount&&editor.contains(s.anchorNode)){selectionRange=s.getRangeAt(0).cloneRange();sendState();}});
@@ -64,16 +67,17 @@ function block(node){
 }
 function serialize(){return Array.from(editor.childNodes).flatMap(block).join('\\n');}
 function send(){window.ReactNativeWebView.postMessage(JSON.stringify({type:'change',text:serialize()}));}
-editor.addEventListener('input',send);
+editor.addEventListener('input',()=>{recordHistory();send();sendState();});
 editor.addEventListener('paste',event=>{event.preventDefault();const value=event.clipboardData?.getData('text/plain')||'';document.execCommand('insertText',false,value);});
 document.addEventListener('message',e=>command(e.data));
 window.addEventListener('message',e=>command(e.data));
 function command(raw){let m;try{m=JSON.parse(raw);}catch{return;}if(m.type!=='format')return;
+ if(m.action==='undo'||m.action==='redo'){restoreHistory(m.action);return;}
  editor.focus();
  if(selectionRange){const s=getSelection();s.removeAllRanges();s.addRange(selectionRange);}
  const commands={bold:'bold',italic:'italic',underline:'underline',bullets:'insertUnorderedList',numbers:'insertOrderedList',clear:'removeFormat'};
  if(commands[m.action])document.execCommand(commands[m.action],false,null);
- send();sendState();
+ recordHistory();send();sendState();
 }
 })();</script></body></html>`;
   },[]);
@@ -81,7 +85,7 @@ function command(raw){let m;try{m=JSON.parse(raw);}catch{return;}if(m.type!=='fo
   return <View style={{flex:1,minHeight:160,overflow:'hidden',borderRadius:14,backgroundColor}}>
     <WebView ref={web} source={{html}} style={{flex:1,backgroundColor}} scrollEnabled keyboardDisplayRequiresUserAction={false}
       originWhitelist={['about:blank','data:*']} onShouldStartLoadWithRequest={request=>request.url==='about:blank'||request.url.startsWith('data:')}
-      onMessage={event=>{try{const message=JSON.parse(event.nativeEvent.data);if(message.type==='change'&&typeof message.text==='string')callback.current(message.text);if(message.type==='formatState'&&message.state)stateCallback.current?.(message.state);}catch{}}}
+      onMessage={event=>{try{const message=JSON.parse(event.nativeEvent.data);if(message.type==='change'&&typeof message.text==='string')callback.current(message.text);if(message.type==='formatState'&&message.state)stateCallback.current?.(message.state);if(message.type==='historyState')stateCallback.current?.({canUndo:!!message.canUndo,canRedo:!!message.canRedo} as RichEditorState);}catch{}}}
       javaScriptEnabled domStorageEnabled={false} allowFileAccess={false} setSupportMultipleWindows={false}
       mixedContentMode="never" accessibilityLabel="Note content"/>
   </View>;
