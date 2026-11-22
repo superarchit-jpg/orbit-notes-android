@@ -267,11 +267,11 @@ console.log('PASS: Stage 4 correction regression guards');
 
 // REF-01 through REF-07: approved interaction parity without new note backgrounds.
 for(const marker of [
-  "const ActionRow=", "icon={showArchive?undefined:'archive'}",
+  "const ActionRow=", "icon={showArchive?'unarchive':'archive'}",
   'accessibilityLabel="Edit labels"', 'accessibilityRole="checkbox"',
   'selected.includes(n.id)?3:1', 'labelIds(n).map(',
   'accessibilityLabel="Restore selected deleted maps"',
-  'onFormatStateChange={setEditorFormats}', "CARD_PALETTE.map((color,index)=>"
+  'onFormatStateChange={state=>setEditorFormats(previous=>({...previous,...state}))}', "CARD_PALETTE.map((color,index)=>"
 ]) check(app.includes(marker),'Missing approved REF visual/interaction guard: '+marker);
 check(app.includes('accessibilityState={{selected:chosen}}'),'Selected palette swatch must have visible and accessible state');
 check(app.includes('backgroundColor:all?palette.accent'),'Label checkboxes must show multi-selection state');
@@ -458,3 +458,11 @@ console.log('PASS: outstanding correction functional wiring guards');
 console.log(
   'PASS: All Orbit Notes v0.16 source checks'
 );
+
+// Latest acceptance changes: X discards unsaved text, editor Undo/Redo are local,
+// and the map-wide control does not mutate persisted hierarchy.
+check(app.includes('const closeReaderWithCross=()=>') && app.includes('setEditing(false);\n  setDraftChildId(null);\n  setReader(null);'), 'The editor X must dismiss without saving');
+check(!app.includes('Debounced local autosave preserves edits'), 'Editing must not silently persist drafts');
+check(app.includes('label="undo"') && app.includes('label="redo"'), 'Editor-only Undo and Redo controls must exist');
+check(app.includes('showEntireMap?completeMap') && app.includes('label={showEntireMap?'), 'Expand/Collapse whole-map control must exist');
+console.log('PASS: latest acceptance correction guards');
