@@ -26,10 +26,39 @@ html,body{margin:0;padding:0;background:${background};color:${color};font-family
 </style></head><body><main id="editor" contenteditable="true" role="textbox" aria-label="Note content"></main>
 <script>(function(){
 const editor=document.getElementById('editor');editor.innerHTML=${safeContent};
-let selectionRange=null;let undoStack=[],redoStack=[];let lastSnapshot=editor.innerHTML;
+let selectionRange=null;let undoStack=[],redoStack=[];
+function selectionOffsets(){
+ const selection=getSelection();
+ if(!selection||!selection.rangeCount||!editor.contains(selection.anchorNode))return {start:0,end:0};
+ const range=selection.getRangeAt(0),probe=range.cloneRange();
+ probe.selectNodeContents(editor);probe.setEnd(range.startContainer,range.startOffset);
+ const start=probe.toString().length;
+ probe.setEnd(range.endContainer,range.endOffset);
+ return {start,end:probe.toString().length};
+}
+function restoreOffsets(start,end){
+ editor.focus();
+ const walker=document.createTreeWalker(editor,NodeFilter.SHOW_TEXT);
+ let node,offset=0,first=null,last=null;
+ const range=document.createRange();
+ while((node=walker.nextNode())){
+  const limit=offset+node.nodeValue.length;
+  if(!first&&start<=limit)first={node,at:Math.max(0,start-offset)};
+  if(!last&&end<=limit)last={node,at:Math.max(0,end-offset)};
+  offset=limit;
+ }
+ if(!first)return;
+ try{
+  range.setStart(first.node,Math.min(first.at,first.node.nodeValue.length));
+  range.setEnd((last||first).node,Math.min((last||first).at,(last||first).node.nodeValue.length));
+  const selection=getSelection();selection.removeAllRanges();selection.addRange(range);selectionRange=range.cloneRange();
+ }catch{}
+}
+function snapshot(){return {html:editor.innerHTML,...selectionOffsets()};}
+let lastSnapshot=snapshot();
 function historyState(){window.ReactNativeWebView.postMessage(JSON.stringify({type:'historyState',canUndo:undoStack.length>0,canRedo:redoStack.length>0}));}
-function recordHistory(){const value=editor.innerHTML;if(value===lastSnapshot)return;undoStack.push(lastSnapshot);if(undoStack.length>100)undoStack.shift();redoStack=[];lastSnapshot=value;historyState();}
-function restoreHistory(type){const from=type==='undo'?undoStack:redoStack,to=type==='undo'?redoStack:undoStack;if(!from.length)return;to.push(editor.innerHTML);editor.innerHTML=from.pop();lastSnapshot=editor.innerHTML;send();sendState();historyState();}
+function recordHistory(){const value=snapshot();if(value.html===lastSnapshot.html)return;undoStack.push(lastSnapshot);if(undoStack.length>100)undoStack.shift();redoStack=[];lastSnapshot=value;historyState();}
+function restoreHistory(type){const from=type==='undo'?undoStack:redoStack,to=type==='undo'?redoStack:undoStack;if(!from.length)return;to.push(snapshot());const previous=from.pop();editor.innerHTML=previous.html;lastSnapshot=previous;restoreOffsets(previous.start,previous.end);send();sendState();historyState();}
 document.execCommand('styleWithCSS',false,false);
 function sendState(){try{const keys={bold:'bold',italic:'italic',underline:'underline',bullets:'insertUnorderedList',numbers:'insertOrderedList',clear:'removeFormat'};const state={};Object.keys(keys).forEach(key=>{state[key]=!!document.queryCommandState(keys[key]);});window.ReactNativeWebView.postMessage(JSON.stringify({type:'formatState',state}));}catch{}}
 document.addEventListener('selectionchange',()=>{const s=getSelection();if(s&&s.rangeCount&&editor.contains(s.anchorNode)){selectionRange=s.getRangeAt(0).cloneRange();sendState();}});

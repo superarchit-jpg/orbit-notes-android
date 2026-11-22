@@ -1,5 +1,8 @@
 import React,{useEffect,useMemo,useState,useRef} from 'react';
-import {Alert,AppState,BackHandler,Dimensions,KeyboardAvoidingView,useColorScheme,Modal,Platform,Pressable,ScrollView,Keyboard,StatusBar,StyleSheet,Text,TextInput,View} from 'react-native';
+import {ICON_PATHS} from './orbitIcons';
+import {LIGHT,DARK,uiRoles} from './orbitThemeTokens';
+import {partitionLibraryColumns} from './libraryColumns';
+import {Alert,AppState,BackHandler,Dimensions,KeyboardAvoidingView,useColorScheme,Modal,Platform,Pressable,ScrollView,FlatList,Keyboard,StatusBar,StyleSheet,Text,TextInput,View} from 'react-native';
 import Svg,{Line,Circle,Rect,Path,Text as SvgText} from 'react-native-svg';
 import {SafeAreaProvider,SafeAreaView as InsetSafeAreaView} from 'react-native-safe-area-context';
 import {Gesture,GestureDetector,GestureHandlerRootView} from 'react-native-gesture-handler';
@@ -31,8 +34,6 @@ const initial:Note[]=[{id:'root',parentId:null,title:'My Notes',body:'',updatedA
 type Folder={id:string;name:string};
 const stamp=(t:number)=>new Date(t).toLocaleString();
 const id=()=>`${Date.now()}-${Math.random().toString(36).slice(2,8)}`;
-const LIGHT={background:'#ECEEFF',surface:'#FAF9FF',control:'#F8F7FD',text:'#24334F',muted:'#626D89',border:'#A7B3D0',accent:'#52658E',canvas:'#F7F8FF',node:'#DDE6F9',subnode:'#F0F3FC',connector:'#909AB4'};
-const DARK={background:KEEP_DARK_BACKGROUND,surface:KEEP_DARK_SURFACE,control:'#212A47',text:'#F1F3FE',muted:'#A9B2CD',border:'#536080',accent:KEEP_DARK_SELECTED,canvas:'#11182A',node:'#293751',subnode:'#1B293E',connector:'#7B86A5'};
 const PaletteContext=React.createContext(LIGHT);
 const CARD_PALETTE=[...KEEP_LIGHT_PRESETS];
 // Exactly four columns on phone widths: 12 original swatches + two additional rows of four.
@@ -40,54 +41,6 @@ const paletteSwatchSize=Math.min(60,(Math.min(W-48,380)-44-42)/4);
 
 const Button=({label,onPress,primary=false,danger=false,active=false}:{label:string;onPress:()=>void;primary?:boolean;danger?:boolean;active?:boolean})=>{const palette=React.useContext(PaletteContext);return <Pressable accessibilityRole="button" accessibilityLabel={label} onPress={onPress} style={[styles.button,{backgroundColor:active?palette.control:'transparent'},primary&&{backgroundColor:palette.accent}]}><Text style={[styles.buttonText,{color:danger?'#dc2626':active?palette.accent:palette.text},primary&&{color:keepForeground(palette.accent)}]}>{label==='🗑'?<Svg width={23} height={23} viewBox="0 0 24 24"><Line x1={4} y1={7} x2={20} y2={7} stroke="#dc2626" strokeWidth={1.8}/><Line x1={9} y1={4} x2={15} y2={4} stroke="#dc2626" strokeWidth={1.8}/><Rect x={6} y={7} width={12} height={14} rx={2} stroke="#dc2626" strokeWidth={1.8} fill="none"/><Line x1={10} y1={11} x2={10} y2={17} stroke="#dc2626" strokeWidth={1.5}/><Line x1={14} y1={11} x2={14} y2={17} stroke="#dc2626" strokeWidth={1.5}/></Svg>:label}</Text></Pressable>;}
 
-const ICON_PATHS:Record<string,string>={
-  '☰':'M4 6h16M4 12h16M4 18h16',
-  '✓':'M4 12l5 5L20 6',
-  'search':'M11 19a8 8 0 1 1 0-16 8 8 0 0 1 0 16zM17 17l5 5',
-  '←':'M20 12H4m7-7-7 7 7 7',
-  '⋮':'M12 5h.01M12 12h.01M12 19h.01',
-  '×':'M5 5l14 14M19 5L5 19',
-  '+':'M12 4v16M4 12h16',
-  '✎':'M4 20l4-1 11-11-3-3L5 16l-1 4M14 7l3 3',
-  '🗑':'M4 7h16M9 4h6M7 7v13h10V7M10 11v6M14 11v6',
-  '☆':'M12 2l3.1 6.4 7.1 1.1-5.1 5 .9 7-6-3.3-6 3.3.9-7-5.1-5 7.1-1.1L12 2z',
-  '★':'M12 2l3.1 6.4 7.1 1.1-5.1 5 .9 7-6-3.3-6 3.3.9-7-5.1-5 7.1-1.1L12 2z',
-  '☑':'M3 3h18v18H3zM7 12l3 3 7-7',
-  'selectAll':'M5 5h14v14H5zM8 12l3 3 5-6',
-  '☷':'M5 6h14M5 12h14M5 18h14',
-  '▦':'M3 3h8v8H3zM13 3h8v8h-8zM3 13h8v8H3zM13 13h8v8h-8z',
-  'Fit':'M4 9V4h5M15 4h5v5M20 15v5h-5M9 20H4v-5',
-  'listView':'M4 4h16v7H4zM4 14h16v7H4z',
-  'sort':'M4 6h12M4 12h9M4 18h6M19 6v12m-3-3 3 3 3-3',
-  'pin':'M8 3h8v2l-1.5 2v5l3 3v1H6v-1l3-3V7L8 5zM12 16v6',
-  'label':'M4 5h11l6 7-6 7H4a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2zM7 12h.01',
-  'archive':'M3 4h18v5H3zM5 10h14v10H5zM12 12v6m-3-3 3 3 3-3',
-  'unarchive':'M3 4h18v5H3zM5 10h14v10H5zM12 19v-8m-4 4 4-4 4 4',
-  'exportIcon':'M12 3v12m-5-5 5 5 5-5M5 17v4h14v-4',
-  'readIcon':'M4 4h16v16H4zM8 9h8M8 13h8M8 17h5',
-  'childIcon':'M12 3v11m-5-5 5 5 5-5M5 20h14',
-  'upLevel':'M12 20V4m-6 6 6-6 6 6',
-  'downLevel':'M12 4v16m-6-6 6 6 6-6',
-  'helpIcon':'M12 18h.01M9.5 9a2.5 2.5 0 1 1 4.4 1.7c-1.3 1.6-1.9 1.6-1.9 3.3M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20z',
-  'allMaps':'M5 12L20 2M5 12H20M5 12L20 22',
-  'settingsIcon':'M10 2h4l.7 2.3 1.5.7 2.2-1.2 2.8 2.8-1.2 2.2.7 1.5L22 11v3l-2.3.7-.7 1.5 1.2 2.2-2.8 2.8-2.2-1.2-1.5.7L14 23h-4l-.7-2.3-1.5-.7-2.2 1.2-2.8-2.8L4 16.2l-.7-1.5L1 14v-3l2.3-.7L4 8.8 2.8 6.6l2.8-2.8L7.8 5l1.5-.7L10 2zM12 8a4 4 0 1 0 0 8 4 4 0 0 0 0-8',
-  'lockIcon':'M6 10V8a6 6 0 0 1 12 0v2M5 10h14v11H5z',
-  'format':'M4 20h16',
-  'centerFocus':'M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20z',
-  'parentNote':'M12 3a3 3 0 1 0 0 6 3 3 0 0 0 0-6zM6 13c0-5 12-5 12 0v2H6zM12 15v3M4 18h16M4 18v2M12 18v2M20 18v2',
-  'miniMapIcon':'M5 12h14M12 5v14M12 12m-7 5-2 2m16-2 2 2M12 5a3 3 0 1 0 0 6M5 16a2 2 0 1 0 0 4M19 16a2 2 0 1 0 0 4',
-  'restoreIcon':'M13 3c-4.97 0-9 4.03-9 9H1l4 4 4-4H6c0-3.87 3.13-7 7-7s7 3.13 7 7-3.13 7-7 7c-1.93 0-3.68-.79-4.95-2.05l-1.42 1.42C8.26 20 10.51 21 13 21c4.97 0 9-4.03 9-9s-4.03-9-9-9zm-1 5v5l4.25 2.52.77-1.28-3.52-2.09V8H12z',
-  'gridView':'M3 3h8v8H3zM13 3h8v8h-8zM3 13h8v8H3zM13 13h8v8h-8z',
-  'palette':'M12 3a9 9 0 1 0 0 18h1.2c1.1 0 1.9-.9 1.9-2 0-.7-.4-1.3-.8-1.8-.3-.4-.5-.8-.5-1.3 0-1.1.9-2 2-2H19A7 7 0 0 0 12 3zM6.9 12h.01M8.5 7.9h.01M13.4 6.8h.01M17.1 9.4h.01',
-  'collapseBranch':'M5 12h14M12 5l7 7-7 7',
-  'expandBranch':'M5 4l7 7 7-7M12 11v9M4 15v5h5M20 15v5h-5',
-  'bullets':'M9 6h12M9 12h12M9 18h12M4 6h.01M4 12h.01M4 18h.01',
-  'undo':'M9 14 4 9l5-5M4 9h10a6 6 0 0 1 0 12h-2',
-  'redo':'m15 14 5-5-5-5m5 5H10a6 6 0 0 0 0 12h2',
-  'expandAll':'M8 3H3v5M16 3h5v5M3 16v5h5M21 16v5h-5',
-  'shrinkAll':'M3 9h6V3M21 9h-6V3M3 15h6v6M21 15h-6v6',
-  'numbers':'M9 6h12M9 12h12M9 18h12M3 4h2v4M3 12h2l-2 3h2M3 17h2v4H3'
-};
 const MaterialIcon=({name,color}:{name:string;color:string})=>{
   if(name==='restoreIcon')return <Svg width={25} height={25} viewBox="0 0 24 24"><Path d={ICON_PATHS.restoreIcon} fill={color}/></Svg>;
   if(name==='format')return <Svg width={25} height={25} viewBox="0 0 24 24"><SvgText x={5} y={17} fontSize={17} fontWeight="bold" fill={color}>A</SvgText><Line x1={4} y1={20} x2={20} y2={20} stroke={color} strokeWidth={2}/></Svg>;
@@ -134,6 +87,7 @@ const [colorTarget,setColorTarget]=useState<'cards'|'note'|'node'|null>(null);
 const deviceTheme=useColorScheme();
 const effectiveTheme=mapPrefs.themeMode==='system'?(deviceTheme==='dark'?'dark':'light'):mapPrefs.theme;
 const palette=effectiveTheme==='dark'?DARK:LIGHT;
+ const roles=uiRoles(palette);
 const darkSelection=effectiveTheme==='dark';
 const selectedSidebarColor=darkSelection?'#AFC3F9':'#FEF3C7';
 const selectedSidebarText=darkSelection?'#172441':palette.text;
@@ -168,7 +122,7 @@ const renderAppDialog=()=>(
        {!!appDialog?.message&&<Text style={{fontSize:15,lineHeight:23,color:palette.muted}}>{appDialog.message}</Text>}
        <View style={[styles.wrap,{justifyContent:'flex-end'}]}>
          {(appDialog?.buttons?.length?appDialog.buttons:[{text:'OK'}]).map((action,index)=>(
-           <Pressable key={index} accessibilityRole="button" accessibilityLabel={action.text} onPress={()=>{setAppDialog(null);action.onPress?.();}} style={{paddingHorizontal:12,paddingVertical:12}}><Text style={{color:action.style==='destructive'?'#dc2626':palette.accent,fontWeight:'600',fontSize:15}}>{action.text}</Text></Pressable>
+           <Pressable key={index} accessibilityRole="button" accessibilityLabel={action.text} onPress={()=>{setAppDialog(null);action.onPress?.();}} style={{paddingHorizontal:12,paddingVertical:12}}><Text style={{color:action.style==='destructive'?roles.error:palette.accent,fontWeight:'600',fontSize:15}}>{action.text}</Text></Pressable>
          ))}
        </View>
      </View>
@@ -923,9 +877,10 @@ const noteBodyView=(value:string)=>value.split('\n').map((line,index)=>(
   </View>
 ));
 const listNotes=notes.filter(n=>n.parentId==='root'&&(showArchive?mapPrefs.archived.includes(n.id):!mapPrefs.archived.includes(n.id)));
-const shown=listNotes.filter(n=>(!folderFilter||hasLabel(n,folderFilter))&&matchesMapQuery(n,notes,librarySearch)).sort((a,b)=>Number(mapPrefs.pinned.includes(b.id))-Number(mapPrefs.pinned.includes(a.id))||(librarySort==='title'?a.title.localeCompare(b.title):librarySort==='created'?Number(a.id.split('-')[0])-Number(b.id.split('-')[0]):b.updatedAt-a.updatedAt));
+const shown=useMemo(()=>listNotes.filter(n=>(!folderFilter||hasLabel(n,folderFilter))&&matchesMapQuery(n,notes,librarySearch)).sort((a,b)=>Number(mapPrefs.pinned.includes(b.id))-Number(mapPrefs.pinned.includes(a.id))||(librarySort==='title'?a.title.localeCompare(b.title):librarySort==='created'?Number(a.id.split('-')[0])-Number(b.id.split('-')[0]):b.updatedAt-a.updatedAt)),[notes,folderFilter,librarySearch,librarySort,mapPrefs.pinned,mapPrefs.archived,showArchive]);
 
-const archiveSelection=(archive:boolean)=>{
+const libraryColumns=useMemo(()=>partitionLibraryColumns(shown,mapPrefs.viewMode==='grid'),[shown,mapPrefs.viewMode]);
+ const archiveSelection=(archive:boolean)=>{
   const targetIds=new Set(selected.filter(x=>x!=='root'));
   setMapPrefs(p=>({...p,archived:archive?[...new Set([...p.archived,...targetIds])]:p.archived.filter(x=>!targetIds.has(x))}));
   setSelected([]);setSelectionMenu(false);
@@ -1771,16 +1726,9 @@ if(locked){
                 </ScrollView>
               </SafeAreaView>
             </Modal>
-            <ScrollView contentContainerStyle={{
-              padding:12,
-              gap:10,
-              flexDirection:!showTrash&&mapPrefs.viewMode==='grid'?'row':'column',
-              flexWrap:'nowrap',
-              alignItems:'flex-start',
-              justifyContent:'space-between'
-            }}>
+            <View style={{flex:1}}>
               {showTrash?(
-                <View style={{width:'100%',gap:12,padding:8}}>
+                <ScrollView contentContainerStyle={{padding:12}}><View style={{width:'100%',gap:12,padding:8}}>
                   {!mapPrefs.trashRetentionAcknowledged&&trash.length>0&&(
                     <View style={{gap:8,padding:12,borderColor:palette.border,borderWidth:1,borderRadius:14}}>
                       <Text style={{color:palette.text}}>Review existing deleted items before activating the seven-day retention policy.</Text>
@@ -1804,12 +1752,14 @@ if(locked){
                       </View>
                     </Pressable>
                   ))}</View>}
-                </View>
+                </View></ScrollView>
               ):(
-                <>
+                <View style={{flex:1,flexDirection:'row',gap:10,paddingHorizontal:12}}>
                   {(mapPrefs.viewMode==='grid'?[0,1]:[0]).map(column=>(
-                    <View key={column} style={{width:mapPrefs.viewMode==='grid'?'48.5%':'100%',gap:10}}>
-                    {shown.filter((_,index)=>mapPrefs.viewMode!=='grid'||index%2===column).map(n=>(
+                    <FlatList key={column} style={{flex:1}} contentContainerStyle={{gap:10,paddingTop:12,paddingBottom:24}}
+                     data={libraryColumns[column]} keyExtractor={n=>n.id}
+                     initialNumToRender={8} maxToRenderPerBatch={8} windowSize={5} removeClippedSubviews={false}
+                     renderItem={({item:n})=>(
                     <Pressable
                       key={n.id}
                       accessibilityRole="button"
@@ -1866,23 +1816,22 @@ if(locked){
                         </Pressable>}
 
                     </Pressable>
-                  ))}
-                    </View>
+                  )}/>
                   ))}
 
                   {shown.length===0&&!showArchive&&(
-                    <View style={{alignItems:'center',paddingVertical:showArchive?96:48,paddingHorizontal:20,gap:12}}>
-                      {showArchive&&!librarySearch.trim()?<Svg width={116} height={116} viewBox="0 0 116 116"><Path d="M23 39h70v58H23z" stroke={palette.muted} fill="none" strokeWidth={3} strokeLinejoin="round"/><Path d="M17 26h82v14H17z" stroke={palette.muted} fill={palette.background} strokeWidth={3} strokeLinejoin="round"/><Path d="M58 11v40m-11-11 11 11 11-11" stroke={palette.muted} fill="none" strokeWidth={3} strokeLinecap="round" strokeLinejoin="round"/><Path d="M44 62h28" stroke={palette.muted} strokeWidth={3.5} strokeLinecap="round"/><Path d="M32 96h52" stroke={palette.muted} strokeWidth={2} strokeLinecap="round" opacity={0.5}/></Svg>:<MaterialIcon name={showArchive?'archive':'label'} color={palette.muted}/>}
+                    <View style={{position:'absolute',left:0,right:0,top:44,alignItems:'center',paddingVertical:48,paddingHorizontal:20,gap:12}}>
+                      {showArchive&&!librarySearch.trim()?<Svg width={116} height={116} viewBox="0 0 116 116"><Path d="M23 39h70v58H23z" stroke={palette.muted} fill="none" strokeWidth={3} strokeLinejoin="round"/><Path d="M17 26h82v14H17z" stroke={palette.muted} fill={palette.background} strokeWidth={3} strokeLinejoin="round"/><Path d="M58 48v31m-11-11 11 11 11-11" stroke={palette.muted} fill="none" strokeWidth={3} strokeLinecap="round" strokeLinejoin="round"/><Path d="M44 62h28" stroke={palette.muted} strokeWidth={3.5} strokeLinecap="round"/><Path d="M32 96h52" stroke={palette.muted} strokeWidth={2} strokeLinecap="round" opacity={0.5}/></Svg>:<MaterialIcon name={showArchive?'archive':'label'} color={palette.muted}/>}
                       <Text style={[styles.listTitle,{textAlign:'center',color:showArchive?palette.muted:palette.text,fontWeight:showArchive?'500':'600'}]}>{librarySearch.trim()?'No matching maps':showArchive?'Your archived maps appear here':folderFilter?'No maps in this label':'Your library is ready'}</Text>
                       {!showArchive&&<Text style={[styles.muted,{color:palette.muted,textAlign:'center'}]}>{librarySearch.trim()?'No maps match this search. Try different words or clear the search.':folderFilter?'Create a map in this label, or move an existing map here from the library.':'Create your first map to start building your notes.'}</Text>}
                       {librarySearch.trim()?<Button label="Clear search" onPress={()=>setLibrarySearch('')}/>:!showArchive&&<Button label="Create map" primary onPress={newMap}/>}
                     </View>
                   )}
-                </>
+                </View>
               )}
-            </ScrollView>
+            </View>
             {showArchive&&shown.length===0&&!showTrash&&<View pointerEvents="box-none" style={{position:'absolute',left:0,right:0,top:96,bottom:0,alignItems:'center',justifyContent:'center',paddingHorizontal:24}}>
-              <Svg width={116} height={116} viewBox="0 0 116 116" accessibilityLabel="Empty Archive illustration"><Path d="M23 39h70v58H23z" stroke={palette.muted} fill="none" strokeWidth={3} strokeLinejoin="round"/><Path d="M17 26h82v14H17z" stroke={palette.muted} fill={palette.background} strokeWidth={3} strokeLinejoin="round"/><Path d="M58 11v40m-11-11 11 11 11-11" stroke={palette.muted} fill="none" strokeWidth={3} strokeLinecap="round"/><Path d="M44 62h28" stroke={palette.muted} strokeWidth={3.5} strokeLinecap="round"/></Svg>
+              <Svg width={116} height={116} viewBox="0 0 116 116" accessibilityLabel="Empty Archive illustration"><Path d="M23 39h70v58H23z" stroke={palette.muted} fill="none" strokeWidth={3} strokeLinejoin="round"/><Path d="M17 26h82v14H17z" stroke={palette.muted} fill={palette.background} strokeWidth={3} strokeLinejoin="round"/><Path d="M58 11v40m-11-11 11 11 11-11" stroke={palette.muted} fill="none" strokeWidth={3} strokeLinecap="round"/><Path d="M44 89h28" stroke={palette.muted} strokeWidth={3.5} strokeLinecap="round"/></Svg>
               <Text style={{color:palette.muted,fontSize:16,fontWeight:'500',textAlign:'center',marginTop:14}}>{librarySearch.trim()?'No matching maps':'Your archived maps appear here'}</Text>
             </View>}
             {!showTrash&&!showArchive&&selected.length===0&&<Pressable accessibilityRole="button" accessibilityLabel="Create new map" onPress={newMap} style={{position:'absolute',right:22,bottom:26,width:60,height:60,borderRadius:20,backgroundColor:palette.accent,alignItems:'center',justifyContent:'center',elevation:5,zIndex:10}}>

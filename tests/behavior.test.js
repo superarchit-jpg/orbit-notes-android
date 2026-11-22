@@ -3,8 +3,23 @@ const {execFileSync}=require('node:child_process');
 const fs=require('node:fs');const os=require('node:os');const path=require('node:path');const assert=require('node:assert/strict');
 const temp=fs.mkdtempSync(path.join(os.tmpdir(),'orbit-tests-'));
 try{
- execFileSync('tsc',['layout.ts','trash.ts','mapGeometry.ts','noteFormatting.ts','labels.ts','librarySearch.ts','richTextMarkup.ts','keepTheme.ts','--module','commonjs','--target','es2020','--outDir',temp,'--skipLibCheck','--noEmitOnError','false'],{stdio:'pipe'});
+ execFileSync('tsc',['layout.ts','trash.ts','mapGeometry.ts','noteFormatting.ts','labels.ts','librarySearch.ts','richTextMarkup.ts','keepTheme.ts','libraryColumns.ts','orbitThemeTokens.ts','--module','commonjs','--target','es2020','--outDir',temp,'--skipLibCheck','--noEmitOnError','false'],{stdio:'pipe'});
 }catch(e){if(!fs.existsSync(path.join(temp,'layout.js')))throw e;}
+// Audit regressions: alternating masonry order, large collections and theme roles.
+const {partitionLibraryColumns}=require(path.join(temp,'libraryColumns.js'));
+const many=Array.from({length:250},(_,i)=>'map-'+i);
+const grid=partitionLibraryColumns(many,true);
+assert.equal(grid.length,2);
+assert.deepEqual(grid[0].slice(0,3),['map-0','map-2','map-4']);
+assert.deepEqual(grid[1].slice(0,3),['map-1','map-3','map-5']);
+assert.deepEqual(partitionLibraryColumns(many,false)[0],many);
+assert.equal(grid[0].length+grid[1].length,250);
+const {LIGHT,DARK,uiRoles}=require(path.join(temp,'orbitThemeTokens.js'));
+assert.equal(uiRoles(LIGHT).textPrimary,LIGHT.text);
+assert.equal(uiRoles(DARK).surface,DARK.surface);
+assert.equal(uiRoles(LIGHT).selectedBackground,LIGHT.accent);
+console.log('PASS: virtualized-library partition and semantic theme roles');
+
 const {radialLayout,overviewLayout}=require(path.join(temp,'layout.js'));
 const {deleteBranches,restoreBatch,pruneTrash}=require(path.join(temp,'trash.js'));
 for(const n of [1,10,50,100]){
