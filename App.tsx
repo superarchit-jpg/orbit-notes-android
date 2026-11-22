@@ -16,6 +16,7 @@ import {radialLayout,overviewLayout} from './layout';
 import {TrashBatch,deleteBranches,restoreBatch,pruneTrash} from './trash';
 import {formatSelection,parseRichLine} from './noteFormatting';
 import RichNoteEditor,{RichNoteEditorHandle,RichEditorState} from './RichNoteEditor';
+import DeletedMapReader from './DeletedMapReader';
 import {labelIds,addLabel,removeLabel,hasLabel,normalizeLabels} from './labels';
 import {matchesMapQuery} from './librarySearch';
 import {KEEP_LIGHT_PRESETS,KEEP_DARK_SELECTED,KEEP_DARK_SURFACE,KEEP_DARK_BACKGROUND,displayKeepColor,swatchKeepColor,keepForeground,keepChipStyle} from './keepTheme';
@@ -1162,14 +1163,14 @@ if(locked){
           <ActionRow label="Add child" icon="childIcon" onPress={()=>{addChild(nodeActions);setNodeActions(null);}}/>
           <ActionRow label="Move up a level" icon="upLevel" onPress={()=>{reparent(nodeActions,'up');setNodeActions(null);}}/>
           <ActionRow label="Move down a level" icon="downLevel" onPress={()=>{reparent(nodeActions,'down');setNodeActions(null);}}/>
-          {notes.find(n=>n.id===nodeActions)?.parentId==='root'&&<ActionRow icon={mapPrefs.archived.includes(nodeActions)?undefined:'archive'} label={mapPrefs.archived.includes(nodeActions)?'Unarchive map':'Archive map'} onPress={()=>{archiveOne(nodeActions,!mapPrefs.archived.includes(nodeActions));setNodeActions(null);setMenu(true);setShowArchive(false);}}/>}
+          {notes.find(n=>n.id===nodeActions)?.parentId==='root'&&!mapPrefs.archived.includes(nodeActions)&&<ActionRow icon="archive" label="Archive map" onPress={()=>{archiveOne(nodeActions,true);setNodeActions(null);setMenu(true);setShowArchive(false);}}/>}
           <ActionRow label="Delete branch" icon="🗑" danger onPress={()=>{removeBranch(nodeActions);setNodeActions(null);}}/>
           <Button label="Cancel" onPress={()=>setNodeActions(null)}/>
         </View>}
         {mapMenu&&(
           <View style={[styles.popup,{top:'auto',bottom:72,right:12,width:181,backgroundColor:palette.surface,borderColor:palette.border}]}>
             <ActionRow label="Export" icon="exportIcon" onPress={()=>{setMapMenu(false);exportOne('pdf');}}/>
-            {current.parentId==='root'&&<ActionRow icon={mapPrefs.archived.includes(current.id)?undefined:'archive'} label={mapPrefs.archived.includes(current.id)?'Unarchive':'Archive'} onPress={()=>{archiveOne(current.id,!mapPrefs.archived.includes(current.id));setMapMenu(false);setMenu(true);setShowArchive(false);}}/>}
+            {current.parentId==='root'&&!mapPrefs.archived.includes(current.id)&&<ActionRow icon="archive" label="Archive" onPress={()=>{archiveOne(current.id,true);setMapMenu(false);setMenu(true);setShowArchive(false);}}/>}
             <ActionRow label="Help" icon="helpIcon" onPress={()=>{setGestureHelp(true);setMapMenu(false);}}/>
           </View>
         )}
@@ -1874,20 +1875,17 @@ if(locked){
                       <Svg width={112} height={112} viewBox="0 0 112 112"><Path d="M28 30h56M42 20h28M34 30l4 63h36l4-63M48 44v36M64 44v36" stroke={palette.muted} strokeWidth={3.5} fill="none" strokeLinecap="round" strokeLinejoin="round"/></Svg>
                       <Text style={{color:palette.muted,fontSize:16,textAlign:'center'}}>No notes in Deleted</Text>
                     </View>
-                  ):trash.map(batch=>(
+                  ):<View style={{flexDirection:mapPrefs.viewMode==='grid'?'row':'column',flexWrap:mapPrefs.viewMode==='grid'?'wrap':'nowrap',gap:10,justifyContent:'space-between'}}>{trash.map(batch=>(
                     <Pressable key={batch.id} accessibilityRole="button" accessibilityLabel={'Open deleted map '+(batch.notes[0]?.title||'Untitled')} accessibilityHint="Tap for read-only preview; long press to select" onPress={()=>{if(selectedTrash.length)setSelectedTrash(v=>v.includes(batch.id)?v.filter(x=>x!==batch.id):[...v,batch.id]);else setDeletedPreview(batch);}} onLongPress={()=>setSelectedTrash(v=>v.includes(batch.id)?v:[...v,batch.id])}
-                      style={{minHeight:120,borderRadius:16,padding:14,backgroundColor:palette.surface,borderColor:selectedTrash.includes(batch.id)?palette.accent:palette.border,borderWidth:selectedTrash.includes(batch.id)?3:1,gap:12}}>
-                      <Text style={{color:palette.text,fontWeight:'600',fontSize:16}}>{batch.notes[0]?.title||'Untitled map'}</Text>
+                      style={{minHeight:110,width:mapPrefs.viewMode==='grid'?'48.2%':'100%',borderRadius:16,padding:12,backgroundColor:displayKeepColor(mapPrefs.cardColors[batch.notes[0]?.id],effectiveTheme,palette.surface),borderColor:selectedTrash.includes(batch.id)?palette.accent:palette.border,borderWidth:selectedTrash.includes(batch.id)?3:1,gap:8}}>
+                      <Text style={{color:keepForeground(displayKeepColor(mapPrefs.cardColors[batch.notes[0]?.id],effectiveTheme,palette.surface)),fontWeight:'600',fontSize:16}}>{batch.notes[0]?.title||'Untitled map'}</Text>
                       <View style={{overflow:'hidden',borderRadius:10}}>{mapPreview(batch.notes.find(n=>n.parentId==='root')||batch.notes[0],batch.notes)}</View>
                        {labelIds(batch.notes[0]).length>0&&<View style={{flexDirection:'row',flexWrap:'wrap',gap:5}}>{labelIds(batch.notes[0]).map(id=>{const label=folders.find(f=>f.id===id)?.name;return label?<View key={id} style={{paddingHorizontal:8,paddingVertical:4,borderRadius:8,borderWidth:1,...keepChipStyle(palette.surface)}}><Text style={{fontSize:11,color:keepChipStyle(palette.surface).color}}>{label}</Text></View>:null;})}</View>}
-                       <View style={{flexDirection:'row',justifyContent:'space-between',alignItems:'center'}}>
-                         <Text style={{color:palette.muted,fontSize:12}}>Deleted {stamp(batch.deletedAt)}</Text>
-                         <Pressable accessibilityRole="button" accessibilityLabel={'Restore '+(batch.notes[0]?.title||'deleted map')} onPress={event=>{event.stopPropagation();restore(batch);}} style={{flexDirection:'row',alignItems:'center',gap:5,padding:8}}><MaterialIcon name="restoreIcon" color={palette.accent}/><Text style={{color:palette.accent,fontWeight:'600'}}>Restore</Text></Pressable>
-                       </View>
+
                     </Pressable>
-                  ))}
+                  ))}</View>}
                 </View>
-              ):(
+              ):
                 <>
                   {(mapPrefs.viewMode==='grid'?[0,1]:[0]).map(column=>(
                     <View key={column} style={{width:mapPrefs.viewMode==='grid'?'48.5%':'100%',gap:10}}>
@@ -1979,22 +1977,7 @@ if(locked){
           </InsetSafeAreaView></GestureHandlerRootView>
         </Modal>
         <Modal visible={deletedPreview!==null} animationType="slide" onRequestClose={()=>setDeletedPreview(null)}>
-          <SafeAreaView style={[styles.screen,{backgroundColor:palette.background}]}>
-            <View style={styles.header}>
-              <IconButton label="←" accessibilityLabel="Back to Deleted" onPress={()=>setDeletedPreview(null)}/>
-              <Text style={{fontSize:18,fontWeight:'600',color:palette.text,flex:1}}>Deleted map · Read only</Text>
-            </View>
-            <ScrollView contentContainerStyle={{padding:22,gap:18}}>
-              {deletedPreview&&<>
-                <Text style={[styles.readerTitle,{color:palette.text}]}>{deletedPreview.notes.find(n=>n.parentId==='root')?.title||deletedPreview.notes[0]?.title||'Untitled map'}</Text>
-                <View style={{backgroundColor:palette.surface,borderRadius:16,padding:12}}>{mapPreview(deletedPreview.notes.find(n=>n.parentId==='root')||deletedPreview.notes[0],deletedPreview.notes)}</View>
-                {deletedPreview.notes.map(note=><View key={note.id} style={{borderBottomWidth:1,borderColor:palette.border,paddingVertical:12,gap:5}}>
-                  <Text style={{color:palette.text,fontSize:16,fontWeight:'600'}}>{note.title||'Untitled note'}</Text>
-                  {note.body?noteBodyView(note.body):null}
-                </View>)}
-              </>}
-            </ScrollView>
-          </SafeAreaView>
+          {deletedPreview?<DeletedMapReader batch={deletedPreview} palette={palette} theme={effectiveTheme} colors={mapPrefs.colors} onClose={()=>setDeletedPreview(null)}/>:<View/>}
         </Modal>
         <Modal visible={retentionNotice} transparent animationType="fade" onRequestClose={()=>{setRetentionNotice(false);setMapPrefs(p=>({...p,trashRetentionWarningSeen:true}));}}>
           <View style={{flex:1,justifyContent:'center',padding:24,backgroundColor:'rgba(0,0,0,0.55)'}}>
