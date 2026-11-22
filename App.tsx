@@ -69,6 +69,7 @@ const ICON_PATHS:Record<string,string>={
   'helpIcon':'M12 18h.01M9.5 9a2.5 2.5 0 1 1 4.4 1.7c-1.3 1.6-1.9 1.6-1.9 3.3M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20z',
   'allMaps':'M5 12L20 2M5 12H20M5 12L20 22',
   'settingsIcon':'M10 2h4l.7 2.3 1.5.7 2.2-1.2 2.8 2.8-1.2 2.2.7 1.5L22 11v3l-2.3.7-.7 1.5 1.2 2.2-2.8 2.8-2.2-1.2-1.5.7L14 23h-4l-.7-2.3-1.5-.7-2.2 1.2-2.8-2.8L4 16.2l-.7-1.5L1 14v-3l2.3-.7L4 8.8 2.8 6.6l2.8-2.8L7.8 5l1.5-.7L10 2zM12 8a4 4 0 1 0 0 8 4 4 0 0 0 0-8',
+  'lockIcon':'M5 10V7a7 7 0 0 1 14 0v3M4 10h16v12H4z',
   'format':'M4 20h16',
   'centerFocus':'M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20z',
   'parentNote':'M12 3a3 3 0 1 0 0 6 3 3 0 0 0 0-6zM6 13c0-5 12-5 12 0v2H6zM12 15v3M4 18h16M4 18v2M12 18v2M20 18v2',
@@ -1084,7 +1085,7 @@ if(locked){
       {justifyContent:'center',padding:28,gap:18,backgroundColor:palette.background}
     ]}>
       <View style={{alignItems:'center',gap:16}}>
-        <MaterialIcon name="settingsIcon" color={palette.muted}/>
+        <MaterialIcon name="lockIcon" color={palette.muted}/>
         <Text style={[styles.logo,{color:palette.text}]}>Orbit Notes</Text>
       </View>
       {biometrics&&!credentialFallback?(
