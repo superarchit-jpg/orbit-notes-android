@@ -70,7 +70,7 @@ const ICON_PATHS:Record<string,string>={
   'helpIcon':'M12 18h.01M9.5 9a2.5 2.5 0 1 1 4.4 1.7c-1.3 1.6-1.9 1.6-1.9 3.3M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20z',
   'allMaps':'M5 12L20 2M5 12H20M5 12L20 22',
   'settingsIcon':'M10 2h4l.7 2.3 1.5.7 2.2-1.2 2.8 2.8-1.2 2.2.7 1.5L22 11v3l-2.3.7-.7 1.5 1.2 2.2-2.8 2.8-2.2-1.2-1.5.7L14 23h-4l-.7-2.3-1.5-.7-2.2 1.2-2.8-2.8L4 16.2l-.7-1.5L1 14v-3l2.3-.7L4 8.8 2.8 6.6l2.8-2.8L7.8 5l1.5-.7L10 2zM12 8a4 4 0 1 0 0 8 4 4 0 0 0 0-8',
-  'lockIcon':'M5 10V7a7 7 0 0 1 14 0v3M4 10h16v12H4z',
+  'lockIcon':'M6 10V8a6 6 0 0 1 12 0v2M5 10h14v11H5z',
   'format':'M4 20h16',
   'centerFocus':'M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20z',
   'parentNote':'M12 3a3 3 0 1 0 0 6 3 3 0 0 0 0-6zM6 13c0-5 12-5 12 0v2H6zM12 15v3M4 18h16M4 18v2M12 18v2M20 18v2',
@@ -256,6 +256,7 @@ useEffect(()=>{
     setAppActive(state==='active');
      if(state!=='active')bioPrompted.current=false;
      if(state!=='active'&&pinLockEnabled){
+       setSettings(false);
        setCredentialFallback(false);
       setLocked(true);
       setPinInput('');
@@ -385,7 +386,8 @@ const saveEdit=()=>{
 };
 
 const cancelReader=()=>{
-  // Discard the in-memory draft. Only the explicit Save action commits edits.
+  // Keep the existing Android Back behaviour; the explicit X always discards.
+  if(editing){saveEdit();return;}
   setDraftChildId(null);
   setReader(null);
   setEditing(false);
@@ -398,7 +400,10 @@ const closeReaderWithCross=()=>{
     setReader(null);
     return;
   }
-  cancelReader();
+  // X is an explicit cancellation and must not invoke automatic saving.
+  setEditing(false);
+  setDraftChildId(null);
+  setReader(null);
 };
 
 const addChild=(parentId:string)=>{
@@ -1584,12 +1589,12 @@ if(locked){
               }}/>
               <ActionRow label="Labels" icon="label" onPress={()=>{setSelected([cardMenuId!]);setCardMenuId(null);setLabelQuery('');setMoveFolderMenu(true);}}/>
               <ActionRow label="Color" icon="palette" onPress={()=>{setSelected([cardMenuId!]);setManualColor(mapPrefs.cardColors[cardMenuId!]||'');setCardMenuId(null);setColorTarget('cards');}}/>
-              <ActionRow label={showArchive?'Unarchive':'Archive'} icon={showArchive?undefined:'archive'} onPress={()=>{archiveOne(cardMenuId!,!showArchive);setCardMenuId(null);}}/>
+              <ActionRow label={showArchive?'Unarchive':'Archive'} icon={showArchive?'unarchive':'archive'} onPress={()=>{archiveOne(cardMenuId!,!showArchive);setCardMenuId(null);}}/>
               <ActionRow label="Export PDF" icon="exportIcon" onPress={()=>{exportOne('pdf',cardMenuId!);setCardMenuId(null);}}/>
               <View style={{height:1,backgroundColor:palette.border,marginVertical:3}}/>
               <ActionRow label="Delete" icon="🗑" danger onPress={()=>{removeBranch(cardMenuId!);setCardMenuId(null);}}/>
             </View>}
-            {trashMenu&&showTrash&&<View style={[styles.popup,{backgroundColor:palette.surface,borderColor:palette.border,top:56,right:12,zIndex:32,paddingVertical:6}]}>
+            {trashMenu&&showTrash&&<View style={[styles.popup,{backgroundColor:palette.surface,borderColor:palette.border,top:56,right:12,zIndex:32,paddingVertical:6,minWidth:220}]}>
               <ActionRow label={selectedTrash.length?'Delete forever':'Empty bin'} icon="🗑" danger onPress={()=>{setTrashMenu(false);if(selectedTrash.length)removeSelectedTrash();else if(trash.length)showDialog('Empty Deleted?','Permanently delete all items in Deleted?',[
                 {text:'Cancel',style:'cancel'},
                 {text:'Empty Deleted',style:'destructive',onPress:()=>{setTrash([]);setSelectedTrash([]);}}
