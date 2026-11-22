@@ -1,7 +1,7 @@
 /** Keep-inspired paired theme colors. Stored preset tokens remain unchanged in backups. */
 export type OrbitTheme='light'|'dark';
-export const KEEP_LIGHT_PRESETS=['#ffffff','#FAAFA9','#F29F75','#FFF8B9','#E2F6D3','#B4DED4','#D5E3EE','#AFCCDC','#D3BFDB','#F5E2DC','#E9E3D3','#EFEFF1'] as const;
-export const KEEP_DARK_PRESETS=['#0A0E1A','#740D32','#762C1E','#86550A','#2B5635','#137263','#2D4F63','#2A687A','#523160','#733C54','#575247','#292B2F'] as const;
+export const KEEP_LIGHT_PRESETS=['#ffffff','#FAAFA9','#F29F75','#FFF8B9','#E2F6D3','#B4DED4','#D5E3EE','#AFCCDC','#D3BFDB','#F5E2DC','#E9E3D3','#EFEFF1','#D18D86','#D27B5C','#C9AE54','#75AD7B','#5AACA2','#698FB0','#8A7DB1','#AC7198'] as const;
+export const KEEP_DARK_PRESETS=['#0A0E1A','#740D32','#762C1E','#86550A','#2B5635','#137263','#2D4F63','#2A687A','#523160','#733C54','#575247','#292B2F','#5F2936','#603626','#59471F','#234D38','#204A4A','#28405C','#42365D','#5D304E'] as const;
 export const KEEP_DARK_BACKGROUND='#11182A';
 export const KEEP_DARK_SURFACE='#0A0E1A';
 export const KEEP_DARK_SELECTED='#ADC3F9';
