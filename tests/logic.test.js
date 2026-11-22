@@ -234,7 +234,7 @@ for(const marker of [
   'Rename label',
   'Delete label?',
   'setFolders(fs=>fs.map',
-  'const confirmPinChange=async()=>',
+  'onSaveCredential={async(value,kind)=>',
   'onSaveCredential={async(value,kind)=>',
   "isPinLockEnabled()",
   'label="numbers" active={editorFormats.numbers} accessibilityLabel="Numbered list"',
@@ -472,3 +472,17 @@ check(!app.includes('Debounced local autosave preserves edits'), 'Editing must n
 check(app.includes('label="undo"') && app.includes('label="redo"'), 'Editor-only Undo and Redo controls must exist');
 check(app.includes('showEntireMap?completeMap') && app.includes('label={showEntireMap?'), 'Expand/Collapse whole-map control must exist');
 console.log('PASS: latest acceptance correction guards');
+
+// Final acceptance and historical-code removal: no PPTX implementation or duplicate archive UI.
+check(!exp.includes('exportPPTX')&&!exp.includes("from 'jszip'")&&!exp.includes('diagramShapes('),
+ 'Removed PPTX generator must not reappear in the PDF export module');
+check(!localSave.includes("pptx: 'application/")&&localSave.includes("export type ExportFormat = 'pdf'"),
+ 'Local export must support PDF only');
+check(!app.includes('const enablePin=')&&!app.includes('const disablePin=')&&!app.includes('const confirmPinChange='),
+ 'Obsolete PIN flow must remain removed; active OrbitSettings handles credential changes');
+check(app.includes('data={libraryChunks}')&&app.split('<FlatList').length===2,
+ 'Library must have exactly one virtualized scrolling list');
+check(app.includes('M58 56v23m-10-10 10 10 10-10')&&!app.includes('M58 11v40'),
+ 'Empty Archive must keep only the approved internal arrow illustration');
+console.log('PASS: final cleanup, unified scrolling and approved Archive illustration guards');
+

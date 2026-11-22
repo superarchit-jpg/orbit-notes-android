@@ -8,7 +8,7 @@
 
 ## Offline and privacy guarantees
 - Orbit Notes is single-user and fully offline/on-device. No cloud APIs, sync, hosted services, sign-in/accounts, remote storage, analytics, or application telemetry.
-- No note sharing, portable sharing workflows, or collaboration. Preserve local personal backup/restore and PDF/PPTX exports as separate supported features.
+- No note sharing, portable sharing workflows, or collaboration. Preserve local personal backup/restore and PDF export. Do not reintroduce PPTX export.
 - Keep SQLite and platform-secure local storage behavior intact. Do not add internet permissions or network access for runtime functionality.
 - Development-time code checks and GitHub Actions may fetch tooling/dependencies; this does **not** authorize network use in the shipped application.
 

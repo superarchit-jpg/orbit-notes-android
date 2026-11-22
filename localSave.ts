@@ -1,9 +1,8 @@
 import * as FileSystem from 'expo-file-system/legacy';
 
-export type ExportFormat = 'pdf' | 'pptx';
+export type ExportFormat = 'pdf';
 const MIME: Record<ExportFormat,string> = {
   pdf: 'application/pdf',
-  pptx: 'application/vnd.openxmlformats-officedocument.presentationml.presentation',
 };
 
 export function safeExportName(input:string,format:ExportFormat):string {

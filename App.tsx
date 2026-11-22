@@ -2,20 +2,19 @@ import React,{useEffect,useMemo,useState,useRef} from 'react';
 import {ICON_PATHS} from './orbitIcons';
 import {LIGHT,DARK,uiRoles} from './orbitThemeTokens';
 import {partitionLibraryColumns} from './libraryColumns';
-import {Alert,AppState,BackHandler,Dimensions,KeyboardAvoidingView,useColorScheme,Modal,Platform,Pressable,ScrollView,FlatList,Keyboard,StatusBar,StyleSheet,Text,TextInput,View} from 'react-native';
+import {AppState,BackHandler,Dimensions,KeyboardAvoidingView,useColorScheme,Modal,Platform,Pressable,ScrollView,FlatList,Keyboard,StatusBar,StyleSheet,Text,TextInput,View} from 'react-native';
 import Svg,{Line,Circle,Rect,Path,Text as SvgText} from 'react-native-svg';
 import {SafeAreaProvider,SafeAreaView as InsetSafeAreaView} from 'react-native-safe-area-context';
 import {Gesture,GestureDetector,GestureHandlerRootView} from 'react-native-gesture-handler';
 import Animated,{FadeInLeft,FadeOutLeft,runOnJS,useAnimatedReaction,useAnimatedStyle,useSharedValue,withTiming} from 'react-native-reanimated';
 import type {SharedValue} from 'react-native-reanimated';
 import {loadSnapshot,saveSnapshot,loadMapPreferences,saveMapPreferences,emptyMapPreferences} from './storage';
-import {radialTree,fitMap,pointSegmentDistance} from './mapGeometry';
-import {hasPin,isPinLockEnabled,setPinLockEnabled,setPin,checkPin,credentialKind,removePin,biometricEnabled,setBiometricEnabled,biometricAvailable,authenticateBiometric,lockStatus,recordPinAttempt} from './appLock';
+import {radialTree,fitMap} from './mapGeometry';
+import {hasPin,isPinLockEnabled,setPinLockEnabled,setPin,checkPin,credentialKind,removePin,biometricEnabled,setBiometricEnabled,authenticateBiometric,lockStatus,recordPinAttempt} from './appLock';
 import {exportPDF,exportMultipleMapsPDF,Note} from './export';
 import {safeExportName,saveExportToAndroid,saveMultiplePDFsToAndroid,ExportFormat} from './localSave';
 import * as FileSystem from 'expo-file-system/legacy';
 import {saveEncryptedBackup,selectBackupFile,decryptSelectedBackup} from './backup';
-import {radialLayout,overviewLayout} from './layout';
 import {TrashBatch,deleteBranches,restoreBatch,pruneTrash} from './trash';
 import {formatSelection,parseRichLine} from './noteFormatting';
 import RichNoteEditor,{RichNoteEditorHandle,RichEditorState} from './RichNoteEditor';
@@ -25,14 +24,13 @@ import appInfo from './app.json';
 import {consumedDeviceScreenOff} from './orbitDeviceLock';
 import {labelIds,addLabel,removeLabel,hasLabel,normalizeLabels} from './labels';
 import {matchesMapQuery} from './librarySearch';
-import {KEEP_LIGHT_PRESETS,KEEP_DARK_SELECTED,KEEP_DARK_SURFACE,KEEP_DARK_BACKGROUND,displayKeepColor,swatchKeepColor,keepForeground,keepChipStyle} from './keepTheme';
+import {KEEP_LIGHT_PRESETS,displayKeepColor,swatchKeepColor,keepForeground,keepChipStyle} from './keepTheme';
 
 const SafeAreaView=InsetSafeAreaView;
 const W=Dimensions.get('window').width,H=Dimensions.get('window').height;
 const now=Date.now();
 const initial:Note[]=[{id:'root',parentId:null,title:'My Notes',body:'',updatedAt:now,folderId:null}];
 type Folder={id:string;name:string};
-const stamp=(t:number)=>new Date(t).toLocaleString();
 const id=()=>`${Date.now()}-${Math.random().toString(36).slice(2,8)}`;
 const PaletteContext=React.createContext(LIGHT);
 const CARD_PALETTE=[...KEEP_LIGHT_PRESETS];
@@ -142,7 +140,7 @@ const tx=useSharedValue(0),ty=useSharedValue(0),scale=useSharedValue(1),rotation
 
 const [credentialFallback,setCredentialFallback]=useState(false);
 const settingsBack=useRef<()=>void>(()=>setSettings(false));
-const [credentialType,setCredentialType]=useState<'pin'|'password'>('pin'),[storedCredentialType,setStoredCredentialType]=useState<'pin'|'password'>('pin'),[appActive,setAppActive]=useState(AppState.currentState==='active'),[locked,setLocked]=useState(true),[pinConfigured,setPinConfigured]=useState(false),[pinLockEnabled,setPinLockEnabledState]=useState(false),[pinInput,setPinInput]=useState(''),[pinSetup,setPinSetup]=useState(''),[pinOld,setPinOld]=useState(''),[pinNew,setPinNew]=useState(''),[pinAction,setPinAction]=useState<'change'|'delete'|null>(null),[pinAttempts,setPinAttempts]=useState(0),[blockedUntil,setBlockedUntil]=useState(0),[settings,setSettings]=useState(false),[biometrics,setBiometrics]=useState(false);
+const [storedCredentialType,setStoredCredentialType]=useState<'pin'|'password'>('pin'),[appActive,setAppActive]=useState(AppState.currentState==='active'),[locked,setLocked]=useState(true),[pinConfigured,setPinConfigured]=useState(false),[pinLockEnabled,setPinLockEnabledState]=useState(false),[pinInput,setPinInput]=useState(''),[pinAttempts,setPinAttempts]=useState(0),[blockedUntil,setBlockedUntil]=useState(0),[settings,setSettings]=useState(false),[biometrics,setBiometrics]=useState(false);
 
 useEffect(()=>{
   let alive=true;
@@ -178,7 +176,7 @@ useEffect(()=>{
       const bio=await biometricEnabled();
       if(alive){
         setPinConfigured(configured);
-         setStoredCredentialType(kind);setCredentialType(kind);
+         setStoredCredentialType(kind);
         setPinLockEnabledState(enabled);
         setBiometrics(bio);
         setLocked(enabled);
@@ -246,53 +244,6 @@ const unlock=async()=>{
   }catch(e){
     showDialog('Unlock error',String(e));
   }
-};
-
-const enablePin=async()=>{
-  try{
-    if(pinConfigured)await setPinLockEnabled(true);
-    else {await setPin(pinSetup,credentialType);setPinConfigured(true);setStoredCredentialType(credentialType);}
-    setPinLockEnabledState(true);
-    setPinSetup('');
-    showDialog('App lock enabled','Your existing PIN will be required after leaving the app.');
-  }catch(e){
-    showDialog('Cannot enable PIN lock',String(e));
-  }
-};
-
-const disablePin=()=>showDialog('Disable app lock?','Your PIN will remain saved. You can enable the lock again without resetting it.',[
-  {text:'Cancel'},
-  {text:'Disable',style:'destructive',onPress:async()=>{
-    try{
-      await setPinLockEnabled(false);
-      setPinLockEnabledState(false);
-      setLocked(false);
-    }catch(e){showDialog('Unable to disable lock',String(e));}
-  }}
-]);
-const confirmPinChange=async()=>{
-  try{
-    const status=await lockStatus();
-    if(Date.now()<status.blockedUntil){showDialog('Try again later','PIN changes are temporarily blocked.');return;}
-    const valid=await checkPin(pinOld);
-    await recordPinAttempt(valid);
-    if(!valid){showDialog('Incorrect PIN','Enter your current PIN to continue.');return;}
-    if(pinAction==='change'){
-      await setPin(pinNew,credentialType);
-      setStoredCredentialType(credentialType);
-      // Updating a PIN does not alter the existing enabled/disabled choice.
-      await setPinLockEnabled(pinLockEnabled);
-      showDialog('PIN changed','Your updated PIN is stored on this device.');
-    }else if(pinAction==='delete'){
-      await removePin();
-      setPinConfigured(false);
-      setPinLockEnabledState(false);
-      setLocked(false);
-      setBiometrics(false);
-      showDialog('PIN deleted','App lock is no longer configured.');
-    }
-    setPinOld('');setPinNew('');setPinAction(null);
-  }catch(e){showDialog('PIN change failed',String(e));}
 };
 
 const current=notes.find(n=>n.id===focused)||notes[0];
@@ -879,7 +830,14 @@ const noteBodyView=(value:string)=>value.split('\n').map((line,index)=>(
 const listNotes=notes.filter(n=>n.parentId==='root'&&(showArchive?mapPrefs.archived.includes(n.id):!mapPrefs.archived.includes(n.id)));
 const shown=useMemo(()=>listNotes.filter(n=>(!folderFilter||hasLabel(n,folderFilter))&&matchesMapQuery(n,notes,librarySearch)).sort((a,b)=>Number(mapPrefs.pinned.includes(b.id))-Number(mapPrefs.pinned.includes(a.id))||(librarySort==='title'?a.title.localeCompare(b.title):librarySort==='created'?Number(a.id.split('-')[0])-Number(b.id.split('-')[0]):b.updatedAt-a.updatedAt)),[notes,folderFilter,librarySearch,librarySort,mapPrefs.pinned,mapPrefs.archived,showArchive]);
 
-const libraryColumns=useMemo(()=>partitionLibraryColumns(shown,mapPrefs.viewMode==='grid'),[shown,mapPrefs.viewMode]);
+// Group nearby cards into virtualized masonry sections under a single scroll owner.
+ // Each section keeps the approved alternating two-column order and variable card heights.
+ const libraryChunks=useMemo(()=>{
+   const chunks:Note[][]=[];
+   const chunkSize=mapPrefs.viewMode==='grid'?16:12;
+   for(let i=0;i<shown.length;i+=chunkSize)chunks.push(shown.slice(i,i+chunkSize));
+   return chunks;
+ },[shown,mapPrefs.viewMode]);
  const archiveSelection=(archive:boolean)=>{
   const targetIds=new Set(selected.filter(x=>x!=='root'));
   setMapPrefs(p=>({...p,archived:archive?[...new Set([...p.archived,...targetIds])]:p.archived.filter(x=>!targetIds.has(x))}));
@@ -1341,7 +1299,6 @@ if(locked){
               await setPin(value,kind);
               setPinConfigured(true);
               setStoredCredentialType(kind);
-              setCredentialType(kind);
               setPinLockEnabledState(true);
               setLocked(false);
             }}
@@ -1754,12 +1711,15 @@ if(locked){
                   ))}</View>}
                 </View></ScrollView>
               ):(
-                <View style={{flex:1,flexDirection:'row',gap:10,paddingHorizontal:12}}>
-                  {(mapPrefs.viewMode==='grid'?[0,1]:[0]).map(column=>(
-                    <FlatList key={column} style={{flex:1}} contentContainerStyle={{gap:10,paddingTop:12,paddingBottom:24}}
-                     data={libraryColumns[column]} keyExtractor={n=>n.id}
-                     initialNumToRender={8} maxToRenderPerBatch={8} windowSize={5} removeClippedSubviews={false}
-                     renderItem={({item:n})=>(
+                <View style={{flex:1}}>
+                  <FlatList style={{flex:1}} contentContainerStyle={{gap:10,paddingHorizontal:12,paddingTop:12,paddingBottom:24}}
+                    data={libraryChunks} keyExtractor={(_,index)=>'chunk-'+index}
+                    initialNumToRender={2} maxToRenderPerBatch={2} windowSize={5} removeClippedSubviews={false}
+                    renderItem={({item:chunk})=>(
+                     <View style={{flexDirection:'row',alignItems:'flex-start',gap:10}}>
+                      {(mapPrefs.viewMode==='grid'?[0,1]:[0]).map(column=>(
+                       <View key={column} style={{flex:1,gap:10}}>
+                        {partitionLibraryColumns(chunk,mapPrefs.viewMode==='grid')[column].map(n=>(
                     <Pressable
                       key={n.id}
                       accessibilityRole="button"
@@ -1816,22 +1776,25 @@ if(locked){
                         </Pressable>}
 
                     </Pressable>
-                  )}/>
-                  ))}
+                        ))}
+                       </View>
+                      ))}
+                     </View>
+                    )}/>
 
                   {shown.length===0&&!showArchive&&(
                     <View style={{position:'absolute',left:0,right:0,top:44,alignItems:'center',paddingVertical:48,paddingHorizontal:20,gap:12}}>
-                      {showArchive&&!librarySearch.trim()?<Svg width={116} height={116} viewBox="0 0 116 116"><Path d="M23 39h70v58H23z" stroke={palette.muted} fill="none" strokeWidth={3} strokeLinejoin="round"/><Path d="M17 26h82v14H17z" stroke={palette.muted} fill={palette.background} strokeWidth={3} strokeLinejoin="round"/><Path d="M58 48v31m-11-11 11 11 11-11" stroke={palette.muted} fill="none" strokeWidth={3} strokeLinecap="round" strokeLinejoin="round"/><Path d="M44 62h28" stroke={palette.muted} strokeWidth={3.5} strokeLinecap="round"/><Path d="M32 96h52" stroke={palette.muted} strokeWidth={2} strokeLinecap="round" opacity={0.5}/></Svg>:<MaterialIcon name={showArchive?'archive':'label'} color={palette.muted}/>}
-                      <Text style={[styles.listTitle,{textAlign:'center',color:showArchive?palette.muted:palette.text,fontWeight:showArchive?'500':'600'}]}>{librarySearch.trim()?'No matching maps':showArchive?'Your archived maps appear here':folderFilter?'No maps in this label':'Your library is ready'}</Text>
-                      {!showArchive&&<Text style={[styles.muted,{color:palette.muted,textAlign:'center'}]}>{librarySearch.trim()?'No maps match this search. Try different words or clear the search.':folderFilter?'Create a map in this label, or move an existing map here from the library.':'Create your first map to start building your notes.'}</Text>}
-                      {librarySearch.trim()?<Button label="Clear search" onPress={()=>setLibrarySearch('')}/>:!showArchive&&<Button label="Create map" primary onPress={newMap}/>}
+                      <MaterialIcon name="label" color={palette.muted}/>
+                      <Text style={[styles.listTitle,{textAlign:'center',color:palette.text,fontWeight:'600'}]}>{librarySearch.trim()?'No matching maps':folderFilter?'No maps in this label':'Your library is ready'}</Text>
+                      <Text style={[styles.muted,{color:palette.muted,textAlign:'center'}]}>{librarySearch.trim()?'No maps match this search. Try different words or clear the search.':folderFilter?'Create a map in this label, or move an existing map here from the library.':'Create your first map to start building your notes.'}</Text>
+                      {librarySearch.trim()?<Button label="Clear search" onPress={()=>setLibrarySearch('')}/>:<Button label="Create map" primary onPress={newMap}/>}
                     </View>
                   )}
                 </View>
               )}
             </View>
             {showArchive&&shown.length===0&&!showTrash&&<View pointerEvents="box-none" style={{position:'absolute',left:0,right:0,top:96,bottom:0,alignItems:'center',justifyContent:'center',paddingHorizontal:24}}>
-              <Svg width={116} height={116} viewBox="0 0 116 116" accessibilityLabel="Empty Archive illustration"><Path d="M23 39h70v58H23z" stroke={palette.muted} fill="none" strokeWidth={3} strokeLinejoin="round"/><Path d="M17 26h82v14H17z" stroke={palette.muted} fill={palette.background} strokeWidth={3} strokeLinejoin="round"/><Path d="M58 11v40m-11-11 11 11 11-11" stroke={palette.muted} fill="none" strokeWidth={3} strokeLinecap="round"/><Path d="M44 89h28" stroke={palette.muted} strokeWidth={3.5} strokeLinecap="round"/></Svg>
+              <Svg width={116} height={116} viewBox="0 0 116 116" accessibilityLabel="Empty Archive illustration"><Path d="M23 49h70v48H23z" stroke={palette.muted} fill="none" strokeWidth={3} strokeLinejoin="round"/><Path d="M17 36h82v13H17z" stroke={palette.muted} fill={palette.background} strokeWidth={3} strokeLinejoin="round"/><Path d="M58 56v23m-10-10 10 10 10-10" stroke={palette.muted} fill="none" strokeWidth={3} strokeLinecap="round" strokeLinejoin="round"/><Path d="M44 88h28" stroke={palette.muted} strokeWidth={3.5} strokeLinecap="round"/></Svg>
               <Text style={{color:palette.muted,fontSize:16,fontWeight:'500',textAlign:'center',marginTop:14}}>{librarySearch.trim()?'No matching maps':'Your archived maps appear here'}</Text>
             </View>}
             {!showTrash&&!showArchive&&selected.length===0&&<Pressable accessibilityRole="button" accessibilityLabel="Create new map" onPress={newMap} style={{position:'absolute',right:22,bottom:26,width:60,height:60,borderRadius:20,backgroundColor:palette.accent,alignItems:'center',justifyContent:'center',elevation:5,zIndex:10}}>
