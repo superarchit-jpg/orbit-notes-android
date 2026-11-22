@@ -26,7 +26,7 @@ type Props={
  onLockNow:()=>void;
  onClose:()=>void;
 };
-const glyph=(d:string,color:string)=><Svg width={23} height={23} viewBox="0 0 24 24"><Path d={d} fill="none" stroke={color} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"/></Svg>;
+const glyph=(d:string,color:string)=><Svg width={23} height={23} viewBox="0 0 24 24"><Path d={d} fill="none" stroke={color} strokeWidth={1.7} strokeLinecap="round" strokeLinejoin="round"/></Svg>;
 export default function OrbitSettings({palette,themeMode,onTheme,lockEnabled,configured,selectedKind,biometric,onToggleLock,onToggleBiometric,onVerify,onSaveCredential,onResetCredential,onVerifyBiometric,registerBack,appVersion,buildNumber,onBackup,onLockNow,onClose}:Props){
  const [page,setPage]=useState<Page>('home');
  const [credentialModal,setCredentialModal]=useState<CredentialKind|null>(null);
@@ -99,7 +99,7 @@ export default function OrbitSettings({palette,themeMode,onTheme,lockEnabled,con
     <View style={{flexDirection:'row',gap:9,marginBottom:10}}>{modeButton('light','Light')}{modeButton('dark','Dark')}{modeButton('system','System')}</View>
     {divider}
     {label('PRIVACY & SECURITY')}
-    {row('App Lock','M5 10V7a7 7 0 0 1 14 0v3M4 10h16v12H4z',()=>{setPage('appLock');setMessage('');},lockEnabled?'On':'Off')}
+    {row('App Lock','M6 10V8a6 6 0 0 1 12 0v2M5 10h14v11H5z',()=>{setPage('appLock');setMessage('');},lockEnabled?'On':'Off')}
     {row('Backup & Restore','M4 4h16v16H4zM8 8h8M8 12h8M8 16h5',()=>setPage('backup'))}
     {divider}
     {label('ABOUT')}
@@ -111,7 +111,7 @@ export default function OrbitSettings({palette,themeMode,onTheme,lockEnabled,con
        requestLockChange(enabled);
      }}/>
     </View>
-    {(lockEnabled||pendingFirstSetup)&&<>
+    {(lockEnabled||pendingFirstSetup||configured)&&<>
      {divider}
      {(['pin','password'] as const).map(kind=><View key={kind} style={{flexDirection:'row',alignItems:'center',minHeight:56,gap:16}}>
       <Text style={[text,{flex:1}]}>{kind==='pin'?'PIN':'Password'}</Text>
@@ -125,9 +125,9 @@ export default function OrbitSettings({palette,themeMode,onTheme,lockEnabled,con
      </View>}
      {configured&&<Pressable accessibilityRole="button" accessibilityLabel="Reset security credentials" onPress={requestReset} style={{minHeight:48,justifyContent:'center'}}><Text style={{color:palette.text,fontWeight:'600'}}>Reset</Text></Pressable>}
      {divider}
-     <Pressable accessibilityRole="button" accessibilityLabel="Lock now" onPress={onLockNow} style={{minHeight:52,borderRadius:14,alignItems:'center',justifyContent:'center',backgroundColor:palette.control}}>
+     {lockEnabled&&<Pressable accessibilityRole="button" accessibilityLabel="Lock now" onPress={onLockNow} style={{minHeight:52,borderRadius:14,alignItems:'center',justifyContent:'center',backgroundColor:palette.control}}>
        <Text style={[text,{fontWeight:'600'}]}>Lock now</Text>
-     </Pressable>
+     </Pressable>}
     </>}
     {!!message&&<Text style={{fontSize:13,color:palette.muted}}>{message}</Text>}
    </>:page==='backup'?<>
@@ -156,7 +156,7 @@ export default function OrbitSettings({palette,themeMode,onTheme,lockEnabled,con
      </View>
      {!!message&&<Text style={{color:'#DC4444',fontSize:13}}>{message}</Text>}
      <View style={{flexDirection:'row',justifyContent:'flex-end',alignItems:'center',gap:8}}>
-      {stage==='verify'&&<Pressable accessibilityRole="button" accessibilityLabel="Verify with biometrics" onPress={verifyWithBiometrics} disabled={busy} style={{padding:12}}><Text style={{color:palette.text}}>Biometrics</Text></Pressable>}
+      {stage==='verify'&&biometric&&<Pressable accessibilityRole="button" accessibilityLabel="Verify with biometrics" onPress={verifyWithBiometrics} disabled={busy} style={{padding:12}}><Text style={{color:palette.text}}>Biometrics</Text></Pressable>}
       <Pressable accessibilityRole="button" accessibilityLabel="Cancel credential change" onPress={()=>{if(!busy)setCredentialModal(null);}} style={{padding:12}}><Text style={{color:palette.text}}>Cancel</Text></Pressable>
       <Pressable accessibilityRole="button" accessibilityLabel={stage==='confirm'?'Save credential':'Continue credential setup'} onPress={submit} disabled={busy} style={{padding:12,borderRadius:14,backgroundColor:palette.accent,opacity:busy?0.5:1}}><Text style={{color:'#15233B',fontWeight:'600'}}>{stage==='confirm'?'Save':'Continue'}</Text></Pressable>
      </View>
