@@ -18,6 +18,7 @@ import {formatSelection,parseRichLine} from './noteFormatting';
 import RichNoteEditor,{RichNoteEditorHandle,RichEditorState} from './RichNoteEditor';
 import DeletedMapReader from './DeletedMapReader';
 import OrbitSettings from './OrbitSettings';
+import appInfo from './app.json';
 import {labelIds,addLabel,removeLabel,hasLabel,normalizeLabels} from './labels';
 import {matchesMapQuery} from './librarySearch';
 import {KEEP_LIGHT_PRESETS,KEEP_DARK_SELECTED,KEEP_DARK_SURFACE,KEEP_DARK_BACKGROUND,displayKeepColor,swatchKeepColor,keepForeground,keepChipStyle} from './keepTheme';
@@ -184,6 +185,7 @@ const [exportKind,setExportKind]=useState<ExportFormat|null>(null),[exportName,s
 const tx=useSharedValue(0),ty=useSharedValue(0),scale=useSharedValue(1),rotation=useSharedValue(0),startRotation=useSharedValue(0),startX=useSharedValue(0),startY=useSharedValue(0),startScale=useSharedValue(1);
 
 const [credentialFallback,setCredentialFallback]=useState(false);
+const settingsBack=useRef<()=>void>(()=>setSettings(false));
 const [credentialType,setCredentialType]=useState<'pin'|'password'>('pin'),[storedCredentialType,setStoredCredentialType]=useState<'pin'|'password'>('pin'),[appActive,setAppActive]=useState(AppState.currentState==='active'),[locked,setLocked]=useState(true),[pinConfigured,setPinConfigured]=useState(false),[pinLockEnabled,setPinLockEnabledState]=useState(false),[pinInput,setPinInput]=useState(''),[pinSetup,setPinSetup]=useState(''),[pinOld,setPinOld]=useState(''),[pinNew,setPinNew]=useState(''),[pinAction,setPinAction]=useState<'change'|'delete'|null>(null),[pinAttempts,setPinAttempts]=useState(0),[blockedUntil,setBlockedUntil]=useState(0),[settings,setSettings]=useState(false),[biometrics,setBiometrics]=useState(false);
 
 useEffect(()=>{
@@ -1334,7 +1336,7 @@ if(locked){
         </Modal>
 
 
-        {settings&&<Modal visible animationType="slide" onRequestClose={()=>setSettings(false)}>
+        {settings&&<Modal visible animationType="slide" onRequestClose={()=>settingsBack.current()} >
           <OrbitSettings key="orbit-settings"
             palette={palette}
             themeMode={mapPrefs.themeMode??mapPrefs.theme}
@@ -1343,6 +1345,9 @@ if(locked){
             configured={pinConfigured}
             selectedKind={storedCredentialType}
             biometric={biometrics}
+            registerBack={handler=>{settingsBack.current=handler;}}
+            appVersion={appInfo.expo.version}
+            buildNumber={String(appInfo.expo.android.versionCode)}
             onClose={()=>setSettings(false)}
             onToggleLock={async enabled=>{await setPinLockEnabled(enabled);setPinLockEnabledState(enabled);if(!enabled)setLocked(false);}}
             onToggleBiometric={async enabled=>{await setBiometricEnabled(enabled);setBiometrics(enabled);}}
@@ -1362,6 +1367,8 @@ if(locked){
               setPinLockEnabledState(true);
               setLocked(false);
             }}
+            onResetCredential={async()=>{await removePin();setPinConfigured(false);setPinLockEnabledState(false);setBiometrics(false);setLocked(false);setCredentialFallback(false);}}
+            onVerifyBiometric={async()=>biometrics?authenticateBiometric():false}
             onBackup={kind=>{setBackupPassword('');setBackupFile(null);setBackupMode(kind);}}
             onLockNow={()=>{bioPrompted.current=false;setCredentialFallback(false);setSettings(false);setLocked(true);}}
           />
