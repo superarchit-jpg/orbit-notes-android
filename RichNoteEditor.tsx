@@ -36,6 +36,8 @@ function inline(node){
  const tag=node.tagName.toLowerCase();
  if(tag==='br')return '\\n';
  const content=Array.from(node.childNodes).map(inline).join('');
+ // Empty formatted spans are editor artifacts, not user-visible Markdown markers.
+ if((tag==='strong'||tag==='b'||tag==='em'||tag==='i'||tag==='u')&&!content.replace(/\\n/g,'').trim())return content;
  if(tag==='strong'||tag==='b')return '**'+content+'**';
  if(tag==='em'||tag==='i')return '*'+content+'*';
  if(tag==='u')return '__'+content+'__';
@@ -60,7 +62,7 @@ function block(node){
  if(tag==='br')return [''];
  return [Array.from(node.childNodes).map(inline).join('').replace(/\\n$/,'')];
 }
-function serialize(){return Array.from(editor.childNodes).flatMap(block).join('\\n').replace(/\\n{3,}/g,'\\n\\n');}
+function serialize(){return Array.from(editor.childNodes).flatMap(block).join('\\n');}
 function send(){window.ReactNativeWebView.postMessage(JSON.stringify({type:'change',text:serialize()}));}
 editor.addEventListener('input',send);
 editor.addEventListener('paste',event=>{event.preventDefault();const value=event.clipboardData?.getData('text/plain')||'';document.execCommand('insertText',false,value);});
