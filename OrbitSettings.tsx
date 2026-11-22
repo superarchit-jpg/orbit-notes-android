@@ -2,7 +2,7 @@
 import React,{useState} from 'react';
 import {Keyboard,Modal,Pressable,ScrollView,Switch,Text,TextInput,View} from 'react-native';
 import {SafeAreaView} from 'react-native-safe-area-context';
-import Svg,{Path} from 'react-native-svg';
+import Svg,{Path,Circle} from 'react-native-svg';
 import type {CredentialKind} from './appLock';
 
 type Palette={background:string;surface:string;control:string;text:string;muted:string;border:string;accent:string};
@@ -94,7 +94,7 @@ export default function OrbitSettings({palette,themeMode,onTheme,lockEnabled,con
      {divider}
      {(['pin','password'] as const).map(kind=><View key={kind} style={{flexDirection:'row',alignItems:'center',minHeight:56,gap:16}}>
       <Text style={[text,{flex:1}]}>{kind==='pin'?'PIN':'Password'}</Text>
-      <Pressable accessibilityRole="button" accessibilityLabel={kind==='pin'?'Select PIN':'Select Password'} onPress={()=>openCredential(kind)} style={{padding:9}}>{glyph(kind===selectedKind?'M4 12l5 5L20 6':'M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20',kind===selectedKind?palette.accent:palette.muted)}</Pressable>
+      <Pressable accessibilityRole="radio" accessibilityState={{selected:kind===selectedKind}} accessibilityLabel={kind==='pin'?'Select PIN':'Select Password'} onPress={()=>openCredential(kind)} style={{padding:9}}><Svg width={23} height={23} viewBox="0 0 24 24"><Circle cx={12} cy={12} r={9} stroke={kind===selectedKind?palette.accent:palette.muted} fill="none" strokeWidth={2}/>{kind===selectedKind&&<Circle cx={12} cy={12} r={5} fill={palette.accent}/>}</Svg></Pressable>
       <Pressable accessibilityRole="button" accessibilityLabel={kind==='pin'?'Configure PIN':'Configure Password'} onPress={()=>openCredential(kind)} style={{padding:9}}>{glyph('m9 18 6-6-6-6',palette.text)}</Pressable>
      </View>)}
      {divider}
