@@ -63,7 +63,7 @@ const ICON_PATHS:Record<string,string>={
   'upLevel':'M12 20V4m-6 6 6-6 6 6',
   'downLevel':'M12 4v16m-6-6 6 6 6-6',
   'helpIcon':'M12 18h.01M9.5 9a2.5 2.5 0 1 1 4.4 1.7c-1.3 1.6-1.9 1.6-1.9 3.3M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20z',
-  'allMaps':'M4 4h7v7H4zM13 4h7v7h-7zM4 13h7v7H4zM13 13h7v7h-7z',
+  'allMaps':'M5 12L20 2M5 12H20M5 12L20 22',
   'settingsIcon':'M10 2h4l.7 2.3 1.5.7 2.2-1.2 2.8 2.8-1.2 2.2.7 1.5L22 11v3l-2.3.7-.7 1.5 1.2 2.2-2.8 2.8-2.2-1.2-1.5.7L14 23h-4l-.7-2.3-1.5-.7-2.2 1.2-2.8-2.8L4 16.2l-.7-1.5L1 14v-3l2.3-.7L4 8.8 2.8 6.6l2.8-2.8L7.8 5l1.5-.7L10 2zM12 8a4 4 0 1 0 0 8 4 4 0 0 0 0-8',
   'format':'M4 20h16',
   'centerFocus':'M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20z',
@@ -100,7 +100,7 @@ const IconButton=({label,onPress,danger=false,active=false,accessibilityLabel}:{
 const ActionRow=({label,icon,onPress,danger=false}:{label:string;icon?:string;onPress:()=>void;danger?:boolean})=>{
   const theme=React.useContext(PaletteContext);
   const foreground=danger?'#dc2626':theme.text;
-  return <Pressable accessibilityRole="button" accessibilityLabel={label} onPress={onPress} style={{minHeight:52,flexDirection:'row',alignItems:'center',gap:18,paddingHorizontal:14,borderRadius:12}}>
+  return <Pressable accessibilityRole="button" accessibilityLabel={label} onPress={onPress} style={{minHeight:48,flexDirection:'row',alignItems:'center',gap:14,paddingHorizontal:11,borderRadius:12}}>
     {icon&&<MaterialIcon name={icon} color={foreground}/>}
     <Text style={{fontSize:16,color:foreground,flex:1}}>{label}</Text>
   </Pressable>;
@@ -624,6 +624,8 @@ const animated=useAnimatedStyle(()=>({
   ]
 }));
 
+const miniRotationStyle=useAnimatedStyle(()=>({transform:[{rotateZ:`${rotation.value}rad`}]}));
+
 // All nodes in the active map remain mounted at stable world coordinates.
 // Moving between levels animates the camera, rather than rebuilding the diagram.
 const mapRoot=useMemo(()=>{
@@ -849,13 +851,13 @@ const mapPreview=(root:Note,previewNotes:Note[]=notes)=>{
   const points=radialTree(root,previewNotes,mapPrefs.offsets);
   const visiblePoints=points;
   const maxDepth=points.reduce((depth,point)=>Math.max(depth,point.level),0);
-  const thumbnailHeight=Math.min(284,Math.max(132,102+Math.ceil(Math.log2(points.length+1))*21+maxDepth*9));
+  const thumbnailHeight=Math.min(332,Math.max(119,88+Math.ceil(Math.log2(points.length+1))*27+maxDepth*13));
   // Thumbnail framing must not inherit the interactive canvas's minimum zoom.
   const bounds=points.reduce((v,p)=>({
     minX:Math.min(v.minX,p.x),maxX:Math.max(v.maxX,p.x),
     minY:Math.min(v.minY,p.y),maxY:Math.max(v.maxY,p.y)
   }),{minX:Infinity,maxX:-Infinity,minY:Infinity,maxY:-Infinity});
-  const thumbScale=Math.min(140/Math.max(1,bounds.maxX-bounds.minX),(thumbnailHeight-22)/Math.max(1,bounds.maxY-bounds.minY),1);
+  const thumbScale=Math.min(152/Math.max(1,bounds.maxX-bounds.minX),(thumbnailHeight-16)/Math.max(1,bounds.maxY-bounds.minY),1);
   const thumbX=80-(bounds.minX+bounds.maxX)*thumbScale/2;
   const thumbY=thumbnailHeight/2-(bounds.minY+bounds.maxY)*thumbScale/2;
   const byId=new Map(visiblePoints.map(v=>[v.note.id,v]));
@@ -1165,7 +1167,7 @@ if(locked){
           <Button label="Cancel" onPress={()=>setNodeActions(null)}/>
         </View>}
         {mapMenu&&(
-          <View style={[styles.popup,{top:'auto',bottom:72,right:12,width:226,backgroundColor:palette.surface,borderColor:palette.border}]}>
+          <View style={[styles.popup,{top:'auto',bottom:72,right:12,width:181,backgroundColor:palette.surface,borderColor:palette.border}]}>
             <ActionRow label="Export" icon="exportIcon" onPress={()=>{setMapMenu(false);exportOne('pdf');}}/>
             {current.parentId==='root'&&<ActionRow icon={mapPrefs.archived.includes(current.id)?undefined:'archive'} label={mapPrefs.archived.includes(current.id)?'Unarchive':'Archive'} onPress={()=>{archiveOne(current.id,!mapPrefs.archived.includes(current.id));setMapMenu(false);setMenu(true);setShowArchive(false);}}/>}
             <ActionRow label="Help" icon="helpIcon" onPress={()=>{setGestureHelp(true);setMapMenu(false);}}/>
@@ -1238,7 +1240,7 @@ if(locked){
             <IconButton label="⋮" accessibilityLabel="More map actions" onPress={()=>setMapMenu(v=>!v)}/>
           </View>
         </View>}
-          {!menu&&showMiniMap&&<View style={{height:150,marginHorizontal:12,marginBottom:6,backgroundColor:palette.surface,borderColor:palette.border,borderWidth:1,borderRadius:16,overflow:'hidden',padding:10}}><Text style={styles.muted}>Map overview · {completeMap.length} notes</Text><Svg width="100%" height={118} viewBox="0 0 1000 540" preserveAspectRatio="xMidYMid meet">{miniLines.map(l=><Line key={l.id} x1={l.x1*miniBounds.scale+miniBounds.dx} y1={l.y1*miniBounds.scale+miniBounds.dy} x2={l.x2*miniBounds.scale+miniBounds.dx} y2={l.y2*miniBounds.scale+miniBounds.dy} stroke={palette.connector} strokeWidth={2}/>)}{completeMap.map(v=><Circle key={v.note.id} cx={v.x*miniBounds.scale+miniBounds.dx} cy={v.y*miniBounds.scale+miniBounds.dy} r={v.note.id===focused?5:3.5} fill={v.note.id===focused?palette.accent:palette.muted}/>)}</Svg></View>}
+          {!menu&&showMiniMap&&<View style={{height:150,marginHorizontal:12,marginBottom:6,backgroundColor:palette.surface,borderColor:palette.border,borderWidth:1,borderRadius:16,overflow:'hidden',padding:10}}><Text style={styles.muted}>Map overview · {completeMap.length} notes</Text><Animated.View style={miniRotationStyle}><Svg width="100%" height={118} viewBox="0 0 1000 540" preserveAspectRatio="xMidYMid meet">{miniLines.map(l=><Line key={l.id} x1={l.x1*miniBounds.scale+miniBounds.dx} y1={l.y1*miniBounds.scale+miniBounds.dy} x2={l.x2*miniBounds.scale+miniBounds.dx} y2={l.y2*miniBounds.scale+miniBounds.dy} stroke={palette.connector} strokeWidth={2}/>)}{completeMap.map(v=><Circle key={v.note.id} cx={v.x*miniBounds.scale+miniBounds.dx} cy={v.y*miniBounds.scale+miniBounds.dy} r={v.note.id===focused?5:3.5} fill={v.note.id===focused?palette.accent:palette.muted}/>)}</Svg></Animated.View></View>}
 
         {undoOpen&&(undoBatch||pendingBranch)&&(
           <GestureDetector gesture={Gesture.Pan().activeOffsetX([-20,20]).onEnd(e=>{if(Math.abs(e.translationX)>55){runOnJS(setUndoOpen)(false);runOnJS(setUndoBatch)(null);runOnJS(setPendingBranch)(null);}})}>
@@ -1682,7 +1684,7 @@ if(locked){
             </View>
 
             {(selectionMenu||moveFolderMenu||sidebar||sortMenu||trashMenu||cardMenuId)&&<Pressable accessibilityLabel="Close menu" onPress={()=>{setSelectionMenu(false);setMoveFolderMenu(false);setSidebar(false);setSortMenu(false);setTrashMenu(false);setCardMenuId(null);}} style={[StyleSheet.absoluteFill,{zIndex:20,elevation:10,backgroundColor:sidebar?'rgba(0,0,0,0.32)':'transparent'}]}/>}
-            {cardMenuId&&<View style={{position:'absolute',top:cardMenuPosition.top,left:cardMenuPosition.left,zIndex:34,elevation:22,width:220,borderRadius:15,padding:7,backgroundColor:palette.surface,borderWidth:1,borderColor:palette.border}}>
+            {cardMenuId&&<View style={{position:'absolute',top:cardMenuPosition.top,left:cardMenuPosition.left,zIndex:34,elevation:22,width:176,borderRadius:15,padding:6,backgroundColor:palette.surface,borderWidth:1,borderColor:palette.border}}>
               <ActionRow label={mapPrefs.pinned.includes(cardMenuId)?'Unpin':'Pin'} icon="pin" onPress={()=>{
                 const target=cardMenuId!;setMapPrefs(p=>({...p,pinned:p.pinned.includes(target)?p.pinned.filter(item=>item!==target):[...p.pinned,target]}));setCardMenuId(null);
               }}/>
@@ -1700,7 +1702,7 @@ if(locked){
               ]);}}/>
             </View>}
             {selectionMenu&&selected.length>0&&(
-              <View style={[styles.popup,{top:56,right:12,left:undefined,bottom:undefined,width:236,backgroundColor:palette.surface,borderColor:palette.border,zIndex:32}]}>
+              <View style={[styles.popup,{top:56,right:12,left:undefined,bottom:undefined,width:189,backgroundColor:palette.surface,borderColor:palette.border,zIndex:32}]}>
                 <ActionRow icon={showArchive?undefined:'archive'} label={showArchive?'Unarchive':'Archive'} onPress={()=>archiveSelection(!showArchive)}/>
                 <ActionRow label="Export" icon="exportIcon" onPress={()=>{setSelectionMenu(false);exportSelected();}}/>
                 <View style={{height:1,backgroundColor:palette.border,marginVertical:4}}/>
@@ -1931,7 +1933,7 @@ if(locked){
 
                       {selected.length===0&&<Pressable accessibilityRole="button" accessibilityLabel={'More actions for '+(n.title||'Untitled map')} onPress={event=>{
                         event.stopPropagation();
-                        setCardMenuPosition({top:Math.max(64,Math.min(H-358,event.nativeEvent.pageY+7)),left:Math.max(8,Math.min(W-228,event.nativeEvent.pageX-202))});
+                        setCardMenuPosition({top:Math.max(64,Math.min(H-345,event.nativeEvent.pageY+7)),left:Math.max(8,Math.min(W-185,event.nativeEvent.pageX-162))});
                         setCardMenuId(n.id);
                       }} style={{position:'absolute',right:5,top:4,width:37,height:37,alignItems:'center',justifyContent:'center',zIndex:4}}>
                         <MaterialIcon name="⋮" color={palette.text}/>
@@ -2022,11 +2024,7 @@ if(locked){
                   </Pressable>;
                 })}
               </View>
-              <Text style={{fontSize:13,color:palette.muted}}>Custom colour (hex)</Text>
-              <View style={{flexDirection:'row',alignItems:'center',gap:8}}>
-                <TextInput accessibilityLabel="Custom hex color" placeholder="#RRGGBB" placeholderTextColor={palette.muted} autoCapitalize="characters" maxLength={7} value={manualColor} onChangeText={setManualColor} style={[styles.input,{flex:1,color:palette.text,backgroundColor:palette.background,borderColor:palette.border}]}/>
-                <Button label="Apply color" onPress={()=>{const color=manualColor.trim();if(/^#[0-9A-Fa-f]{6}$/.test(color))applyChosenColor(color.toUpperCase());else showDialog('Invalid color','Enter a six-digit hex color, for example #AABBCC.');}}/>
-              </View>
+
             </View>
           </View>
         </Modal>
@@ -2133,8 +2131,8 @@ const styles=StyleSheet.create({
     padding:12,
     borderRadius:16,
     gap:10,
-    minWidth:190,
-    maxWidth:260,
+    minWidth:152,
+    maxWidth:208,
     borderWidth:1,
     borderColor:'#cbd5e1'
   },
