@@ -97,8 +97,8 @@ console.log('PASS: numbered lists and combined formatting emit semantic ordered-
 console.log('PASS: executable layout and trash tests');
 
 const {KEEP_LIGHT_PRESETS,KEEP_DARK_PRESETS,KEEP_DARK_BACKGROUND,displayKeepColor,swatchKeepColor,keepForeground,keepChipStyle}=require(path.join(temp,'keepTheme.js'));
-assert.equal(KEEP_LIGHT_PRESETS.length,12);
-assert.equal(KEEP_DARK_PRESETS.length,12);
+assert.equal(KEEP_LIGHT_PRESETS.length,20);
+assert.equal(KEEP_DARK_PRESETS.length,20);
 assert.equal(KEEP_DARK_BACKGROUND,'#11182A');
 assert.equal(swatchKeepColor(1,'light'),'#FAAFA9');
 assert.equal(swatchKeepColor(1,'dark'),'#740D32');
@@ -110,3 +110,8 @@ assert.equal(keepForeground('#740D32'),'#F4F5FF');
 assert.equal(keepForeground('#FAAFA9'),'#202A42');
 assert.notEqual(keepChipStyle('#740D32').backgroundColor,keepChipStyle('#FAAFA9').backgroundColor);
 console.log('PASS: paired Keep palettes, readable dark cards and distinct label chips');
+
+assert.equal(KEEP_LIGHT_PRESETS.slice(12).length,8,'two new dark-preset rows');
+assert.equal(KEEP_DARK_PRESETS.slice(12).length,8);
+assert.equal(displayKeepColor(KEEP_LIGHT_PRESETS[17],'dark','#000000'),KEEP_DARK_PRESETS[17]);
+console.log('PASS: twenty preset colors; historical color values preserved');
