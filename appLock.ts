@@ -29,9 +29,9 @@ export async function credentialKind():Promise<CredentialKind>{
   try{return JSON.parse(raw).kind==='password'?'password':'pin';}catch{return 'pin';}
 }
 export function validateCredential(value:string,kind:CredentialKind):void{
-  if(kind==='pin'&&!/^\d{4,6}$/.test(value))throw new Error('PIN must contain 4–6 digits');
-  if(kind==='password'&&(!/^[A-Za-z0-9]{6,12}$/.test(value)||!/[A-Za-z]/.test(value)||!/[0-9]/.test(value)))
-    throw new Error('Password must contain 6–12 alphanumeric characters, including at least one letter and one digit');
+  if(kind==='pin'&&!/^\d{4,}$/.test(value))throw new Error('PIN must contain at least four digits');
+  if(kind==='password'&&Array.from(value).length<6)
+    throw new Error('Password must contain at least six characters');
 }
 export async function setPin(pin:string,kind:CredentialKind='pin'){
   validateCredential(pin,kind);
