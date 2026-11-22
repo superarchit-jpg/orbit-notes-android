@@ -35,6 +35,23 @@ assert.throws(()=>restoreBatch(notes,batch),/conflicting/);
 assert.equal(pruneTrash([{...batch,deletedAt:0}],7*86400000-1).length,1);
 assert.equal(pruneTrash([{...batch,deletedAt:0}],7*86400000).length,0);
 assert.equal(pruneTrash([{...batch,deletedAt:0}],31*86400000).length,0);
+
+const subtreeDelete=deleteBranches([
+ {id:'root',parentId:null},{id:'map',parentId:'root'},{id:'branch',parentId:'map'},
+ {id:'grandchild',parentId:'branch'},{id:'sibling',parentId:'map'}
+],['branch']);
+assert.deepEqual(subtreeDelete.remaining.map(n=>n.id),['root','map','sibling']);
+assert.deepEqual(subtreeDelete.batch.notes.map(n=>n.id),['branch','grandchild']);
+assert.deepEqual(restoreBatch(subtreeDelete.remaining,subtreeDelete.batch).map(n=>n.id),
+ ['root','map','sibling','branch','grandchild']);
+assert.deepEqual(subtreeDelete.remaining.map(n=>n.id),['root','map','sibling'],'expiry and dismissal finalize removal without adding to Deleted');
+const wholeMapDelete=deleteBranches([
+ {id:'root',parentId:null},{id:'map',parentId:'root'},{id:'branch',parentId:'map'}
+],['map']);
+assert.deepEqual(wholeMapDelete.batch.notes.map(n=>n.id),['map','branch']);
+assert.equal(pruneTrash([wholeMapDelete.batch],wholeMapDelete.batch.deletedAt+5000).length,1,
+ 'whole maps remain recoverable beyond five-second Undo');
+console.log('PASS: nested branch permanent removal/Undo and independent seven-day whole-map recovery');
 const {radialTree}=require(path.join(temp,'mapGeometry.js'));
 const diameters=[120,110,90,80,75,70];
 const deepNotes=Array.from({length:9},(_,i)=>({id:'n'+i,parentId:i?'n'+(i-1):null}));

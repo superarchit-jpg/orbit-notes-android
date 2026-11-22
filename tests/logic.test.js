@@ -261,14 +261,14 @@ check(security.includes('export async function credentialKind')&&security.includ
 console.log('PASS: Stage 4 new feature guards');
 
 check(app.includes("focused:notes.some(n=>n.id===focused)?focused:'root'"),'Persistence must not save a missing focused note');
-check(app.includes('setTrash(t=>mapPrefs.trashRetentionAcknowledged?pruneTrash([result.batch,...t]):[result.batch,...t])')&&app.includes('setUndoBatch(result.batch.id)')&&app.includes('setUndoOpen(true)'), 'Branch deletion must enter seven-day Recently Deleted with Undo');
-check(app.includes('setTimeout(()=>{setUndoOpen(false)')&&app.includes('},5000)'), 'Undo notification must auto-dismiss after five seconds');
-check(app.includes('remain recoverable for seven days before permanent removal'), 'Retention information must be shown during deletion');
+check(app.includes("const wholeMap=note.parentId==='root'")&&app.includes("setPendingBranch(result.batch)")&&app.includes("branchUndoDeadline.current=Date.now()+5000"), 'Branch deletion must use temporary Undo and preserve whole-map recovery');
+check(app.includes('const remaining=branchUndoDeadline.current===null?5000:Math.max(0,branchUndoDeadline.current-Date.now())')&&app.includes('const timer=setTimeout(()=>{'), 'Undo notification must auto-dismiss after five seconds, including expired branch deadlines');
+check(app.includes('This map and its descendants can be restored from Deleted for seven days.')&&app.includes('They will not appear in Deleted.'), 'Deletion confirmation must distinguish maps from permanently deleted branches');
 check(app.includes('accessibilityLabel="Restore selected deleted maps"')&&app.includes("label={selectedTrash.length?'Delete forever':'Empty bin'}"), 'Deleted header selection and empty-bin controls must remain available');
 check(app.includes('label="clearFormat" accessibilityLabel="Remove formatting"')&&richEditor.includes("clear:'removeFormat'"), 'Remove formatting must be available in the local rich editor');
 check(app.includes('accessibilityLabel="Edit labels"')&&app.includes('accessibilityLabel="Rename label"'), 'Label-management flow must support inline rename');
 check(app.includes('label="parentNote" accessibilityLabel="Go to parent note"')&&app.includes('label="centerFocus" accessibilityLabel="Center focused note"'), 'Map quick actions must use accessible vector icons');
-check(!app.includes('permanently deleted after the five-second Undo period'), 'Branch deletion must not bypass seven-day recovery');
+check(app.includes('branchUndoDeadline.current=Date.now()+5000')&&app.includes('branchUndoDeadline.current=null;'), 'Branch deletion must finalize after Undo expires or is dismissed');
 console.log('PASS: Stage 4 correction regression guards');
 
 // REF-01 through REF-07: approved interaction parity without new note backgrounds.
@@ -294,7 +294,7 @@ for(const marker of [
   "backgroundColor:'#202124'",
   "showArchive?("
 ]) check(app.includes(marker),'Missing consolidated candidate interaction parity: '+marker);
-check(app.includes("setUndoBatch(result.batch.id)")&&app.includes("setTrash(t=>mapPrefs.trashRetentionAcknowledged?pruneTrash([result.batch,...t]):[result.batch,...t])"),'Note deletion must enter Recently Deleted, never bypass seven-day recovery');
+check(app.includes("setUndoBatch(result.batch.id)")&&app.includes("setTrash(existing=>mapPrefs.trashRetentionAcknowledged?pruneTrash([result.batch,...existing]):[result.batch,...existing])"),'Whole-map deletion must retain seven-day Deleted recovery');
 for(const token of [
   'mapPreview(batch.notes.find(n=>n.parentId',
   "previewNotes:Note[]=notes",
@@ -485,4 +485,22 @@ check(app.includes('data={libraryChunks}')&&app.split('<FlatList').length===2,
 check(app.includes('M58 56v23m-10-10 10 10 10-10')&&!app.includes('M58 11v40'),
  'Empty Archive must keep only the approved internal arrow illustration');
 console.log('PASS: final cleanup, unified scrolling and approved Archive illustration guards');
+check(app.includes("const wholeMap=note.parentId==='root'") &&
+ app.includes('setPendingBranch(result.batch)') &&
+ app.includes('branchUndoDeadline.current=Date.now()+5000') &&
+ app.includes("setUndoBatch(null);") &&
+ app.includes("This branch and its descendants will be permanently deleted after five seconds"),
+ 'Nested-branch deletion must permanently remove descendants after temporary Undo');
+const permanentBranchBlock=app.slice(app.indexOf('}else{\n        // Exclude branch deletion'),app.indexOf('setUndoOpen(true);',app.indexOf('}else{\n        // Exclude branch deletion')));
+check(!permanentBranchBlock.includes('setTrash('),'Temporary branch deletion must never enter Deleted');
+check(app.includes('const clearUndoNotification=()=>')&&app.includes('runOnJS(clearUndoNotification)()'),
+ 'Swiping Undo away must invalidate the temporary restore snapshot');
+check(app.includes("setNotes(existing=>restoreBatch(existing,pendingBranch))")&&app.includes('branchUndoDeadline.current!==null&&Date.now()>=branchUndoDeadline.current'),
+ 'Undo must restore the full branch only before deadline');
+check(app.includes("color:'#fbbc04'")&&app.split("color:'#fbbc04'").length===3,
+ 'Branch Undo must use the same yellow as whole-map Undo');
+check(!app.includes('label="Undo deletion"')&&!app.includes('accessibilityLabel="Undo deletion"'),
+ 'Undo action label must be Undo in both map and library contexts');
+console.log('PASS: RC branch-only permanent deletion, deadline, matching Undo and map recovery');
+
 

@@ -73,6 +73,8 @@ const [notes,setNotes]=useState<Note[]>(initial),[folders,setFolders]=useState<F
 
 const [mapPrefs,setMapPrefs]=useState(emptyMapPreferences);
 const [pendingBranch,setPendingBranch]=useState<TrashBatch|null>(null);
+ // Branch undo exists only in memory; never in the recoverable seven-day Deleted store.
+ const branchUndoDeadline=useRef<number|null>(null);
 const [undoOpen,setUndoOpen]=useState(false);
 const [trashMenu,setTrashMenu]=useState(false);
 const [themeMenu,setThemeMenu]=useState(false);
@@ -205,6 +207,9 @@ useEffect(()=>{
 
 useEffect(()=>{
   const sub=AppState.addEventListener('change',state=>{
+    if(state==='active'&&branchUndoDeadline.current!==null&&Date.now()>=branchUndoDeadline.current){
+      branchUndoDeadline.current=null;setPendingBranch(null);setUndoOpen(false);
+    }
     // Android biometric prompts can temporarily deactivate the app; do not relock or cancel that prompt.
     if(bioPromptInProgress.current)return;
     setAppActive(state==='active');
@@ -329,7 +334,21 @@ const beginNew=(newId:string)=>{
   setEditing(true);
 };
 
-const deleteSelected=()=>{
+const clearUndoNotification=()=>{
+  branchUndoDeadline.current=null;
+  setUndoOpen(false);setUndoBatch(null);setPendingBranch(null);
+ };
+ const undoDeletion=()=>{
+  if(pendingBranch){
+    if(branchUndoDeadline.current!==null&&Date.now()>=branchUndoDeadline.current){clearUndoNotification();return;}
+    setNotes(existing=>restoreBatch(existing,pendingBranch));
+  }else if(undoBatch){
+    const batch=trash.find(t=>t.id===undoBatch);
+    if(batch)restore(batch);
+  }
+  clearUndoNotification();
+ };
+ const deleteSelected=()=>{
   const ids=selected.filter(x=>x!=='root');
   if(!ids.length)return;
   const result=deleteBranches(notes,ids);
@@ -340,7 +359,7 @@ const deleteSelected=()=>{
       setNotes(result.remaining);
        setMapPrefs(p=>({...p,archived:p.archived.filter(item=>!result.batch.notes.some(n=>n.id===item))}));
       setTrash(t=>mapPrefs.trashRetentionAcknowledged?pruneTrash([result.batch,...t]):[result.batch,...t]);
-      setUndoBatch(result.batch.id);setPendingBranch(null);setUndoOpen(true);
+      branchUndoDeadline.current=null;setUndoBatch(result.batch.id);setPendingBranch(null);setUndoOpen(true);
       if(result.batch.notes.some(n=>n.id===focused))setFocused('root');
       setSelected([]);
       setReader(null);
@@ -350,23 +369,37 @@ const deleteSelected=()=>{
 
 useEffect(()=>{
   if(!undoOpen)return;
-  const timer=setTimeout(()=>{setUndoOpen(false);setUndoBatch(null);setPendingBranch(null);},5000);
+  const remaining=branchUndoDeadline.current===null?5000:Math.max(0,branchUndoDeadline.current-Date.now());
+  const timer=setTimeout(()=>{
+    branchUndoDeadline.current=null;setUndoOpen(false);setUndoBatch(null);setPendingBranch(null);
+  },remaining);
   return()=>clearTimeout(timer);
 },[undoOpen,undoBatch,pendingBranch]);
 const removeBranch=(target:string)=>{
   if(target==='root')return;
+  const note=notes.find(n=>n.id===target);
+  if(!note)return;
   const result=deleteBranches(notes,[target]);
   if(!result.batch.notes.length)return;
-  showDialog('Move note to Deleted?', 'This note and its descendants remain recoverable for seven days before permanent removal.',[
+  const wholeMap=note.parentId==='root';
+  showDialog(wholeMap?'Move map to Deleted?':'Delete branch permanently?',
+    wholeMap?'This map and its descendants can be restored from Deleted for seven days.':'This branch and its descendants will be permanently deleted after five seconds or when Undo is dismissed. They will not appear in Deleted.',[
     {text:'Cancel',style:'cancel'},
-    {text:'Move',style:'destructive',onPress:()=>{
+    {text:wholeMap?'Move':'Delete',style:'destructive',onPress:()=>{
+      branchUndoDeadline.current=null;
       setNotes(result.remaining);
       setMapPrefs(p=>({...p,archived:p.archived.filter(item=>!result.batch.notes.some(n=>n.id===item))}));
-      setTrash(t=>mapPrefs.trashRetentionAcknowledged?pruneTrash([result.batch,...t]):[result.batch,...t]);
-      setPendingBranch(null);
-      setUndoBatch(result.batch.id);
+      if(wholeMap){
+        setTrash(existing=>mapPrefs.trashRetentionAcknowledged?pruneTrash([result.batch,...existing]):[result.batch,...existing]);
+        setPendingBranch(null);setUndoBatch(result.batch.id);
+      }else{
+        // Exclude branch deletion from the permanent seven-day Deleted store.
+        setUndoBatch(null);
+        branchUndoDeadline.current=Date.now()+5000;
+        setPendingBranch(result.batch);
+      }
       setUndoOpen(true);
-      if(result.batch.notes.some(n=>n.id===focused))setFocused(notes.find(n=>n.id===target)?.parentId||'root');
+      if(result.batch.notes.some(n=>n.id===focused))setFocused(note.parentId||'root');
       if(reader&&result.batch.notes.some(n=>n.id===reader))setReader(null);
     }}
   ]);
@@ -1188,17 +1221,12 @@ if(locked){
           {!menu&&showMiniMap&&<View style={{height:150,marginHorizontal:12,marginBottom:6,backgroundColor:palette.surface,borderColor:palette.border,borderWidth:1,borderRadius:16,overflow:'hidden',padding:10}}><Text style={styles.muted}>Map overview · {completeMap.length} notes</Text><Animated.View style={miniRotationStyle}><Svg width="100%" height={118} viewBox="0 0 1000 540" preserveAspectRatio="xMidYMid meet">{miniLines.map(l=><Line key={l.id} x1={l.x1*miniBounds.scale+miniBounds.dx} y1={l.y1*miniBounds.scale+miniBounds.dy} x2={l.x2*miniBounds.scale+miniBounds.dx} y2={l.y2*miniBounds.scale+miniBounds.dy} stroke={palette.connector} strokeWidth={2}/>)}{completeMap.map(v=><Circle key={v.note.id} cx={v.x*miniBounds.scale+miniBounds.dx} cy={v.y*miniBounds.scale+miniBounds.dy} r={v.note.id===focused?5:3.5} fill={v.note.id===focused?palette.accent:palette.muted}/>)}</Svg></Animated.View></View>}
 
         {undoOpen&&(undoBatch||pendingBranch)&&(
-          <GestureDetector gesture={Gesture.Pan().activeOffsetX([-20,20]).onEnd(e=>{if(Math.abs(e.translationX)>55){runOnJS(setUndoOpen)(false);runOnJS(setUndoBatch)(null);runOnJS(setPendingBranch)(null);}})}>
+          <GestureDetector gesture={Gesture.Pan().activeOffsetX([-20,20]).onEnd(e=>{if(Math.abs(e.translationX)>55){runOnJS(clearUndoNotification)();}})}>
           <View style={{position:'absolute',bottom:74,left:16,right:16,zIndex:42,backgroundColor:'#202124',borderRadius:8,padding:8,flexDirection:'row',alignItems:'center',justifyContent:'space-between'}}>
-            <Text style={{color:'#ffffff',flex:1}}>Moved to Deleted</Text>
-            <Button
-              label="Undo deletion"
-              onPress={()=>{
-                if(pendingBranch){setNotes(ns=>restoreBatch(ns,pendingBranch));setPendingBranch(null);}
-                else {const batch=trash.find(t=>t.id===undoBatch);if(batch)restore(batch);}
-                setUndoBatch(null);setUndoOpen(false);
-              }}
-            />
+            <Text style={{color:'#ffffff',flex:1}}>{pendingBranch?'Branch deleted':'Moved to Deleted'}</Text>
+            <Pressable accessibilityRole="button" accessibilityLabel="Undo" onPress={undoDeletion} style={{padding:8}}>
+              <Text style={{color:'#fbbc04',fontWeight:'700'}}>Undo</Text>
+            </Pressable>
           </View>
           </GestureDetector>
         )}
@@ -1800,11 +1828,11 @@ if(locked){
             {!showTrash&&!showArchive&&selected.length===0&&<Pressable accessibilityRole="button" accessibilityLabel="Create new map" onPress={newMap} style={{position:'absolute',right:22,bottom:26,width:60,height:60,borderRadius:20,backgroundColor:palette.accent,alignItems:'center',justifyContent:'center',elevation:5,zIndex:10}}>
               <Text style={{fontSize:32,color:keepForeground(palette.accent)}}>+</Text>
             </Pressable>}
-          {undoOpen&&undoBatch&&(
-            <GestureDetector gesture={Gesture.Pan().activeOffsetX([-20,20]).onEnd(e=>{if(Math.abs(e.translationX)>55){runOnJS(setUndoOpen)(false);runOnJS(setUndoBatch)(null);runOnJS(setPendingBranch)(null);}})}>
+          {undoOpen&&(undoBatch||pendingBranch)&&
+            <GestureDetector gesture={Gesture.Pan().activeOffsetX([-20,20]).onEnd(e=>{if(Math.abs(e.translationX)>55){runOnJS(clearUndoNotification)();}})}>
               <View style={{position:'absolute',bottom:90,left:16,right:16,zIndex:60,backgroundColor:'#202124',borderRadius:8,padding:12,flexDirection:'row',alignItems:'center',justifyContent:'space-between',elevation:8}}> 
-                <Text style={{color:'#ffffff'}}>Moved to Deleted</Text>
-                <Pressable accessibilityRole="button" accessibilityLabel="Undo deletion" onPress={()=>{const batch=trash.find(t=>t.id===undoBatch);if(batch)restore(batch);setUndoOpen(false);setUndoBatch(null);}} style={{padding:8}}>
+                <Text style={{color:'#ffffff'}}>{pendingBranch?'Branch deleted':'Moved to Deleted'}</Text>
+                <Pressable accessibilityRole="button" accessibilityLabel="Undo" onPress={undoDeletion} style={{padding:8}}>
                   <Text style={{color:'#fbbc04',fontWeight:'700'}}>Undo</Text>
                 </Pressable>
               </View>
