@@ -1759,7 +1759,7 @@ if(locked){
                     </Pressable>
                   ))}</View>}
                 </View>
-              ):
+              ):(
                 <>
                   {(mapPrefs.viewMode==='grid'?[0,1]:[0]).map(column=>(
                     <View key={column} style={{width:mapPrefs.viewMode==='grid'?'48.5%':'100%',gap:10}}>
