@@ -1758,12 +1758,15 @@ if(locked){
                       <Text style={{color:palette.muted,fontSize:16,textAlign:'center'}}>No notes in Deleted</Text>
                     </View>
                   ):<View style={{flexDirection:mapPrefs.viewMode==='grid'?'row':'column',flexWrap:mapPrefs.viewMode==='grid'?'wrap':'nowrap',gap:10,justifyContent:'space-between'}}>{trash.map(batch=>(
-                    <Pressable key={batch.id} accessibilityRole="button" accessibilityLabel={'Open deleted map '+(batch.notes[0]?.title||'Untitled')} accessibilityHint="Tap for read-only preview; long press to select" onPress={()=>{if(selectedTrash.length)setSelectedTrash(v=>v.includes(batch.id)?v.filter(x=>x!==batch.id):[...v,batch.id]);else setDeletedPreview(batch);}} onLongPress={()=>setSelectedTrash(v=>v.includes(batch.id)?v:[...v,batch.id])}
-                      style={{minHeight:110,width:mapPrefs.viewMode==='grid'?'48.2%':'100%',borderRadius:16,padding:12,backgroundColor:displayKeepColor(mapPrefs.cardColors[batch.notes[0]?.id],effectiveTheme,palette.surface),borderColor:selectedTrash.includes(batch.id)?palette.accent:palette.border,borderWidth:selectedTrash.includes(batch.id)?3:1,gap:8}}>
-                      <Text style={{color:keepForeground(displayKeepColor(mapPrefs.cardColors[batch.notes[0]?.id],effectiveTheme,palette.surface)),fontWeight:'600',fontSize:16}}>{batch.notes[0]?.title||'Untitled map'}</Text>
-                      <View style={{overflow:'hidden',borderRadius:10}}>{mapPreview(batch.notes.find(n=>n.parentId==='root')||batch.notes[0],batch.notes)}</View>
-                       {labelIds(batch.notes[0]).length>0&&<View style={{flexDirection:'row',flexWrap:'wrap',gap:5}}>{labelIds(batch.notes[0]).map(id=>{const label=folders.find(f=>f.id===id)?.name;return label?<View key={id} style={{paddingHorizontal:8,paddingVertical:4,borderRadius:8,borderWidth:1,...keepChipStyle(palette.surface)}}><Text style={{fontSize:11,color:keepChipStyle(palette.surface).color}}>{label}</Text></View>:null;})}</View>}
-
+                    <Pressable key={batch.id} accessibilityRole="button" accessibilityLabel={'Open deleted map '+(batch.notes[0]?.title||'Untitled')} accessibilityHint="Tap for read-only preview; long press to select"
+                      onPress={()=>{if(selectedTrash.length)setSelectedTrash(v=>v.includes(batch.id)?v.filter(x=>x!==batch.id):[...v,batch.id]);else setDeletedPreview(batch);}}
+                      onLongPress={()=>setSelectedTrash(v=>v.includes(batch.id)?v:[...v,batch.id])}
+                      style={[styles.listRow,{width:mapPrefs.viewMode==='grid'?'48.2%':'100%',minHeight:mapPrefs.viewMode==='grid'?110:66,backgroundColor:displayKeepColor(mapPrefs.cardColors[batch.notes[0]?.id],effectiveTheme,palette.surface),borderColor:selectedTrash.includes(batch.id)?palette.accent:palette.border,borderWidth:selectedTrash.includes(batch.id)?3:1},mapPrefs.viewMode==='grid'&&{alignItems:'stretch',flexDirection:'column',padding:10}]}>
+                      <View style={{flex:1,width:'100%'}}>
+                        <Text numberOfLines={2} style={[styles.listTitle,{color:keepForeground(displayKeepColor(mapPrefs.cardColors[batch.notes[0]?.id],effectiveTheme,palette.surface))}]}>{batch.notes[0]?.title||'Untitled map'}</Text>
+                        {mapPrefs.viewMode==='grid'&&<View style={{overflow:'hidden',borderRadius:10}}>{mapPreview(batch.notes.find(n=>n.parentId==='root')||batch.notes[0],batch.notes)}</View>}
+                        {labelIds(batch.notes[0]).length>0&&<View style={{flexDirection:'row',flexWrap:'wrap',gap:5,marginTop:7}}>{labelIds(batch.notes[0]).map(labelId=>{const label=folders.find(f=>f.id===labelId)?.name;const chip=keepChipStyle(displayKeepColor(mapPrefs.cardColors[batch.notes[0]?.id],effectiveTheme,palette.surface));return label?<View key={labelId} style={{...chip,borderWidth:1,borderRadius:8,paddingHorizontal:9,paddingVertical:4}}><Text style={{color:chip.color,fontSize:11}}>{label}</Text></View>:null;})}</View>}
+                      </View>
                     </Pressable>
                   ))}</View>}
                 </View>
