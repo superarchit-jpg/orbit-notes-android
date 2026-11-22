@@ -33,6 +33,8 @@ const LIGHT={background:'#ECEEFF',surface:'#FAF9FF',control:'#F8F7FD',text:'#243
 const DARK={background:KEEP_DARK_BACKGROUND,surface:KEEP_DARK_SURFACE,control:'#212A47',text:'#F1F3FE',muted:'#A9B2CD',border:'#536080',accent:KEEP_DARK_SELECTED,canvas:'#11182A',node:'#293751',subnode:'#1B293E',connector:'#7B86A5'};
 const PaletteContext=React.createContext(LIGHT);
 const CARD_PALETTE=[...KEEP_LIGHT_PRESETS];
+// Exactly four columns on phone widths: 12 original swatches + two additional rows of four.
+const paletteSwatchSize=Math.min(60,(Math.min(W-48,380)-44-42)/4);
 
 const Button=({label,onPress,primary=false,danger=false,active=false}:{label:string;onPress:()=>void;primary?:boolean;danger?:boolean;active?:boolean})=>{const palette=React.useContext(PaletteContext);return <Pressable accessibilityRole="button" accessibilityLabel={label} onPress={onPress} style={[styles.button,{backgroundColor:active?palette.control:'transparent'},primary&&{backgroundColor:palette.accent}]}><Text style={[styles.buttonText,{color:danger?'#dc2626':active?palette.accent:palette.text},primary&&{color:keepForeground(palette.accent)}]}>{label==='🗑'?<Svg width={23} height={23} viewBox="0 0 24 24"><Line x1={4} y1={7} x2={20} y2={7} stroke="#dc2626" strokeWidth={1.8}/><Line x1={9} y1={4} x2={15} y2={4} stroke="#dc2626" strokeWidth={1.8}/><Rect x={6} y={7} width={12} height={14} rx={2} stroke="#dc2626" strokeWidth={1.8} fill="none"/><Line x1={10} y1={11} x2={10} y2={17} stroke="#dc2626" strokeWidth={1.5}/><Line x1={14} y1={11} x2={14} y2={17} stroke="#dc2626" strokeWidth={1.5}/></Svg>:label}</Text></Pressable>;}
 
@@ -1886,7 +1888,7 @@ if(locked){
                   const chosen=targets.length>0&&targets.every(target=>(source[target]||CARD_PALETTE[0]).toLowerCase()===color.toLowerCase());
                   const swatch=swatchKeepColor(index,effectiveTheme);
                   return <Pressable key={color} accessibilityRole="button" accessibilityState={{selected:chosen}} accessibilityLabel={index===0?'Default color':`Color ${index+1}`} onPress={()=>applyChosenColor(color)}
-                    style={{width:54,height:54,borderRadius:27,backgroundColor:swatch,borderWidth:chosen?3:1.3,borderColor:chosen?palette.accent:palette.border,alignItems:'center',justifyContent:'center'}}>
+                    style={{width:paletteSwatchSize,height:paletteSwatchSize,borderRadius:paletteSwatchSize/2,backgroundColor:swatch,borderWidth:chosen?3:1.3,borderColor:chosen?palette.accent:palette.border,alignItems:'center',justifyContent:'center'}}>
                     {index===0&&<Svg width={27} height={27} viewBox="0 0 24 24"><Circle cx={12} cy={12} r={8.5} stroke={palette.muted} strokeWidth={2} fill="none"/><Line x1={6} y1={18} x2={18} y2={6} stroke={palette.muted} strokeWidth={2}/></Svg>}
                     {chosen&&<View style={{position:'absolute',top:-6,right:-7,width:22,height:22,borderRadius:11,backgroundColor:palette.accent,alignItems:'center',justifyContent:'center'}}><MaterialIcon name="✓" color={keepForeground(palette.accent)}/></View>}
                   </Pressable>;
@@ -1998,7 +2000,7 @@ const styles=StyleSheet.create({
     backgroundColor:'white',
     padding:12,
     borderRadius:16,
-    gap:10,
+    gap:8,
     minWidth:152,
     maxWidth:208,
     borderWidth:1,
