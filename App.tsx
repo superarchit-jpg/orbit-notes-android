@@ -1335,7 +1335,7 @@ if(locked){
         {settings&&<Modal visible animationType="slide" onRequestClose={()=>setSettings(false)}>
           <OrbitSettings key="orbit-settings"
             palette={palette}
-            themeMode={mapPrefs.themeMode}
+            themeMode={mapPrefs.themeMode??mapPrefs.theme}
             onTheme={choice=>setMapPrefs(p=>({...p,themeMode:choice,theme:choice==='system'?p.theme:choice}))}
             lockEnabled={pinLockEnabled}
             configured={pinConfigured}
