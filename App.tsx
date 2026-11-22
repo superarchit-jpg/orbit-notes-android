@@ -1828,7 +1828,7 @@ if(locked){
             {!showTrash&&!showArchive&&selected.length===0&&<Pressable accessibilityRole="button" accessibilityLabel="Create new map" onPress={newMap} style={{position:'absolute',right:22,bottom:26,width:60,height:60,borderRadius:20,backgroundColor:palette.accent,alignItems:'center',justifyContent:'center',elevation:5,zIndex:10}}>
               <Text style={{fontSize:32,color:keepForeground(palette.accent)}}>+</Text>
             </Pressable>}
-          {undoOpen&&(undoBatch||pendingBranch)&&
+          {undoOpen&&(undoBatch||pendingBranch)&&(
             <GestureDetector gesture={Gesture.Pan().activeOffsetX([-20,20]).onEnd(e=>{if(Math.abs(e.translationX)>55){runOnJS(clearUndoNotification)();}})}>
               <View style={{position:'absolute',bottom:90,left:16,right:16,zIndex:60,backgroundColor:'#202124',borderRadius:8,padding:12,flexDirection:'row',alignItems:'center',justifyContent:'space-between',elevation:8}}> 
                 <Text style={{color:'#ffffff'}}>{pendingBranch?'Branch deleted':'Moved to Deleted'}</Text>
