@@ -19,6 +19,7 @@ import RichNoteEditor,{RichNoteEditorHandle,RichEditorState} from './RichNoteEdi
 import DeletedMapReader from './DeletedMapReader';
 import OrbitSettings from './OrbitSettings';
 import appInfo from './app.json';
+import {consumedDeviceScreenOff} from './orbitDeviceLock';
 import {labelIds,addLabel,removeLabel,hasLabel,normalizeLabels} from './labels';
 import {matchesMapQuery} from './librarySearch';
 import {KEEP_LIGHT_PRESETS,KEEP_DARK_SELECTED,KEEP_DARK_SURFACE,KEEP_DARK_BACKGROUND,displayKeepColor,swatchKeepColor,keepForeground,keepChipStyle} from './keepTheme';
@@ -255,12 +256,13 @@ useEffect(()=>{
     if(bioPromptInProgress.current)return;
     setAppActive(state==='active');
      if(state!=='active')bioPrompted.current=false;
-     if(state!=='active'&&pinLockEnabled){
+     // Only a real Android screen-off event requires relocking. App switching does not.
+     if(state==='active'&&pinLockEnabled&&consumedDeviceScreenOff()){
        setSettings(false);
        setCredentialFallback(false);
-      setLocked(true);
-      setPinInput('');
-    }
+       setLocked(true);
+       setPinInput('');
+     }
   });
   return()=>sub.remove();
 },[pinLockEnabled]);
@@ -519,13 +521,14 @@ useEffect(()=>{
       if(selectionMenu||moveFolderMenu||sortMenu||trashMenu||cardMenuId){setSelectionMenu(false);setMoveFolderMenu(false);setSortMenu(false);setTrashMenu(false);setCardMenuId(null);return true;}
       if(selected.length){setSelected([]);return true;}
       if(selectedTrash.length){setSelectedTrash([]);return true;}
+      if(pinLockEnabled)setLocked(true);
       BackHandler.exitApp();return true;
     }
     if(mapMenu||nodeActions){setMapMenu(false);setNodeActions(null);return true;}
     setMenu(true);return true;
   });
   return()=>sub.remove();
-},[menu,reader,settings,backupMode,exportKind,labelManager,creatingFolder,sidebar,selectionMenu,moveFolderMenu,sortMenu,trashMenu,cardMenuId,selected,selectedTrash,mapMenu,nodeActions]);
+},[menu,reader,settings,backupMode,exportKind,labelManager,creatingFolder,sidebar,selectionMenu,moveFolderMenu,sortMenu,trashMenu,cardMenuId,selected,selectedTrash,mapMenu,nodeActions,pinLockEnabled]);
 
 const acknowledgeTrashRetention=()=>{
   const expired=trash.filter(b=>Date.now()-b.deletedAt>=7*86400000).length;
@@ -1373,7 +1376,7 @@ if(locked){
               setLocked(false);
             }}
             onResetCredential={async()=>{await removePin();setPinConfigured(false);setPinLockEnabledState(false);setBiometrics(false);setLocked(false);setCredentialFallback(false);}}
-            onVerifyBiometric={async()=>biometrics?authenticateBiometric():false}
+            onVerifyBiometric={async()=>{if(!biometrics)return false;bioPromptInProgress.current=true;try{return await authenticateBiometric();}finally{bioPromptInProgress.current=false;}}}
             onBackup={kind=>{setBackupPassword('');setBackupFile(null);setBackupMode(kind);}}
             onLockNow={()=>{bioPrompted.current=false;setCredentialFallback(false);setSettings(false);setLocked(true);}}
           />
