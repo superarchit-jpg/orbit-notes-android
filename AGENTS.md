@@ -1,8 +1,8 @@
 # Orbit Notes — AI Coding Agent Instructions
 
 ## Repository safety and scope
-- Only implement development changes on `v0.16-map-redesign` unless the user explicitly authorizes a different development branch.
-- **Never change, reset, rebase, merge into, or overwrite `main` or the stable `v0.15.1` release.**
+- Make all subsequent feature and bug-fix changes on `v1-development` (or a new branch created from the v1.0.0 stable tag). Do not use the historical `v0.16-map-redesign` branch for new work.
+- **Treat `main` and tag `v1.0.0` as the accepted stable baseline.** Do not reset, rebase, force-push, or overwrite them. Promote tested future releases only with explicit approval.
 - Treat this as an Expo SDK 54 / React Native Android application, **not** a web browser application.
 - Preserve existing user data and behavior. Keep changes small, focused, and reversible.
 
@@ -31,7 +31,7 @@
 - Use `impeccable critique`, `audit`, `adapt`, and `polish` as **review workflows**, not automatic rewrites. Review concrete app screens/components and translate suggestions to supported React Native/Expo APIs.
 - Impeccable's HTML/CSS detector, live browser mode, and web-only edit hooks **do not validate native Android UI**. Do not enable browser hooks or bypass approvals/sandboxing for this app.
 - Do not add Impeccable to app runtime dependencies, ship its binaries in the APK, or add network functionality. The project-local skill files are vendored below; an actual coding agent must load them before its commands become usable.
-- Keep current v0.16 functional and regression work first; use Impeccable primarily for targeted design reviews and polish, and never let design suggestions silently change behavior.
+- Keep the stable v1.0.0 feature set and approved visuals unchanged unless the user requests a modification; use Impeccable for targeted audits without automatic redesigns.
 
 
 ## Installed Impeccable Codex skill
@@ -42,7 +42,7 @@
 - Avoid browser-only live mode, HTML/CSS detection hooks, and auto-apply behaviors for this React Native project; developer review and normal tests remain required.
 
 ## Change and regression discipline
-- First inspect affected code, existing tests, and unresolved v0.16 issues. Avoid unrelated refactoring.
+- First inspect affected v1.0.0 baseline code, existing tests, and the precise new issue. Avoid unrelated refactoring.
 - Validate with `npm run test:logic`, `npm run test:behavior`, and `npm run typecheck`; then check the Android APK workflow if relevant.
 - Report test failures and any checks that could not run. Do not report an APK as installable unless a successful GitHub Actions run contains the actual `Orbit-Notes-Android-APK` artifact.
-- Keep release branch and stable APK untouched.
+- Keep the v1.0.0 tag, stable main commit and its release APK untouched. Increment versionCode for every installable update, and validate from the version-1 development branch.
