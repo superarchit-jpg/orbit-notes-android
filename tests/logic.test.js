@@ -16,6 +16,9 @@ const geometry = read('mapGeometry.ts');
 const trash = read('trash.ts');
 const app = read('App.tsx');
 const richEditor=read('RichNoteEditor.tsx');
+const themeTokens=read('orbitThemeTokens.ts');
+const iconPaths=read('orbitIcons.ts');
+const libraryColumns=read('libraryColumns.ts');
 const settingsUi=read('OrbitSettings.tsx');
 const deletedViewer=read('DeletedMapReader.tsx');
 const security=read('appLock.ts');
@@ -182,7 +185,7 @@ check(richEditor.includes('accessibilityLabel="Note content"'),'Offline rich edi
 console.log('PASS: Stage 3 UX-06 editor and empty-state wiring');
 
 for (const marker of [
-  'const LIGHT=','const DARK=','PaletteContext.Provider',
+  'PaletteContext.Provider',
   "effectiveTheme==='dark'",'const mapPreview=(root:Note,previewNotes:Note[]=notes)=>',
   "mapPrefs.viewMode==='grid'&&mapPreview(n)",
   'Change selected card colors',
@@ -192,6 +195,9 @@ for (const marker of [
   'parseRichLine(line)', 'label="bullets" active={editorFormats.bullets} accessibilityLabel="Bulleted list"',
   "onRequestClose={cancelReader}", 'label="palette" accessibilityLabel="Note color"'
 ]) check(app.includes(marker), `Missing approved Keep redesign wiring: ${marker}`);
+check(themeTokens.includes('export const LIGHT=')&&themeTokens.includes('export const DARK='),'Keep colours must remain in shared theme module');
+check(iconPaths.includes('export const ICON_PATHS'),'Vector paths must remain available in shared module');
+check(app.includes('FlatList')&&libraryColumns.includes('partitionLibraryColumns'),'Library virtualization and masonry order must remain available');
 check(!app.includes('label="Reminders"')&&app.includes('showArchive'),'Archive must be explicitly separated from active library and Reminders must remain absent');
 console.log('PASS: approved Keep-inspired redesign wiring');
 
