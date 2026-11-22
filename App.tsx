@@ -246,6 +246,7 @@ useEffect(()=>{
     setAppActive(state==='active');
      if(state!=='active')bioPrompted.current=false;
      if(state!=='active'&&pinLockEnabled){
+       setCredentialFallback(false);
       setLocked(true);
       setPinInput('');
     }
@@ -272,7 +273,7 @@ const unlock=async()=>{
     setPinAttempts(next.attempts);
     setBlockedUntil(next.blockedUntil);
     setPinInput('');
-    if(valid)setLocked(false);
+    if(valid){setLocked(false);setCredentialFallback(false);}
     else showDialog('Incorrect PIN',next.blockedUntil>Date.now()?'Try again in one minute.':'Please try again.');
   }catch(e){
     showDialog('Unlock error',String(e));
@@ -1080,47 +1081,40 @@ if(locked){
       styles.screen,
       {justifyContent:'center',padding:28,gap:18,backgroundColor:palette.background}
     ]}>
-      <Text style={[styles.logo,{color:palette.text}]}>◉ Orbit Notes</Text>
-      <Text style={[styles.section,{color:palette.text}]}>Unlock your private notebook</Text>
-
-      <TextInput
-        secureTextEntry
-        keyboardType={storedCredentialType==='pin'?'number-pad':'default'}
-        autoCapitalize="none"
-        maxLength={12}
-        value={pinInput}
-        onChangeText={setPinInput}
-        placeholder={storedCredentialType==='pin'?'Enter app PIN':'Enter app password'}
-        placeholderTextColor={palette.muted}
-        style={[styles.input,{backgroundColor:palette.surface,color:palette.text,borderColor:palette.border}]}
-      />
-
-      <Button
-        label={storedCredentialType==='pin'?'Unlock with PIN':'Unlock with password'}
-        primary
-        onPress={unlock}
-      />
-
-      {biometrics&&(
-        <Button
-          label="Use biometrics"
-          onPress={async()=>{
-            if(await authenticateBiometric()){
-              setLocked(false);
-            }else{
-              showDialog(
-                'Unlock unsuccessful',
-                'Use your PIN to unlock.'
-              );
-            }
-          }}
-        />
+      <View style={{alignItems:'center',gap:16}}>
+        <MaterialIcon name="settingsIcon" color={palette.muted}/>
+        <Text style={[styles.logo,{color:palette.text}]}>Orbit Notes</Text>
+      </View>
+      {biometrics&&!credentialFallback?(
+        <View style={{alignItems:'center',gap:20}}>
+          <Svg width={62} height={62} viewBox="0 0 24 24"><Path d="M12 3c-5 0-8 3-8 8m16 0c0-5-3-8-8-8M4 15c1 4 3 6 8 6m8-6c-1 4-3 6-8 6M8 15c.5 3 1.5 4 4 4s3.5-1 4-4M8 11c0-3 1.5-5 4-5s4 2 4 5m-4-2v7m-8-4v2m16-2v2" stroke={palette.accent} strokeWidth={1.8} strokeLinecap="round" fill="none"/></Svg>
+          <Text style={{color:palette.text,fontSize:19,fontWeight:'600'}}>Unlock with biometrics</Text>
+          <Button label="Use biometrics" primary onPress={async()=>{
+            if(bioPromptInProgress.current)return;
+            bioPromptInProgress.current=true;
+            try{if(await authenticateBiometric()){setLocked(false);setPinInput('');setCredentialFallback(false);}}
+            catch(e){showDialog('Biometric authentication',String(e));}
+            finally{bioPromptInProgress.current=false;}
+          }}/>
+          <Button label={storedCredentialType==='pin'?'Use PIN instead':'Use Password instead'} onPress={()=>{setCredentialFallback(true);setPinInput('');}}/>
+        </View>
+      ):(
+        <>
+          <Text style={[styles.section,{color:palette.text,textAlign:'center'}]}>Enter {storedCredentialType==='pin'?'PIN':'Password'}</Text>
+          <TextInput
+            secureTextEntry
+            keyboardType={storedCredentialType==='pin'?'number-pad':'default'}
+            autoCapitalize="none" autoCorrect={false}
+            value={pinInput}
+            onChangeText={setPinInput}
+            placeholder={storedCredentialType==='pin'?'Enter PIN':'Enter Password'}
+            placeholderTextColor={palette.muted}
+            style={[styles.input,{backgroundColor:palette.surface,color:palette.text,borderColor:palette.border}]}
+          />
+          <Button label="Unlock" primary onPress={unlock}/>
+          {biometrics&&<Button label="Use biometrics" onPress={()=>{setCredentialFallback(false);bioPrompted.current=false;}}/>}
+        </>
       )}
-
-      <Text style={styles.muted}>
-        No account or internet connection is required.
-        If you forget your PIN, recovery is not currently supported.
-      </Text>
     {renderAppDialog()}
     </SafeAreaView>
     </PaletteContext.Provider>
