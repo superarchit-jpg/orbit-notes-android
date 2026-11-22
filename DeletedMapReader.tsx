@@ -30,6 +30,7 @@ export default function DeletedMapReader({batch,palette,theme,colors,onClose}:Pr
  const layout=useMemo(()=>fitMap(visible.length?visible:points,Math.max(100,canvas.width),Math.max(100,canvas.height)),[points,hidden,canvas.width,canvas.height]);
  const base=Math.max(0.12,Math.min(1.5,layout.scale||0.5));
  const fit=()=>{panX.value=withTiming(0);panY.value=withTiming(0);zoom.value=withTiming(1);angle.value=withTiming(0);};
+ const moveTo=(id:string)=>{const point=points.find(p=>p.note.id===id);if(!point)return;setFocus(id);const a=angle.value;const k=zoom.value*base;panX.value=withTiming(-layout.x-(point.x*Math.cos(a)-point.y*Math.sin(a))*k);panY.value=withTiming(-layout.y-(point.x*Math.sin(a)+point.y*Math.cos(a))*k);};
  const pan=Gesture.Pan().onStart(()=>{xStart.value=panX.value;yStart.value=panY.value;}).onUpdate(e=>{panX.value=xStart.value+e.translationX;panY.value=yStart.value+e.translationY;});
  const pinch=Gesture.Pinch().onStart(()=>{zStart.value=zoom.value;}).onUpdate(e=>{zoom.value=Math.max(0.2,Math.min(4,zStart.value*e.scale));});
  const rotate=Gesture.Rotation().onStart(()=>{rStart.value=angle.value;}).onUpdate(e=>{angle.value=rStart.value+e.rotation;});
@@ -49,18 +50,18 @@ export default function DeletedMapReader({batch,palette,theme,colors,onClose}:Pr
   ):(
    <>
     <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{flexGrow:0,maxHeight:49}} contentContainerStyle={{paddingHorizontal:12,alignItems:'center'}}>
-      {ancestors.map((n,i)=><Pressable key={n.id} onPress={()=>setFocus(n.id)} style={{padding:9}} accessibilityLabel={`Focus ${n.title||'note'}`}><Text style={{color:n.id===focus?palette.accent:palette.muted,fontWeight:n.id===focus?'700':'400'}}>{i?'› ':''}{n.title||'Untitled'}</Text></Pressable>)}
+      {ancestors.map((n,i)=><Pressable key={n.id} onPress={()=>moveTo(n.id)} style={{padding:9}} accessibilityLabel={`Focus ${n.title||'note'}`}><Text style={{color:n.id===focus?palette.accent:palette.muted,fontWeight:n.id===focus?'700':'400'}}>{i?'› ':''}{n.title||'Untitled'}</Text></Pressable>)}
     </ScrollView>
     <GestureDetector gesture={Gesture.Simultaneous(pan,pinch,rotate)}>
      <View style={{flex:1,overflow:'hidden',backgroundColor:palette.background}} onLayout={e=>setCanvas({width:e.nativeEvent.layout.width,height:e.nativeEvent.layout.height})}>
-      <Animated.View style={[{position:'absolute',left:canvas.width/2,top:canvas.height/2,width:0,height:0},transform]}>
+      <Animated.View style={[{position:'absolute',left:canvas.width/2+layout.x,top:canvas.height/2+layout.y,width:0,height:0},transform]}>
        <View style={{position:'absolute',left:0,top:0,transform:[{scale:base}]}}>
         {visible.filter(v=>v.note.parentId).map(v=>{const p=visible.find(x=>x.note.id===v.note.parentId);return p?<View key={'edge-'+v.note.id} pointerEvents="none" style={{position:'absolute',left:Math.min(p.x,v.x),top:Math.min(p.y,v.y),width:Math.abs(v.x-p.x)+1,height:Math.abs(v.y-p.y)+1}}><Svg width="100%" height="100%"><Line x1={p.x<=v.x?0:Math.abs(v.x-p.x)} y1={p.y<=v.y?0:Math.abs(v.y-p.y)} x2={p.x<=v.x?Math.abs(v.x-p.x):0} y2={p.y<=v.y?Math.abs(v.y-p.y):0} stroke={palette.connector} strokeWidth={2.5}/></Svg></View>:null;})}
         {visible.map(p=>{
           const size=[120,110,90,80,75,70][Math.min(p.level,5)];
           const bg=displayKeepColor(colors[p.note.id],theme,p.note.id===focus?palette.accent:palette.node);
           const double=Gesture.Tap().numberOfTaps(2).maxDelay(270).onEnd((_e,ok)=>{if(ok)runOnJS(setReading)(p.note.id);});
-          const single=Gesture.Tap().numberOfTaps(1).onEnd((_e,ok)=>{if(ok)runOnJS(setFocus)(p.note.id);});
+          const single=Gesture.Tap().numberOfTaps(1).onEnd((_e,ok)=>{if(ok)runOnJS(moveTo)(p.note.id);});
           return <GestureDetector key={p.note.id} gesture={Gesture.Exclusive(double,single)}>
            <View accessibilityLabel={p.note.title||'Untitled note'} style={{position:'absolute',left:p.x-size/2,top:p.y-size/2,width:size,height:size,borderRadius:size/2,borderWidth:p.note.id===focus?3:1.5,borderColor:p.note.id===focus?palette.accent:palette.border,backgroundColor:bg,justifyContent:'center',alignItems:'center',padding:8}}>
             <Text numberOfLines={2} style={{textAlign:'center',fontWeight:'600',fontSize:p.level>2?13:16,color:keepForeground(bg)}}>{p.note.title||'Untitled'}</Text>
