@@ -16,10 +16,12 @@ export default function DeletedMapReader({batch,palette,theme,colors,onClose}:Pr
  const [focus,setFocus]=useState(batch.notes[0]?.id||'');
  const [reading,setReading]=useState<string|null>(null);
  const [collapsed,setCollapsed]=useState<string[]>([]);
+ // Ephemeral read-only layout adjustments are never written to the saved notebook.
+ const [viewOffsets,setViewOffsets]=useState<Record<string,number>>({});
  const [canvas,setCanvas]=useState({width:360,height:460});
  const [mini,setMini]=useState(false);
  const root=useMemo(()=>batch.notes.find(n=>!batch.notes.some(x=>x.id===n.parentId))||batch.notes[0],[batch]);
- const points=useMemo(()=>root?radialTree(root,batch.notes):[],[root,batch.notes]);
+ const points=useMemo(()=>root?radialTree(root,batch.notes,viewOffsets):[],[root,batch.notes,viewOffsets]);
  const byId=useMemo(()=>new Map(batch.notes.map(n=>[n.id,n])),[batch.notes]);
  const hidden=useMemo(()=>{const ids=new Set<string>();collapsed.forEach(id=>{const visit=(parent:string)=>batch.notes.filter(n=>n.parentId===parent).forEach(n=>{ids.add(n.id);visit(n.id);});visit(id);});return ids;},[collapsed,batch.notes]);
  const visible=points.filter(p=>!hidden.has(p.note.id));
@@ -30,6 +32,7 @@ export default function DeletedMapReader({batch,palette,theme,colors,onClose}:Pr
  const layout=useMemo(()=>fitMap(visible.length?visible:points,Math.max(100,canvas.width),Math.max(100,canvas.height)),[points,hidden,canvas.width,canvas.height]);
  const base=Math.max(0.12,Math.min(1.5,layout.scale||0.5));
  const fit=()=>{panX.value=withTiming(0);panY.value=withTiming(0);zoom.value=withTiming(1);angle.value=withTiming(0);};
+ const rotateBranch=(id:string,delta:number)=>setViewOffsets(v=>({...v,[id]:(v[id]||0)+delta}));
  const moveTo=(id:string)=>{const point=points.find(p=>p.note.id===id);if(!point)return;setFocus(id);const a=angle.value;const k=zoom.value*base;panX.value=withTiming(-layout.x-(point.x*Math.cos(a)-point.y*Math.sin(a))*k);panY.value=withTiming(-layout.y-(point.x*Math.sin(a)+point.y*Math.cos(a))*k);};
  const pan=Gesture.Pan().onStart(()=>{xStart.value=panX.value;yStart.value=panY.value;}).onUpdate(e=>{panX.value=xStart.value+e.translationX;panY.value=yStart.value+e.translationY;});
  const pinch=Gesture.Pinch().onStart(()=>{zStart.value=zoom.value;}).onUpdate(e=>{zoom.value=Math.max(0.2,Math.min(4,zStart.value*e.scale));});
@@ -60,11 +63,20 @@ export default function DeletedMapReader({batch,palette,theme,colors,onClose}:Pr
         {visible.map(p=>{
           const size=[120,110,90,80,75,70][Math.min(p.level,5)];
           const bg=displayKeepColor(colors[p.note.id],theme,p.note.id===focus?palette.accent:palette.node);
+          const parent=points.find(n=>n.note.id===p.note.parentId);
+          const branchId=p.note.parentId||'';
+          const bx=parent?p.x-parent.x:0,by=parent?p.y-parent.y:0;
+          const drag=Gesture.Pan().minPointers(1).maxPointers(1).minDistance(10).onChange(e=>{
+            const denominator=Math.max(2500,bx*bx+by*by);
+            const delta=(bx*e.changeY-by*e.changeX)/denominator;
+            if(Number.isFinite(delta)&&Math.abs(delta)>0.00001)runOnJS(rotateBranch)(branchId,delta);
+          });
           const double=Gesture.Tap().numberOfTaps(2).maxDelay(270).onEnd((_e,ok)=>{if(ok)runOnJS(setReading)(p.note.id);});
           const single=Gesture.Tap().numberOfTaps(1).onEnd((_e,ok)=>{if(ok)runOnJS(moveTo)(p.note.id);});
-          return <GestureDetector key={p.note.id} gesture={Gesture.Exclusive(double,single)}>
+          return <GestureDetector key={p.note.id} gesture={parent?Gesture.Simultaneous(Gesture.Exclusive(double,single),drag):Gesture.Exclusive(double,single)}>
            <View accessibilityLabel={p.note.title||'Untitled note'} style={{position:'absolute',left:p.x-size/2,top:p.y-size/2,width:size,height:size,borderRadius:size/2,borderWidth:p.note.id===focus?3:1.5,borderColor:p.note.id===focus?palette.accent:palette.border,backgroundColor:bg,justifyContent:'center',alignItems:'center',padding:8}}>
             <Text numberOfLines={2} style={{textAlign:'center',fontWeight:'600',fontSize:p.level>2?13:16,color:keepForeground(bg)}}>{p.note.title||'Untitled'}</Text>
+            {collapsed.includes(p.note.id)&&batch.notes.some(n=>n.parentId===p.note.id)&&<Text style={{color:keepForeground(bg),fontSize:10}}>+{batch.notes.filter(n=>n.parentId===p.note.id).length} more</Text>}
            </View>
           </GestureDetector>;
         })}
