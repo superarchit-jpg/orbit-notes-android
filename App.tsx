@@ -17,6 +17,7 @@ import {TrashBatch,deleteBranches,restoreBatch,pruneTrash} from './trash';
 import {formatSelection,parseRichLine} from './noteFormatting';
 import RichNoteEditor,{RichNoteEditorHandle,RichEditorState} from './RichNoteEditor';
 import DeletedMapReader from './DeletedMapReader';
+import OrbitSettings from './OrbitSettings';
 import {labelIds,addLabel,removeLabel,hasLabel,normalizeLabels} from './labels';
 import {matchesMapQuery} from './librarySearch';
 import {KEEP_LIGHT_PRESETS,KEEP_DARK_SELECTED,KEEP_DARK_SURFACE,KEEP_DARK_BACKGROUND,displayKeepColor,swatchKeepColor,keepForeground,keepChipStyle} from './keepTheme';
@@ -174,6 +175,7 @@ const [exportKind,setExportKind]=useState<ExportFormat|null>(null),[exportName,s
 
 const tx=useSharedValue(0),ty=useSharedValue(0),scale=useSharedValue(1),rotation=useSharedValue(0),startRotation=useSharedValue(0),startX=useSharedValue(0),startY=useSharedValue(0),startScale=useSharedValue(1);
 
+const [credentialFallback,setCredentialFallback]=useState(false);
 const [credentialType,setCredentialType]=useState<'pin'|'password'>('pin'),[storedCredentialType,setStoredCredentialType]=useState<'pin'|'password'>('pin'),[appActive,setAppActive]=useState(AppState.currentState==='active'),[locked,setLocked]=useState(true),[pinConfigured,setPinConfigured]=useState(false),[pinLockEnabled,setPinLockEnabledState]=useState(false),[pinInput,setPinInput]=useState(''),[pinSetup,setPinSetup]=useState(''),[pinOld,setPinOld]=useState(''),[pinNew,setPinNew]=useState(''),[pinAction,setPinAction]=useState<'change'|'delete'|null>(null),[pinAttempts,setPinAttempts]=useState(0),[blockedUntil,setBlockedUntil]=useState(0),[settings,setSettings]=useState(false),[biometrics,setBiometrics]=useState(false);
 
 useEffect(()=>{
@@ -1328,160 +1330,38 @@ if(locked){
         </Modal>
 
 
-        <Modal
-          visible={settings}
-          animationType="slide"
-          onRequestClose={()=>setSettings(false)}
-        >
-          <SafeAreaView style={[styles.screen,{backgroundColor:palette.background}]}>
-            <ScrollView contentContainerStyle={{padding:20,gap:18,paddingBottom:42}}>
-            <View style={styles.header}>
-              <Text style={[styles.logo,{color:palette.text}]}>Privacy & App Lock</Text>
-              <Button
-                label="Done"
-                onPress={()=>setSettings(false)}
-              />
-            </View>
-
-            <Text style={[styles.muted,{color:palette.muted}]}>
-              All notes remain on this device. No cloud services
-              or online accounts.
-            </Text>
-
-            <View style={{backgroundColor:palette.surface,padding:12,gap:8}}>
-              <Text style={[styles.section,{color:palette.text}]}>Display options</Text>
-              <Pressable accessibilityRole="button" accessibilityLabel="Theme" onPress={()=>setThemeMenu(true)} style={{flexDirection:'row',justifyContent:'space-between',alignItems:'center',minHeight:54,paddingHorizontal:12}}>
-                <Text style={{color:palette.text,fontSize:16}}>Theme</Text>
-                <Text style={{color:palette.muted}}>{mapPrefs.themeMode==='system'?'System Default':mapPrefs.themeMode==='dark'?'Dark':'Light'}</Text>
-              </Pressable>
-            </View>
-            <Modal visible={themeMenu} transparent animationType="fade" onRequestClose={()=>setThemeMenu(false)}>
-              <View style={{flex:1,justifyContent:'center',padding:28,backgroundColor:'rgba(0,0,0,0.38)'}}>
-                <Pressable style={StyleSheet.absoluteFill} accessibilityLabel="Dismiss theme options" onPress={()=>setThemeMenu(false)}/>
-                <View style={{backgroundColor:palette.surface,borderRadius:24,padding:20,gap:12}}>
-                  <Text style={{color:palette.text,fontSize:19,fontWeight:'600'}}>Theme</Text>
-                  {(['light','dark','system'] as const).map(choice=>(
-                    <Pressable key={choice} accessibilityRole="button" accessibilityState={{selected:mapPrefs.themeMode===choice}} onPress={()=>{setMapPrefs(p=>({...p,themeMode:choice,theme:choice==='system'?p.theme:choice}));setThemeMenu(false);}} style={{flexDirection:'row',alignItems:'center',gap:14,minHeight:50}}>
-                      <Text style={{color:palette.accent,fontSize:19}}>{mapPrefs.themeMode===choice?'◉':'○'}</Text>
-                      <Text style={{color:palette.text,fontSize:16}}>{choice==='system'?'System Default':choice==='light'?'Light':'Dark'}</Text>
-                    </Pressable>
-                  ))}
-                </View>
-              </View>
-            </Modal>
-            <Text style={[styles.section,{color:palette.text}]}>Security</Text>
-            <View style={{backgroundColor:palette.surface,borderColor:palette.border,borderWidth:1,borderRadius:20,padding:16,gap:12}}>
-            {!pinConfigured?(
-              <>
-                <Text style={[styles.section,{color:palette.text}]}>
-                  Enable optional app lock
-                </Text>
-                <View style={styles.wrap}><Button label="Numeric PIN" active={credentialType==='pin'} onPress={()=>setCredentialType('pin')}/><Button label="Alphanumeric password" active={credentialType==='password'} onPress={()=>setCredentialType('password')}/></View>
-                <TextInput
-                  secureTextEntry
-                  keyboardType={credentialType==='pin'?'number-pad':'default'}
-                  autoCapitalize="none"
-                  maxLength={12}
-                  value={pinSetup}
-                  onChangeText={setPinSetup}
-                  placeholder={credentialType==='pin'?'Choose a 4–6 digit PIN':'Choose a 6–12 character password'}
-                  style={[styles.input,{backgroundColor:palette.background,color:palette.text,borderColor:palette.border}]}
-                />
-                <Button
-                  label="Enable app lock"
-                  primary
-                  onPress={enablePin}
-                />
-              </>
-            ):(
-              <>
-                <Text style={[styles.section,{color:palette.text}]}>
-                  {pinLockEnabled?'App lock enabled':'PIN saved · App lock disabled'}
-                </Text>
-                {pinLockEnabled&&<Button
-                  label="Lock now"
-                  onPress={()=>{
-                    bioPrompted.current=false;
-                    setSettings(false);
-                    setLocked(true);
-                  }}
-                />}
-                <Button
-                  label={biometrics
-                    ?'Disable biometric unlock'
-                    :'Enable biometric unlock'}
-                  onPress={async()=>{
-                    try{
-                      if(!biometrics&&!await biometricAvailable()){
-                        showDialog(
-                          'Unavailable',
-                          'Set up device biometrics first.'
-                        );
-                        return;
-                      }
-                      await setBiometricEnabled(!biometrics);
-                      setBiometrics(!biometrics);
-                    }catch(e){
-                      showDialog('Biometrics',String(e));
-                    }
-                  }}
-                />
-                <Button label={pinLockEnabled?'Disable app lock':'Enable app lock'} onPress={pinLockEnabled?disablePin:enablePin}/>
-                <Button label="Change PIN / password" onPress={()=>{setPinAction('change');setPinOld('');setPinNew('');}}/>
-                <Button label="Delete stored PIN" danger onPress={()=>{setPinAction('delete');setPinOld('');setPinNew('');}}/>
-                {pinAction&&<View style={{gap:10}}>
-                  <Text style={{color:palette.text,fontWeight:'700'}}>{pinAction==='change'?'Change credentials':'Delete stored credentials'}</Text>
-                  <TextInput accessibilityLabel="Current credential" secureTextEntry keyboardType={storedCredentialType==='pin'?'number-pad':'default'} autoCapitalize="none" placeholder="Current PIN or password" value={pinOld} onChangeText={setPinOld} maxLength={12} style={[styles.input,{color:palette.text,borderColor:palette.border}]}/>
-                  {pinAction==='change'&&<View style={{gap:8}}>
-                    <View style={styles.wrap}><Button label="Numeric PIN" active={credentialType==='pin'} onPress={()=>setCredentialType('pin')}/><Button label="Alphanumeric password" active={credentialType==='password'} onPress={()=>setCredentialType('password')}/></View>
-                    <TextInput accessibilityLabel="New credential" secureTextEntry keyboardType={credentialType==='pin'?'number-pad':'default'} autoCapitalize="none" placeholder={credentialType==='pin'?'New 4–6 digit PIN':'New 6–12 character password'} value={pinNew} onChangeText={setPinNew} maxLength={12} style={[styles.input,{color:palette.text,borderColor:palette.border}]}/>
-                  </View>}
-                  <Button label={pinAction==='change'?'Save new PIN':'Confirm PIN deletion'} danger={pinAction==='delete'} primary={pinAction==='change'} onPress={()=>{
-                    if(pinAction==='delete')showDialog('Delete your stored PIN?','PIN and biometric unlock settings will be erased.',[{text:'Cancel'},{text:'Delete PIN',style:'destructive',onPress:confirmPinChange}]);
-                    else confirmPinChange();
-                  }}/>
-                  <Button label="Cancel PIN action" onPress={()=>{setPinAction(null);setPinOld('');setPinNew('');}}/>
-                </View>}
-              </>
-            )}
-
-            </View>
-            <View style={{backgroundColor:palette.surface,borderColor:palette.border,borderWidth:1,borderRadius:20,padding:16,gap:12}}>
-            <Text style={[styles.section,{color:palette.text}]}>
-              Back up
-            </Text>
-            <Text style={[styles.muted,{color:palette.muted}]}>
-              Backups are encrypted with your password and saved
-              to a folder you choose. Restore replaces the current
-              notebook. No cloud or sharing.
-            </Text>
-            <View style={styles.wrap}>
-              <Button
-                label="Save encrypted backup"
-                primary
-                onPress={()=>{
-                  setBackupPassword('');
-                  setBackupMode('save');
-                }}
-              />
-              <Button
-                label="Restore backup"
-                danger
-                onPress={()=>{
-                  setBackupPassword('');
-                  setBackupMode('restore');
-                }}
-              />
-            </View>
-            <Text style={[styles.muted,{color:palette.muted}]}>
-              Security note: this app lock is an access gate, not
-              full database encryption. Device encryption and
-              OS screen lock remain important.
-            </Text>
-            </View>
-            </ScrollView>
-          </SafeAreaView>
-        </Modal>
+        {settings&&<Modal visible animationType="slide" onRequestClose={()=>setSettings(false)}>
+          <OrbitSettings key="orbit-settings"
+            palette={palette}
+            themeMode={mapPrefs.themeMode}
+            onTheme={choice=>setMapPrefs(p=>({...p,themeMode:choice,theme:choice==='system'?p.theme:choice}))}
+            lockEnabled={pinLockEnabled}
+            configured={pinConfigured}
+            selectedKind={storedCredentialType}
+            biometric={biometrics}
+            onClose={()=>setSettings(false)}
+            onToggleLock={async enabled=>{await setPinLockEnabled(enabled);setPinLockEnabledState(enabled);if(!enabled)setLocked(false);}}
+            onToggleBiometric={async enabled=>{await setBiometricEnabled(enabled);setBiometrics(enabled);}}
+            onVerify={async value=>{
+              const status=await lockStatus();
+              if(Date.now()<status.blockedUntil)throw new Error('Too many attempts. Please try later.');
+              const ok=await checkPin(value);
+              const next=await recordPinAttempt(ok);
+              setPinAttempts(next.attempts);setBlockedUntil(next.blockedUntil);
+              return ok;
+            }}
+            onSaveCredential={async(value,kind)=>{
+              await setPin(value,kind);
+              setPinConfigured(true);
+              setStoredCredentialType(kind);
+              setCredentialType(kind);
+              setPinLockEnabledState(true);
+              setLocked(false);
+            }}
+            onBackup={kind=>{setBackupPassword('');setBackupFile(null);setBackupMode(kind);}}
+            onLockNow={()=>{bioPrompted.current=false;setCredentialFallback(false);setSettings(false);setLocked(true);}}
+          />
+        </Modal>}
 
         <Modal
           visible={backupMode!==null}
