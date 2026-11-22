@@ -80,6 +80,10 @@ const ICON_PATHS:Record<string,string>={
   'collapseBranch':'M5 12h14M12 5l7 7-7 7',
   'expandBranch':'M5 4l7 7 7-7M12 11v9M4 15v5h5M20 15v5h-5',
   'bullets':'M9 6h12M9 12h12M9 18h12M4 6h.01M4 12h.01M4 18h.01',
+  'undo':'M9 14 4 9l5-5M4 9h10a6 6 0 0 1 0 12h-2',
+  'redo':'m15 14 5-5-5-5m5 5H10a6 6 0 0 0 0 12h2',
+  'expandAll':'M8 3H3v5M16 3h5v5M3 16v5h5M21 16v5h-5',
+  'shrinkAll':'M3 9h6V3M21 9h-6V3M3 15h6v6M21 15h-6v6',
   'numbers':'M9 6h12M9 12h12M9 18h12M3 4h2v4M3 12h2l-2 3h2M3 17h2v4H3'
 };
 const MaterialIcon=({name,color}:{name:string;color:string})=>{
@@ -88,16 +92,16 @@ const MaterialIcon=({name,color}:{name:string;color:string})=>{
   if(name==='clearFormat')return <Svg width={25} height={25} viewBox="0 0 24 24"><SvgText x={4} y={18} fontSize={18} fontWeight="bold" fill={color}>T</SvgText><Line x1={4} y1={20} x2={21} y2={3} stroke={color} strokeWidth={2.5} strokeLinecap="round"/></Svg>;
   if(['bold','italic','underline'].includes(name))return <Text style={{fontSize:21,color,fontWeight:name==='bold'?'900':'600',fontStyle:name==='italic'?'italic':'normal',textDecorationLine:name==='underline'?'underline':'none'}}>{name==='bold'?'B':name==='italic'?'I':'U'}</Text>;
   const data=ICON_PATHS[name];
-  return data?<Svg width={23} height={23} viewBox="0 0 24 24"><Path d={data} fill="none" stroke={color} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"/>{name==='centerFocus'&&<Circle cx={12} cy={12} r={3.6} fill={color}/>}</Svg>:<Text style={{fontSize:name==='Fit'?14:22,color,fontWeight:'700'}}>{name}</Text>;
+  return data?<Svg width={23} height={23} viewBox="0 0 24 24"><Path d={data} fill="none" stroke={color} strokeWidth={1.7} strokeLinecap="round" strokeLinejoin="round"/>{name==='centerFocus'&&<Circle cx={12} cy={12} r={3.6} fill={color}/>}</Svg>:<Text style={{fontSize:name==='Fit'?14:22,color,fontWeight:'700'}}>{name}</Text>;
 };
 const Upright=({angle,children}:{angle:SharedValue<number>;children:React.ReactNode})=>{
   const style=useAnimatedStyle(()=>({transform:[{rotateZ:`${-angle.value}rad`}]}));
   return <Animated.View style={[{alignItems:'center',justifyContent:'center'},style]}>{children}</Animated.View>;
 };
 
-const IconButton=({label,onPress,danger=false,active=false,accessibilityLabel}:{label:string;onPress:()=>void;danger?:boolean;active?:boolean;accessibilityLabel?:string})=>{
+const IconButton=({label,onPress,danger=false,active=false,disabled=false,accessibilityLabel}:{label:string;onPress:()=>void;danger?:boolean;active?:boolean;disabled?:boolean;accessibilityLabel?:string})=>{
   const palette=React.useContext(PaletteContext);
-  return <Pressable accessibilityRole="button" accessibilityLabel={accessibilityLabel||label} accessibilityState={{selected:active}} onPress={onPress} style={{paddingHorizontal:12,paddingVertical:10,minWidth:48,minHeight:48,alignItems:'center',justifyContent:'center',borderRadius:16,backgroundColor:active?palette.control:'transparent'}}>
+  return <Pressable accessibilityRole="button" accessibilityLabel={accessibilityLabel||label} accessibilityState={{selected:active,disabled}} disabled={disabled} onPress={onPress} style={{opacity:disabled?0.35:1,paddingHorizontal:12,paddingVertical:10,minWidth:48,minHeight:48,alignItems:'center',justifyContent:'center',borderRadius:16,backgroundColor:active?palette.control:'transparent'}}>
     <MaterialIcon name={label} color={danger?'#dc2626':palette.text}/>
   </Pressable>;
 };
@@ -123,7 +127,7 @@ const [labelManager,setLabelManager]=useState(false);
 const [labelQuery,setLabelQuery]=useState('');
 const bioPromptInProgress=useRef(false),bioPrompted=useRef(false);
 const richEditorRef=useRef<RichNoteEditorHandle|null>(null);
-const [editorFormats,setEditorFormats]=useState<RichEditorState>({bold:false,italic:false,underline:false,bullets:false,numbers:false});
+const [editorFormats,setEditorFormats]=useState<RichEditorState>({bold:false,italic:false,underline:false,bullets:false,numbers:false,canUndo:false,canRedo:false});
 const [colorTarget,setColorTarget]=useState<'cards'|'note'|'node'|null>(null);
 const deviceTheme=useColorScheme();
 const effectiveTheme=mapPrefs.themeMode==='system'?(deviceTheme==='dark'?'dark':'light'):mapPrefs.theme;
@@ -378,8 +382,7 @@ const saveEdit=()=>{
 };
 
 const cancelReader=()=>{
-  // Back/dismiss preserves the approved automatic-save behavior.
-  if(editing){saveEdit();return;}
+  // Discard the in-memory draft. Only the explicit Save action commits edits.
   setDraftChildId(null);
   setReader(null);
   setEditing(false);
@@ -394,20 +397,6 @@ const closeReaderWithCross=()=>{
   }
   cancelReader();
 };
-
-// Debounced local autosave preserves edits if Android suspends the app.
-useEffect(()=>{
-  if(!loaded||!editing||!reader)return;
-  const targetId=reader;
-  const timer=setTimeout(()=>{
-    setNotes(ns=>{
-      const old=ns.find(n=>n.id===targetId);
-      if(!old||old.title===title.trim()&&old.body===body)return ns;
-      return ns.map(n=>n.id===targetId?{...n,title:title.trim(),body,updatedAt:Date.now()}:n);
-    });
-  },500);
-  return ()=>clearTimeout(timer);
-},[loaded,editing,reader,title,body]);
 
 const addChild=(parentId:string)=>{
   const newId=id();
@@ -1163,7 +1152,7 @@ if(locked){
           {ancestors.filter(n=>n.id!=='root').map((n,i)=><Pressable key={n.id} accessibilityRole="button" accessibilityLabel={`Focus ${n.title||'Untitled'}`} onPress={()=>moveTo(n.id)} style={{padding:8}}><Text style={{color:n.id===focused?'#1d4ed8':'#475569',fontWeight:n.id===focused?'800':'500'}}>{i?'› ':''}{n.title||'Untitled'}</Text></Pressable>)}
         </ScrollView>
         {(nodeActions||mapMenu)&&<Pressable accessibilityLabel="Close menu" onPress={()=>{setNodeActions(null);setMapMenu(false);}} style={[StyleSheet.absoluteFill,{zIndex:20,elevation:10}]}/>}
-        {nodeActions&&<View style={[styles.bottomSheet,{backgroundColor:palette.surface,borderColor:palette.border,borderTopLeftRadius:24,borderTopRightRadius:24,padding:16,gap:8}]}>
+        {nodeActions&&<View style={[styles.bottomSheet,{backgroundColor:palette.surface,borderColor:palette.border,borderTopLeftRadius:24,borderTopRightRadius:24,padding:16,gap:8,left:0,right:0}]}>
           <Text style={{fontWeight:'700',color:palette.text}} numberOfLines={2}>{notes.find(n=>n.id===nodeActions)?.title||'Note actions'}</Text>
           <ActionRow label="Read note" icon="readIcon" onPress={()=>{openReader(nodeActions);setNodeActions(null);}}/>
           <ActionRow label="Edit note" icon="✎" onPress={()=>{beginEdit(nodeActions);setNodeActions(null);}}/>
@@ -1172,7 +1161,7 @@ if(locked){
           <ActionRow label="Move down a level" icon="downLevel" onPress={()=>{reparent(nodeActions,'down');setNodeActions(null);}}/>
           {notes.find(n=>n.id===nodeActions)?.parentId==='root'&&!mapPrefs.archived.includes(nodeActions)&&<ActionRow icon="archive" label="Archive map" onPress={()=>{archiveOne(nodeActions,true);setNodeActions(null);setMenu(true);setShowArchive(false);}}/>}
           <ActionRow label="Delete branch" icon="🗑" danger onPress={()=>{removeBranch(nodeActions);setNodeActions(null);}}/>
-          <Button label="Cancel" onPress={()=>setNodeActions(null)}/>
+          
         </View>}
         {mapMenu&&(
           <View style={[styles.popup,{top:'auto',bottom:72,right:12,width:181,backgroundColor:palette.surface,borderColor:palette.border}]}>
@@ -1492,7 +1481,7 @@ if(locked){
                 </View>
                 <View style={[styles.editorField,{flex:1}]}>
                   <Text style={[styles.editorLabel,{color:palette.muted}]}>Note content</Text>
-                  <RichNoteEditor key={reader||'note'} ref={richEditorRef} initialText={body} onChangeText={setBody} onFormatStateChange={setEditorFormats}
+                  <RichNoteEditor key={reader||'note'} ref={richEditorRef} initialText={body} onChangeText={setBody} onFormatStateChange={state=>setEditorFormats(previous=>({...previous,...state}))}
                      dark={effectiveTheme==='dark'} textColor={noteDisplayText} backgroundColor={noteDisplayColor}/>
                 </View>
                 <View style={{gap:5}}>
@@ -1504,6 +1493,8 @@ if(locked){
                     <IconButton label="×" accessibilityLabel="Close formatting toolbar" onPress={()=>setFormatToolbar(false)}/>
                   </View>}
                   <View style={{flexDirection:'row',alignItems:'center',gap:5}}>
+                    <IconButton label="undo" disabled={!editorFormats.canUndo} accessibilityLabel="Undo note edit" onPress={()=>richEditorRef.current?.format('undo')}/>
+                    <IconButton label="redo" disabled={!editorFormats.canRedo} accessibilityLabel="Redo note edit" onPress={()=>richEditorRef.current?.format('redo')}/>
                     <IconButton label="format" active={formatToolbar} accessibilityLabel="Text formatting" onPress={()=>setFormatToolbar(true)}/>
                     <IconButton label="bullets" active={editorFormats.bullets} accessibilityLabel="Bulleted list" onPress={()=>applyNoteFormat('bullets')}/>
                     <IconButton label="numbers" active={editorFormats.numbers} accessibilityLabel="Numbered list" onPress={()=>applyNoteFormat('numbers')}/>
@@ -1588,8 +1579,8 @@ if(locked){
               ]);}}/>
             </View>}
             {selectionMenu&&selected.length>0&&(
-              <View style={[styles.popup,{top:56,right:12,left:undefined,bottom:undefined,width:189,backgroundColor:palette.surface,borderColor:palette.border,zIndex:32}]}>
-                <ActionRow icon={showArchive?undefined:'archive'} label={showArchive?'Unarchive':'Archive'} onPress={()=>archiveSelection(!showArchive)}/>
+              <View style={[styles.popup,{top:56,right:12,left:undefined,bottom:undefined,width:225,backgroundColor:palette.surface,borderColor:palette.border,zIndex:32}]}>
+                <ActionRow icon={showArchive?'unarchive':'archive'} label={showArchive?'Unarchive':'Archive'} onPress={()=>archiveSelection(!showArchive)}/>
                 <ActionRow label="Export" icon="exportIcon" onPress={()=>{setSelectionMenu(false);exportSelected();}}/>
                 <View style={{height:1,backgroundColor:palette.border,marginVertical:4}}/>
                 <ActionRow label="Delete" icon="🗑" danger onPress={()=>{setSelectionMenu(false);deleteSelected();}}/>
