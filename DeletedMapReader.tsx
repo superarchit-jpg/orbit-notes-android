@@ -34,6 +34,7 @@ export default function DeletedMapReader({batch,palette,theme,colors,onClose}:Pr
  const pinch=Gesture.Pinch().onStart(()=>{zStart.value=zoom.value;}).onUpdate(e=>{zoom.value=Math.max(0.2,Math.min(4,zStart.value*e.scale));});
  const rotate=Gesture.Rotation().onStart(()=>{rStart.value=angle.value;}).onUpdate(e=>{angle.value=rStart.value+e.rotation;});
  const transform=useAnimatedStyle(()=>({transform:[{translateX:panX.value},{translateY:panY.value},{scale:zoom.value},{rotateZ:`${angle.value}rad`}]}));
+ const miniRotation=useAnimatedStyle(()=>({transform:[{rotateZ:`${angle.value}rad`}]}));
  const renderBody=(body:string)=>body.split('\n').map((line,i)=><Text key={i} style={{fontSize:16,lineHeight:26,color:palette.text,minHeight:24}}>{parseRichLine(line).map((run,j)=><Text key={j} style={{fontWeight:run.bold?'700':'400',fontStyle:run.italic?'italic':'normal',textDecorationLine:run.underline?'underline':'none'}}>{run.text}</Text>)}</Text>);
  const focusedPoint=points.find(p=>p.note.id===focus);
  const miniScale=Math.max(0.1,Math.min(1,150/(points.reduce((v,p)=>Math.max(v,Math.abs(p.x)),1)*2+120),100/(points.reduce((v,p)=>Math.max(v,Math.abs(p.y)),1)*2+120)));
@@ -75,7 +76,7 @@ export default function DeletedMapReader({batch,palette,theme,colors,onClose}:Pr
       <Pressable accessibilityRole="button" accessibilityLabel="Expand or collapse focused branch" onPress={()=>setCollapsed(v=>v.includes(focus)?v.filter(x=>x!==focus):[...v,focus])} style={{padding:11}}><Text style={{color:palette.text}}>{collapsed.includes(focus)?'Expand':'Collapse'}</Text></Pressable>
       <Pressable accessibilityRole="button" accessibilityLabel="Toggle deleted map mini-map" onPress={()=>setMini(v=>!v)} style={{padding:11}}><Text style={{color:palette.accent}}>Mini-map</Text></Pressable>
     </View>
-    {mini&&<View style={{height:100,alignItems:'center',justifyContent:'center',borderTopWidth:1,borderColor:palette.border}}><Svg width={220} height={96} viewBox="0 0 220 96">{points.map(p=><Circle key={p.note.id} cx={110+p.x*miniScale} cy={48+p.y*miniScale} r={p.note.id===focus?4:2.5} fill={p.note.id===focus?palette.accent:palette.muted}/>)}</Svg></View>}
+    {mini&&<View style={{height:100,alignItems:'center',justifyContent:'center',borderTopWidth:1,borderColor:palette.border}}><Animated.View style={miniRotation}><Svg width={220} height={96} viewBox="0 0 220 96">{points.map(p=><Circle key={p.note.id} cx={110+p.x*miniScale} cy={48+p.y*miniScale} r={p.note.id===focus?4:2.5} fill={p.note.id===focus?palette.accent:palette.muted}/>)}</Svg></Animated.View></View>}
     <Text style={{color:palette.muted,fontSize:11,textAlign:'center',paddingVertical:5}}>Read only · Tap to focus · Double-tap to read · Pinch, drag or rotate</Text>
    </>
   )}
