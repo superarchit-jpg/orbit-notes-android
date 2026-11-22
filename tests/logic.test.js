@@ -250,7 +250,7 @@ for(const obsolete of [
 ]) check(!app.includes(obsolete),`Removed functionality resurfaced: ${obsolete}`);
 check(app.includes('accessibilityLabel="Center focused note"'),'Working recenter action must remain');
 console.log('PASS: 26 approved recording changes and scope exclusions');
-for(const marker of ['archiveSelection','showArchive','selectedTrash','acknowledgeTrashRetention','RichNoteEditor','credentialType','mapPrefs.themeMode','retentionNotice','bioPrompted.current'])
+for(const marker of ['archiveSelection','showArchive','selectedTrash','acknowledgeTrashRetention','RichNoteEditor','storedCredentialType','mapPrefs.themeMode','retentionNotice','bioPrompted.current'])
   check(app.includes(marker),`Missing Stage 4 approved feature: ${marker}`);
 check(!app.includes("Updated {activeReader?stamp"),'Note reader must not show modification date');
 check(!app.includes("selected.includes(n.id)?'☑':'☐'"),'Card selection checkboxes must remain removed');
