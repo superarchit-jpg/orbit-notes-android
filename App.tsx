@@ -62,7 +62,7 @@ const ICON_PATHS:Record<string,string>={
   'pin':'M8 3h8v2l-1.5 2v5l3 3v1H6v-1l3-3V7L8 5zM12 16v6',
   'label':'M4 5h11l6 7-6 7H4a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2zM7 12h.01',
   'archive':'M3 4h18v5H3zM5 10h14v10H5zM12 12v6m-3-3 3 3 3-3',
-  'unarchive':'M3 4h18v5H3zM5 10h14v10H5zM9 16h6M12 11v8m-4-4 4-4 4 4',
+  'unarchive':'M3 4h18v5H3zM5 10h14v10H5zM12 19v-8m-4 4 4-4 4 4',
   'exportIcon':'M12 3v12m-5-5 5 5 5-5M5 17v4h14v-4',
   'readIcon':'M4 4h16v16H4zM8 9h8M8 13h8M8 17h5',
   'childIcon':'M12 3v11m-5-5 5 5 5-5M5 20h14',
@@ -103,8 +103,8 @@ const Upright=({angle,children}:{angle:SharedValue<number>;children:React.ReactN
 
 const IconButton=({label,onPress,danger=false,active=false,disabled=false,accessibilityLabel}:{label:string;onPress:()=>void;danger?:boolean;active?:boolean;disabled?:boolean;accessibilityLabel?:string})=>{
   const palette=React.useContext(PaletteContext);
-  return <Pressable accessibilityRole="button" accessibilityLabel={accessibilityLabel||label} accessibilityState={{selected:active,disabled}} disabled={disabled} onPress={onPress} style={{opacity:disabled?0.35:1,paddingHorizontal:12,paddingVertical:10,minWidth:48,minHeight:48,alignItems:'center',justifyContent:'center',borderRadius:16,backgroundColor:active?palette.control:'transparent'}}>
-    <MaterialIcon name={label} color={danger?'#dc2626':palette.text}/>
+  return <Pressable accessibilityRole="button" accessibilityLabel={accessibilityLabel||label} accessibilityState={{selected:active,disabled}} disabled={disabled} onPress={onPress} style={{opacity:disabled?0.35:1,paddingHorizontal:12,paddingVertical:10,minWidth:48,minHeight:48,alignItems:'center',justifyContent:'center',borderRadius:16,backgroundColor:active&&['bold','italic','underline'].includes(label)?palette.accent:active?palette.control:'transparent'}}>
+    <MaterialIcon name={label} color={danger?'#dc2626':active&&['bold','italic','underline'].includes(label)?keepForeground(palette.accent):palette.text}/>
   </Pressable>;
 };
 
@@ -141,6 +141,7 @@ const noteDisplayColor=displayKeepColor(mapPrefs.noteColors[reader||''],effectiv
 const noteDisplayText=keepForeground(noteDisplayColor);
 const [showMiniMap,setShowMiniMap]=useState(false);
 const [showEntireMap,setShowEntireMap]=useState(false);
+ const preExpandViewport=useRef<{x:number;y:number;zoom:number;angle:number}|null>(null);
 const [gestureHelp,setGestureHelp]=useState(false);
 const [nodeActions,setNodeActions]=useState<string|null>(null);
 const [draftChildId,setDraftChildId]=useState<string|null>(null);
@@ -691,7 +692,21 @@ const miniBounds=useMemo(()=>{
   return {width,height,scale,dx,dy};
 },[visible]);
 const focusPoint=visible.find(x=>x.note.id===focused)||visible[0];
-const fitCurrentMap=()=>{
+const toggleEntireMap=()=>{
+   if(!showEntireMap){
+     preExpandViewport.current={x:tx.value,y:ty.value,zoom:scale.value,angle:rotation.value};
+     setShowEntireMap(true);
+     return;
+   }
+   setShowEntireMap(false);
+   const previous=preExpandViewport.current;
+   preExpandViewport.current=null;
+   if(previous){
+     tx.value=withTiming(previous.x);ty.value=withTiming(previous.y);
+     scale.value=withTiming(previous.zoom);rotation.value=withTiming(previous.angle);
+   }
+ };
+ const fitCurrentMap=()=>{
   const fit=fitMap(visible,canvasW,canvasH);
   tx.value=withTiming(fit.x*1.1);
   ty.value=withTiming(fit.y*1.1);
@@ -1250,7 +1265,7 @@ if(locked){
             <Text accessibilityLabel={`Zoom ${zoomPercent} percent`} style={{fontSize:13,color:palette.text,minWidth:44,textAlign:'center'}}>{zoomPercent}%</Text>
             <IconButton label="+" accessibilityLabel="Zoom in" onPress={()=>{scale.value=withTiming(Math.min(preferredFit*1.1*2,preferredFit*1.1*(Math.round(scale.value/(preferredFit*1.1)*10)+1)/10));}}/>
           </View>
-          <IconButton label={showEntireMap?'shrinkAll':'expandAll'} accessibilityLabel={showEntireMap?'Collapse entire map':'Expand entire map'} onPress={()=>{setShowEntireMap(x=>!x);}}/>
+          <IconButton label={showEntireMap?'shrinkAll':'expandAll'} accessibilityLabel={showEntireMap?'Collapse entire map':'Expand entire map'} onPress={toggleEntireMap}/>
           <View style={{flexDirection:'row',alignItems:'center'}}>
             <IconButton label={mapPrefs.collapsed[focused]?'expandBranch':'collapseBranch'} accessibilityLabel={mapPrefs.collapsed[focused]?'Expand branch':'Collapse branch'} onPress={()=>setMapPrefs(p=>({...p,collapsed:{...p.collapsed,[focused]:!p.collapsed[focused]}}))}/>
             <IconButton label="palette" accessibilityLabel="Node color" onPress={()=>{setManualColor(mapPrefs.colors[focused]||'');setColorTarget('node');}}/>
@@ -1502,6 +1517,7 @@ if(locked){
                     value={title}
                     onChangeText={setTitle}
                     placeholder="Heading"
+                    placeholderTextColor={effectiveTheme==='dark'?'#DCE5F5':'#65708A'}
                   />
                 </View>
                 <View style={[styles.editorField,{flex:1}]}>
@@ -1854,7 +1870,7 @@ if(locked){
                     </View>
                   ))}
 
-                  {shown.length===0&&(
+                  {shown.length===0&&!showArchive&&(
                     <View style={{alignItems:'center',paddingVertical:showArchive?96:48,paddingHorizontal:20,gap:12}}>
                       {showArchive&&!librarySearch.trim()?<Svg width={116} height={116} viewBox="0 0 116 116"><Path d="M23 39h70v58H23z" stroke={palette.muted} fill="none" strokeWidth={3} strokeLinejoin="round"/><Path d="M17 26h82v14H17z" stroke={palette.muted} fill={palette.background} strokeWidth={3} strokeLinejoin="round"/><Path d="M58 11v40m-11-11 11 11 11-11" stroke={palette.muted} fill="none" strokeWidth={3} strokeLinecap="round" strokeLinejoin="round"/><Path d="M44 62h28" stroke={palette.muted} strokeWidth={3.5} strokeLinecap="round"/><Path d="M32 96h52" stroke={palette.muted} strokeWidth={2} strokeLinecap="round" opacity={0.5}/></Svg>:<MaterialIcon name={showArchive?'archive':'label'} color={palette.muted}/>}
                       <Text style={[styles.listTitle,{textAlign:'center',color:showArchive?palette.muted:palette.text,fontWeight:showArchive?'500':'600'}]}>{librarySearch.trim()?'No matching maps':showArchive?'Your archived maps appear here':folderFilter?'No maps in this label':'Your library is ready'}</Text>
@@ -1865,6 +1881,10 @@ if(locked){
                 </>
               )}
             </ScrollView>
+            {showArchive&&shown.length===0&&!showTrash&&<View pointerEvents="box-none" style={{position:'absolute',left:0,right:0,top:96,bottom:0,alignItems:'center',justifyContent:'center',paddingHorizontal:24}}>
+              <Svg width={116} height={116} viewBox="0 0 116 116" accessibilityLabel="Empty Archive illustration"><Path d="M23 39h70v58H23z" stroke={palette.muted} fill="none" strokeWidth={3} strokeLinejoin="round"/><Path d="M17 26h82v14H17z" stroke={palette.muted} fill={palette.background} strokeWidth={3} strokeLinejoin="round"/><Path d="M58 11v40m-11-11 11 11 11-11" stroke={palette.muted} fill="none" strokeWidth={3} strokeLinecap="round"/><Path d="M44 62h28" stroke={palette.muted} strokeWidth={3.5} strokeLinecap="round"/></Svg>
+              <Text style={{color:palette.muted,fontSize:16,fontWeight:'500',textAlign:'center',marginTop:14}}>{librarySearch.trim()?'No matching maps':'Your archived maps appear here'}</Text>
+            </View>}
             {!showTrash&&!showArchive&&selected.length===0&&<Pressable accessibilityRole="button" accessibilityLabel="Create new map" onPress={newMap} style={{position:'absolute',right:22,bottom:26,width:60,height:60,borderRadius:20,backgroundColor:palette.accent,alignItems:'center',justifyContent:'center',elevation:5,zIndex:10}}>
               <Text style={{fontSize:32,color:keepForeground(palette.accent)}}>+</Text>
             </Pressable>}
