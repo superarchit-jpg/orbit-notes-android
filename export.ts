@@ -1,10 +1,12 @@
 import * as Print from 'expo-print';
 import {radialTree} from './mapGeometry';
 import {plainNoteText} from './noteFormatting';
+import {pdfNodeStyle} from './pdfNodeStyle';
+import type {OrbitTheme} from './keepTheme';
 export type Note = {id:string;parentId:string|null;title:string;body:string;updatedAt:number;folderId:string|null;labelIds?:string[]};
 const esc=(s:string)=>s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
 /** One-page, complete radial map. The PDF scales the entire hierarchy to A4 landscape. */
-function pdfMapPage(root:Note,notes:Note[]):string{
+function pdfMapPage(root:Note,notes:Note[],colors:Record<string,string>={},theme:OrbitTheme='light'):string{
  const nodes=radialTree(root,notes);
  const byId=new Map(nodes.map(n=>[n.note.id,n]));
  const radii=[60,55,45,40,37.5,35];
@@ -38,12 +40,13 @@ function pdfMapPage(root:Note,notes:Note[]):string{
  }).join('');
  const circles=nodes.map(n=>{
    const radius=radii[Math.min(n.level,5)],isRoot=n.note.id===root.id;
+   const nodeStyle=pdfNodeStyle(n.note.id,n.level,isRoot,colors,theme);
    const title=textLines(n.note.title,Math.max(9,Math.floor(radius/3.5)));
    const lines=title.slice(0,4);
    const body=plainNoteText(n.note.body).trim().replace(/\\s+/g,' ');
    const label=lines.map((line,i)=>`<tspan x="${n.x}" dy="${i===0?0:13}">${esc(line)}</tspan>`).join('');
    const y=n.y-(lines.length-1)*6.5-(body?7:0);
-   return `<circle cx="${n.x}" cy="${n.y}" r="${radius}" fill="${isRoot?'#315fd6':'#dbeafe'}" stroke="#93c5fd" stroke-width="2"/><text x="${n.x}" y="${y}" text-anchor="middle" font-family="sans-serif" font-size="12" font-weight="600" fill="${isRoot?'white':'#1e40af'}">${label}</text>${body?`<text x="${n.x}" y="${n.y+radius-13}" text-anchor="middle" font-family="sans-serif" font-size="8" fill="${isRoot?'white':'#334155'}">${esc(body.slice(0,Math.floor(radius/4))) }${body.length>Math.floor(radius/4)?'…':''}</text>`:''}`;
+   return `<circle cx="${n.x}" cy="${n.y}" r="${radius}" fill="${nodeStyle.fill}" stroke="${nodeStyle.stroke}" stroke-width="2"/><text x="${n.x}" y="${y}" text-anchor="middle" font-family="sans-serif" font-size="12" font-weight="600" fill="${nodeStyle.text}">${label}</text>${body?`<text x="${n.x}" y="${n.y+radius-13}" text-anchor="middle" font-family="sans-serif" font-size="8" fill="${nodeStyle.text}">${esc(body.slice(0,Math.floor(radius/4))) }${body.length>Math.floor(radius/4)?'…':''}</text>`:''}`;
  }).join('');
  const diagram=`<svg xmlns="http://www.w3.org/2000/svg" viewBox="${minX} ${minY} ${width} ${height}" preserveAspectRatio="xMidYMid meet" style="width:100%;height:100%;display:block"><rect x="${minX}" y="${minY}" width="${width}" height="${height}" fill="#f8fafc"/>${edges}${circles}</svg>`;
  return `<div class="page">${diagram}</div>`;
@@ -51,14 +54,14 @@ function pdfMapPage(root:Note,notes:Note[]):string{
 function pdfDocument(pages:string[]):string{
  return `<!DOCTYPE html><html><head><meta name="viewport" content="width=device-width"/><style>@page{size:A4 landscape;margin:8mm}html,body{margin:0;padding:0;font-family:Arial,sans-serif}.page{width:281mm;height:194mm;overflow:hidden;break-after:page;page-break-after:always}.page:last-child{break-after:auto;page-break-after:auto}</style></head><body>${pages.join('')}</body></html>`;
 }
-export async function exportPDF(root:Note,notes:Note[]):Promise<string>{
- const out=await Print.printToFileAsync({html:pdfDocument([pdfMapPage(root,notes)])});
+export async function exportPDF(root:Note,notes:Note[],colors:Record<string,string>={},theme:OrbitTheme='light'):Promise<string>{
+ const out=await Print.printToFileAsync({html:pdfDocument([pdfMapPage(root,notes,colors,theme)])});
  return out.uri;
 }
 /** Combine selected maps in one PDF, with one complete map per landscape page. */
-export async function exportMultipleMapsPDF(roots:Note[],notes:Note[]):Promise<string>{
+export async function exportMultipleMapsPDF(roots:Note[],notes:Note[],colors:Record<string,string>={},theme:OrbitTheme='light'):Promise<string>{
  if(!roots.length)throw new Error('No maps selected');
- const pages=roots.map(root=>pdfMapPage(root,notes));
+ const pages=roots.map(root=>pdfMapPage(root,notes,colors,theme));
  const out=await Print.printToFileAsync({html:pdfDocument(pages)});
  return out.uri;
 }

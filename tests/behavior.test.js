@@ -3,7 +3,7 @@ const {execFileSync}=require('node:child_process');
 const fs=require('node:fs');const os=require('node:os');const path=require('node:path');const assert=require('node:assert/strict');
 const temp=fs.mkdtempSync(path.join(os.tmpdir(),'orbit-tests-'));
 try{
- execFileSync('tsc',['layout.ts','trash.ts','mapGeometry.ts','noteFormatting.ts','labels.ts','librarySearch.ts','richTextMarkup.ts','keepTheme.ts','libraryColumns.ts','orbitThemeTokens.ts','--module','commonjs','--target','es2020','--outDir',temp,'--skipLibCheck','--noEmitOnError','false'],{stdio:'pipe'});
+ execFileSync('tsc',['layout.ts','trash.ts','mapGeometry.ts','noteFormatting.ts','labels.ts','librarySearch.ts','richTextMarkup.ts','keepTheme.ts','libraryColumns.ts','orbitThemeTokens.ts','pdfNodeStyle.ts','--module','commonjs','--target','es2020','--outDir',temp,'--skipLibCheck','--noEmitOnError','false'],{stdio:'pipe'});
 }catch(e){if(!fs.existsSync(path.join(temp,'layout.js')))throw e;}
 // Audit regressions: alternating masonry order, large collections and theme roles.
 const {partitionLibraryColumns}=require(path.join(temp,'libraryColumns.js'));
@@ -21,7 +21,7 @@ assert.equal(uiRoles(LIGHT).selectedBackground,LIGHT.accent);
 console.log('PASS: virtualized-library partition and semantic theme roles');
 
 const {radialLayout,overviewLayout}=require(path.join(temp,'layout.js'));
-const {deleteBranches,restoreBatch,pruneTrash}=require(path.join(temp,'trash.js'));
+const {deleteBranches,restoreBatch,pruneTrash,splitDeletedMaps}=require(path.join(temp,'trash.js'));
 for(const n of [1,10,50,100]){
  const pts=radialLayout(n);assert.equal(pts.length,n);
  for(let i=0;i<n;i++)for(let j=i+1;j<n;j++)assert.ok(Math.hypot(pts[i].x-pts[j].x,pts[i].y-pts[j].y)>85,'overlapping circles');
@@ -52,6 +52,51 @@ assert.deepEqual(wholeMapDelete.batch.notes.map(n=>n.id),['map','branch']);
 assert.equal(pruneTrash([wholeMapDelete.batch],wholeMapDelete.batch.deletedAt+5000).length,1,
  'whole maps remain recoverable beyond five-second Undo');
 console.log('PASS: nested branch permanent removal/Undo and independent seven-day whole-map recovery');
+// Multi-map deletion must preserve separate card, selection, restore and expiry semantics.
+const groupedMapNotes=[
+ {id:'root',parentId:null,title:'Root'},
+ {id:'map-a',parentId:'root',title:'A'},
+ {id:'a-1',parentId:'map-a',title:'A child'},
+ {id:'a-2',parentId:'a-1',title:'A grandchild'},
+ {id:'map-b',parentId:'root',title:'B'},
+ {id:'b-1',parentId:'map-b',title:'B child'},
+ {id:'map-c',parentId:'root',title:'C'}
+];
+const multi=deleteBranches(groupedMapNotes,['map-a','map-b']);
+const independent=splitDeletedMaps([multi.batch]);
+assert.equal(independent.length,2,'each map must show as a separate Deleted card');
+assert.deepEqual(independent.map(b=>b.notes[0].id),['map-a','map-b']);
+assert.equal(new Set(independent.map(b=>b.id)).size,2);
+assert.deepEqual(independent.map(b=>b.notes.length),[3,2]);
+assert.deepEqual(splitDeletedMaps(independent),independent,'migration is idempotent');
+const restoreA=restoreBatch(multi.remaining,independent[0]);
+assert.deepEqual(restoreA.map(x=>x.id),['root','map-c','map-a','a-1','a-2']);
+assert.deepEqual(independent[1].notes.map(x=>x.id),['map-b','b-1']);
+assert.ok(!restoreA.some(x=>x.id==='map-b'),'restoring one map must not restore another');
+const restoreBoth=independent.reduce((acc,b)=>restoreBatch(acc,b),multi.remaining);
+assert.deepEqual(restoreBoth.map(x=>x.id),['root','map-c','map-a','a-1','a-2','map-b','b-1']);
+const single=deleteBranches(groupedMapNotes,['map-c']).batch;
+assert.equal(splitDeletedMaps([single])[0].id,single.id,'single-map recovery IDs must stay unchanged');
+const orphan={...multi.batch,notes:[...multi.batch.notes,{id:'legacy-orphan',parentId:'missing'}]};
+const splitOrphan=splitDeletedMaps([orphan]);
+assert.equal(splitOrphan.length,3);
+assert.equal(splitOrphan[2].notes[0].id,'legacy-orphan','migration must not silently discard old data');
+assert.equal(splitOrphan.every(b=>b.deletedAt===multi.batch.deletedAt),true,'retention timestamps preserved');
+console.log('PASS: independent multi-map deletion, partial restore, legacy batch migration');
+
+const {pdfNodeStyle}=require(path.join(temp,'pdfNodeStyle.js'));
+const lightStyle=pdfNodeStyle('map-a',1,false,{'map-a':'#FAAFA9'},'light');
+const darkStyle=pdfNodeStyle('map-a',1,false,{'map-a':'#FAAFA9'},'dark');
+assert.equal(lightStyle.fill,'#FAAFA9');
+assert.equal(darkStyle.fill,'#740D32');
+assert.equal(lightStyle.text,'#202A42');
+assert.equal(darkStyle.text,'#F4F5FF');
+assert.equal(pdfNodeStyle('a-1',3,false,{'a-1':'#123456'},'light').fill,'#123456');
+assert.equal(pdfNodeStyle('a-1',3,false,{'a-1':'#123456'},'dark').fill,'#123456');
+assert.equal(pdfNodeStyle('uncoloured',2,false,{},'light').fill,'#F0F3FC');
+assert.equal(pdfNodeStyle('uncoloured',2,false,{},'dark').fill,'#1B293E');
+console.log('PASS: saved PDF node fill, readable text, and Light/Dark palette mapping');
+
 const {radialTree}=require(path.join(temp,'mapGeometry.js'));
 const diameters=[120,110,90,80,75,70];
 const deepNotes=Array.from({length:9},(_,i)=>({id:'n'+i,parentId:i?'n'+(i-1):null}));

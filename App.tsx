@@ -15,7 +15,7 @@ import {exportPDF,exportMultipleMapsPDF,Note} from './export';
 import {safeExportName,saveExportToAndroid,saveMultiplePDFsToAndroid,ExportFormat} from './localSave';
 import * as FileSystem from 'expo-file-system/legacy';
 import {saveEncryptedBackup,selectBackupFile,decryptSelectedBackup} from './backup';
-import {TrashBatch,deleteBranches,restoreBatch,pruneTrash} from './trash';
+import {TrashBatch,deleteBranches,restoreBatch,pruneTrash,splitDeletedMaps} from './trash';
 import {formatSelection,parseRichLine} from './noteFormatting';
 import RichNoteEditor,{RichNoteEditorHandle,RichEditorState} from './RichNoteEditor';
 import DeletedMapReader from './DeletedMapReader';
@@ -76,6 +76,7 @@ const [pendingBranch,setPendingBranch]=useState<TrashBatch|null>(null);
  // Branch undo exists only in memory; never in the recoverable seven-day Deleted store.
  const branchUndoDeadline=useRef<number|null>(null);
 const [undoOpen,setUndoOpen]=useState(false);
+ const [undoMapIds,setUndoMapIds]=useState<string[]>([]);
 const [trashMenu,setTrashMenu]=useState(false);
 const [themeMenu,setThemeMenu]=useState(false);
 const [labelManager,setLabelManager]=useState(false);
@@ -157,7 +158,7 @@ useEffect(()=>{
           setFolders(existing.folders);
           setFocused('root');
           setMenu(true);
-          setTrash(preferences.trashRetentionAcknowledged?pruneTrash(existing.trash):existing.trash);
+          setTrash(splitDeletedMaps(preferences.trashRetentionAcknowledged?pruneTrash(existing.trash):existing.trash));
            if(!preferences.trashRetentionAcknowledged&&!preferences.trashRetentionWarningSeen&&existing.trash.length>0)setRetentionNotice(true);
            if(!preferences.trashRetentionAcknowledged&&existing.trash.length===0)setMapPrefs(p=>({...p,trashRetentionAcknowledged:true}));
         }
@@ -336,12 +337,20 @@ const beginNew=(newId:string)=>{
 
 const clearUndoNotification=()=>{
   branchUndoDeadline.current=null;
-  setUndoOpen(false);setUndoBatch(null);setPendingBranch(null);
+  setUndoOpen(false);setUndoBatch(null);setPendingBranch(null);setUndoMapIds([]);
  };
  const undoDeletion=()=>{
   if(pendingBranch){
     if(branchUndoDeadline.current!==null&&Date.now()>=branchUndoDeadline.current){clearUndoNotification();return;}
     setNotes(existing=>restoreBatch(existing,pendingBranch));
+  }else if(undoMapIds.length){
+    const batches=trash.filter(batch=>undoMapIds.includes(batch.id));
+    try{
+      let updated=notes;
+      for(const batch of batches)updated=restoreBatch(updated,batch);
+      setNotes(updated);
+      setTrash(existing=>existing.filter(batch=>!undoMapIds.includes(batch.id)));
+    }catch(e){showDialog('Cannot undo map deletion',String(e));}
   }else if(undoBatch){
     const batch=trash.find(t=>t.id===undoBatch);
     if(batch)restore(batch);
@@ -349,20 +358,24 @@ const clearUndoNotification=()=>{
   clearUndoNotification();
  };
  const deleteSelected=()=>{
-  const ids=selected.filter(x=>x!=='root');
+  const ids=selected.filter(x=>notes.some(n=>n.id===x&&n.parentId==='root'));
   if(!ids.length)return;
   const result=deleteBranches(notes,ids);
-  if(!result.batch.notes.length)return;
-  showDialog('Move to Deleted',`Move ${result.batch.notes.length} note(s), including descendants, to Deleted? Items can be restored for seven days before permanent removal.`,[
+  const deletedMaps=splitDeletedMaps([result.batch]);
+  if(!result.batch.notes.length||!deletedMaps.length)return;
+  const mapCount=ids.length;
+  showDialog('Move to Deleted',`Move ${mapCount} map${mapCount===1?'':'s'} to Deleted? Maps and their descendants can be restored for seven days before permanent removal.`,[
     {text:'Cancel',style:'cancel'},
     {text:'Move',style:'destructive',onPress:()=>{
       setNotes(result.remaining);
-       setMapPrefs(p=>({...p,archived:p.archived.filter(item=>!result.batch.notes.some(n=>n.id===item))}));
-      setTrash(t=>mapPrefs.trashRetentionAcknowledged?pruneTrash([result.batch,...t]):[result.batch,...t]);
-      branchUndoDeadline.current=null;setUndoBatch(result.batch.id);setPendingBranch(null);setUndoOpen(true);
+      setMapPrefs(p=>({...p,archived:p.archived.filter(item=>!result.batch.notes.some(n=>n.id===item))}));
+      setTrash(existing=>mapPrefs.trashRetentionAcknowledged?pruneTrash([...deletedMaps,...existing]):[...deletedMaps,...existing]);
+      branchUndoDeadline.current=null;
+      setUndoBatch(deletedMaps[0].id);
+      setUndoMapIds(deletedMaps.map(batch=>batch.id));
+      setPendingBranch(null);setUndoOpen(true);
       if(result.batch.notes.some(n=>n.id===focused))setFocused('root');
-      setSelected([]);
-      setReader(null);
+      setSelected([]);setReader(null);
     }}
   ]);
 };
@@ -371,7 +384,7 @@ useEffect(()=>{
   if(!undoOpen)return;
   const remaining=branchUndoDeadline.current===null?5000:Math.max(0,branchUndoDeadline.current-Date.now());
   const timer=setTimeout(()=>{
-    branchUndoDeadline.current=null;setUndoOpen(false);setUndoBatch(null);setPendingBranch(null);
+    branchUndoDeadline.current=null;setUndoOpen(false);setUndoBatch(null);setPendingBranch(null);setUndoMapIds([]);
   },remaining);
   return()=>clearTimeout(timer);
 },[undoOpen,undoBatch,pendingBranch]);
@@ -391,10 +404,10 @@ const removeBranch=(target:string)=>{
       setMapPrefs(p=>({...p,archived:p.archived.filter(item=>!result.batch.notes.some(n=>n.id===item))}));
       if(wholeMap){
         setTrash(existing=>mapPrefs.trashRetentionAcknowledged?pruneTrash([result.batch,...existing]):[result.batch,...existing]);
-        setPendingBranch(null);setUndoBatch(result.batch.id);
+        setPendingBranch(null);setUndoBatch(result.batch.id);setUndoMapIds([result.batch.id]);
       }else{
         // Exclude branch deletion from the permanent seven-day Deleted store.
-        setUndoBatch(null);
+        setUndoBatch(null);setUndoMapIds([]);
         branchUndoDeadline.current=Date.now()+5000;
         setPendingBranch(result.batch);
       }
@@ -922,7 +935,7 @@ const confirmExport=async()=>{
       if(!roots.length)throw new Error('No maps selected');
       const files:{uri:string;name:string}[]=[];
       try{
-        for(const root of roots)files.push({uri:await exportPDF(root,notes),name:root.title});
+        for(const root of roots)files.push({uri:await exportPDF(root,notes,mapPrefs.colors,effectiveTheme),name:root.title});
         const count=await saveMultiplePDFsToAndroid(files);
         if(count){setExportKind(null);showDialog('PDFs saved',`${count} separate PDF files saved to the selected folder.`);}
         else showDialog('Save cancelled','No files were saved.');
@@ -932,8 +945,8 @@ const confirmExport=async()=>{
       return;
     }
     tempUri=exportTarget==='__selection__'
-      ?await exportMultipleMapsPDF(notes.filter(n=>selected.includes(n.id)),notes)
-      :await exportPDF(notes.find(n=>n.id===exportTarget)||current,notes);
+      ?await exportMultipleMapsPDF(notes.filter(n=>selected.includes(n.id)),notes,mapPrefs.colors,effectiveTheme)
+      :await exportPDF(notes.find(n=>n.id===exportTarget)||current,notes,mapPrefs.colors,effectiveTheme);
 
     const fallbackExportName=exportTarget==='__selection__'?(selected.length===1?(notes.find(n=>n.id===selected[0])?.title||'Orbit Notes'):'Selected maps'):(notes.find(n=>n.id===exportTarget)?.title||current.title);
     const finalExportName=exportName.trim()||fallbackExportName;
@@ -996,10 +1009,10 @@ const runBackup=async()=>{
       const restored=await decryptSelectedBackup(backupFile!.uri,backupPassword);
 
       if(restored){
-        await saveSnapshot(restored);
+        await saveSnapshot({...restored,trash:splitDeletedMaps(restored.trash)});
         setNotes(normalizeLabels(restored.notes));
         setFolders(restored.folders);
-        setTrash(restored.trash);
+        setTrash(splitDeletedMaps(restored.trash));
          if(restored.trash.length>0&&!restored.mapPreferences?.trashRetentionAcknowledged)setRetentionNotice(true);
          setShowArchive(false);setShowTrash(false);
         setFocused(restored.focused);

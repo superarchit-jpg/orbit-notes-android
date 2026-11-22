@@ -410,7 +410,7 @@ check(
   exp.includes('export async function exportMultipleMapsPDF') &&
   exp.includes('roots.map(root=>pdfMapPage(root,notes))') &&
   exp.includes("pages.join('')") &&
-  app.includes('await exportMultipleMapsPDF(notes.filter(n=>selected.includes(n.id)),notes)'),
+  app.includes('await exportMultipleMapsPDF(notes.filter(n=>selected.includes(n.id)),notes,mapPrefs.colors,effectiveTheme)'),
   'Combined PDF export must render every selected map as its own page'
 );
 console.log('PASS: PDF export module and large-map bounds');
@@ -502,5 +502,21 @@ check(app.includes("color:'#fbbc04'")&&app.split("color:'#fbbc04'").length===3,
 check(!app.includes('label="Undo deletion"')&&!app.includes('accessibilityLabel="Undo deletion"'),
  'Undo action label must be Undo in both map and library contexts');
 console.log('PASS: RC branch-only permanent deletion, deadline, matching Undo and map recovery');
+check(app.includes("const mapCount=ids.length")&&app.includes("Move ${mapCount} map${mapCount===1?'':'s'} to Deleted?"),
+ 'Multi-map deletion confirmation must count selected maps, not descendant notes');
+check(app.includes("splitDeletedMaps([result.batch])")&&app.includes("setUndoMapIds(deletedMaps.map(batch=>batch.id))"),
+ 'Multi-map deletion must create separate per-map records with one Undo action');
+check(app.includes("splitDeletedMaps(preferences.trashRetentionAcknowledged?pruneTrash(existing.trash):existing.trash)")&&app.includes("splitDeletedMaps(restored.trash)"),
+ 'Legacy grouped Deleted records must be normalized on load and backup restore');
+check(app.includes("setTrash(existing=>existing.filter(batch=>!undoMapIds.includes(batch.id)))"),
+ 'Multi-map Undo must remove every restored recovery record');
+check(exp.includes('pdfNodeStyle(n.note.id,n.level,isRoot,colors,theme)') &&
+ exp.includes('nodeStyle.fill') && exp.includes('nodeStyle.text'),
+ 'SVG PDF circles and labels must use saved node colours and contrasting text');
+check(app.includes('await exportPDF(root,notes,mapPrefs.colors,effectiveTheme)') &&
+ app.includes('await exportMultipleMapsPDF(notes.filter(n=>selected.includes(n.id)),notes,mapPrefs.colors,effectiveTheme)'),
+ 'Separate and combined PDF exports must retain selected map node colours');
+console.log('PASS: independent deleted maps, grouped recovery compatibility, and PDF node colour preservation');
+
 
 

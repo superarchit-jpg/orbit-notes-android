@@ -16,3 +16,26 @@ export function restoreBatch(notes:Note[],batch:TrashBatch):Note[]{
  return [...notes,...batch.notes];
 }
 export function pruneTrash(batches:TrashBatch[],now=Date.now()):TrashBatch[]{return batches.filter(b=>now-b.deletedAt<TRASH_RETENTION_MS);}
+
+/** Split a historical multi-map Deleted batch into independent map records.
+ * Keep the original ID for single-map batches. Preserve timestamp and any
+ * orphaned legacy notes instead of silently dropping them.
+ * Reapplying this normalization is idempotent.
+ */
+export function splitDeletedMaps(batches:TrashBatch[]):TrashBatch[]{
+ const normalized:TrashBatch[]=[];
+ for(const batch of batches){
+  const roots=batch.notes.filter(note=>note.parentId==='root');
+  if(roots.length<=1){normalized.push(batch);continue;}
+  const allocated=new Set<string>();
+  for(const root of roots){
+   const ids=branchIds(batch.notes,[root.id]);
+   const contents=batch.notes.filter(note=>ids.has(note.id));
+   for(const note of contents)allocated.add(note.id);
+   normalized.push({id:batch.id+'::'+root.id,deletedAt:batch.deletedAt,notes:contents});
+  }
+  const leftovers=batch.notes.filter(note=>!allocated.has(note.id));
+  if(leftovers.length)normalized.push({...batch,notes:leftovers});
+ }
+ return normalized;
+}
