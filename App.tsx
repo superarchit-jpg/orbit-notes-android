@@ -138,6 +138,7 @@ const selectedSidebarText=darkSelection?'#172441':palette.text;
 const noteDisplayColor=displayKeepColor(mapPrefs.noteColors[reader||''],effectiveTheme,palette.background);
 const noteDisplayText=keepForeground(noteDisplayColor);
 const [showMiniMap,setShowMiniMap]=useState(false);
+const [showEntireMap,setShowEntireMap]=useState(false);
 const [gestureHelp,setGestureHelp]=useState(false);
 const [nodeActions,setNodeActions]=useState<string|null>(null);
 const [draftChildId,setDraftChildId]=useState<string|null>(null);
@@ -637,8 +638,8 @@ const mapRoot=useMemo(()=>{
 },[current,notes]);
 const completeMap=useMemo(()=>radialTree(mapRoot,notes,mapPrefs.offsets,{},focused),
   [mapRoot,notes,mapPrefs.offsets,focused]);
-const fullMap=useMemo(()=>radialTree(mapRoot,notes,mapPrefs.offsets,mapPrefs.collapsed,focused),
-  [mapRoot,notes,mapPrefs.offsets,mapPrefs.collapsed,focused]);
+const fullMap=useMemo(()=>showEntireMap?completeMap:radialTree(mapRoot,notes,mapPrefs.offsets,mapPrefs.collapsed,focused),
+  [showEntireMap,completeMap,mapRoot,notes,mapPrefs.offsets,mapPrefs.collapsed,focused]);
 const visible=useMemo(()=>{
   const focus=fullMap.find(n=>n.note.id===focused);
   const depth=focus?.level||0;
@@ -648,9 +649,9 @@ const visible=useMemo(()=>{
     ancestors.add(id);
     id=notes.find(n=>n.id===id)?.parentId||'';
   }
-  return fullMap.filter(n=>n.level<=1||ancestors.has(n.note.id)||
+  return fullMap.filter(n=>showEntireMap||n.level<=1||ancestors.has(n.note.id)||
     (ancestors.has(n.note.parentId||'')&&n.level<=depth+1));
-},[fullMap,focused,notes]);
+},[fullMap,focused,notes,showEntireMap]);
 
 const [canvasW,setCanvasW]=useState(W);
 const [canvasH,setCanvasH]=useState(H-180);
@@ -687,6 +688,14 @@ const fitCurrentMap=()=>{
   scale.value=withTiming(fit.scale*1.1);
   rotation.value=withTiming(0);
 };
+useEffect(()=>{
+  if(!showEntireMap)return;
+  const fit=fitMap(completeMap,canvasW,canvasH);
+  tx.value=withTiming(fit.x);
+  ty.value=withTiming(fit.y);
+  scale.value=withTiming(fit.scale);
+  rotation.value=withTiming(0);
+},[showEntireMap,completeMap,canvasW,canvasH]);
 const parentPoint:{x:number;y:number}={x:0,y:0};
 
 const miniLines=completeMap.filter(n=>n.note.parentId&&n.note.parentId!=='root').flatMap(n=>{
@@ -1231,6 +1240,7 @@ if(locked){
             <Text accessibilityLabel={`Zoom ${zoomPercent} percent`} style={{fontSize:13,color:palette.text,minWidth:44,textAlign:'center'}}>{zoomPercent}%</Text>
             <IconButton label="+" accessibilityLabel="Zoom in" onPress={()=>{scale.value=withTiming(Math.min(preferredFit*1.1*2,preferredFit*1.1*(Math.round(scale.value/(preferredFit*1.1)*10)+1)/10));}}/>
           </View>
+          <IconButton label={showEntireMap?'shrinkAll':'expandAll'} accessibilityLabel={showEntireMap?'Collapse entire map':'Expand entire map'} onPress={()=>{setShowEntireMap(x=>!x);}}/>
           <View style={{flexDirection:'row',alignItems:'center'}}>
             <IconButton label={mapPrefs.collapsed[focused]?'expandBranch':'collapseBranch'} accessibilityLabel={mapPrefs.collapsed[focused]?'Expand branch':'Collapse branch'} onPress={()=>setMapPrefs(p=>({...p,collapsed:{...p.collapsed,[focused]:!p.collapsed[focused]}}))}/>
             <IconButton label="palette" accessibilityLabel="Node color" onPress={()=>{setManualColor(mapPrefs.colors[focused]||'');setColorTarget('node');}}/>
