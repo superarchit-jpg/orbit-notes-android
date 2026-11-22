@@ -53,7 +53,7 @@ export default function OrbitSettings({palette,themeMode,onTheme,lockEnabled,con
   if(stage==='confirm'){
    if(confirmValue!==newValue){setMessage('Credentials do not match.');return;}
    setBusy(true);
-   try{await onSaveCredential(newValue,kind);setCredentialModal(null);setOldValue('');setNewValue('');setConfirmValue('');setMessage('');Keyboard.dismiss();}
+   try{await onSaveCredential(newValue,kind);setPendingFirstSetup(false);setCredentialModal(null);setOldValue('');setNewValue('');setConfirmValue('');setMessage('');Keyboard.dismiss();}
    catch(e){setMessage(String(e));}finally{setBusy(false);}
    return;
   }
@@ -111,7 +111,7 @@ export default function OrbitSettings({palette,themeMode,onTheme,lockEnabled,con
        requestLockChange(enabled);
      }}/>
     </View>
-    {(lockEnabled||pendingFirstSetup||configured)&&<>
+    {(lockEnabled||pendingFirstSetup)&&<>
      {divider}
      {(['pin','password'] as const).map(kind=><View key={kind} style={{flexDirection:'row',alignItems:'center',minHeight:56,gap:16}}>
       <Text style={[text,{flex:1}]}>{kind==='pin'?'PIN':'Password'}</Text>
@@ -137,7 +137,7 @@ export default function OrbitSettings({palette,themeMode,onTheme,lockEnabled,con
    </>:<View style={{alignItems:'center',padding:20,gap:10}}>
      <Text style={{fontSize:23,fontWeight:'600',color:palette.text}}>Orbit Notes</Text>
      <Text style={{fontSize:14,color:palette.muted}}>Android · Offline</Text>
-     <Text style={{fontSize:14,color:palette.muted}}>Version {appVersion} · Build {buildNumber}</Text>
+     <Text style={{fontSize:14,color:palette.muted}}>Version {appVersion}</Text>
     </View>}
   </ScrollView>
   <Modal visible={credentialModal!==null} transparent animationType="fade" onRequestClose={()=>{if(!busy)setCredentialModal(null);}}>
@@ -147,10 +147,10 @@ export default function OrbitSettings({palette,themeMode,onTheme,lockEnabled,con
      <Text style={{fontSize:20,fontWeight:'600',color:palette.text}}>{credentialModal==='pin'?'PIN':'Password'}</Text>
      <Text style={{color:palette.muted,fontSize:14}}>{stage==='verify'?'Enter the existing '+(selectedKind==='pin'?'PIN.':'password.'):stage==='new'?'Enter a new '+(credentialModal==='pin'?'PIN.':'password.'):'Confirm the new '+(credentialModal==='pin'?'PIN.':'password.')}</Text>
      <View style={{flexDirection:'row',gap:6,alignItems:'center'}}>
-      <TextInput accessibilityLabel={stage==='verify'?(selectedKind==='pin'?'Existing PIN':'Existing Password'):stage==='new'?'New credential':'Confirm new credential'} value={stage==='verify'?oldValue:stage==='new'?newValue:confirmValue}
+      <TextInput accessibilityLabel={stage==='verify'?(selectedKind==='pin'?'Existing PIN':'Existing Password'):stage==='new'?(credentialModal==='pin'?'New PIN':'New Password'):(credentialModal==='pin'?'Confirm new PIN':'Confirm new Password')} value={stage==='verify'?oldValue:stage==='new'?newValue:confirmValue}
        onChangeText={stage==='verify'?setOldValue:stage==='new'?setNewValue:setConfirmValue}
        secureTextEntry={!showSecret} keyboardType={stage==='verify'?(selectedKind==='pin'?'number-pad':'default'):(credentialModal==='pin'?'number-pad':'default')}
-       autoCapitalize="none" autoCorrect={false} placeholder={stage==='verify'?(selectedKind==='pin'?'Existing PIN':'Existing Password'):stage==='new'?'New credential':'Confirm credential'}
+       autoCapitalize="none" autoCorrect={false} placeholder={stage==='verify'?(selectedKind==='pin'?'Existing PIN':'Existing Password'):stage==='new'?(credentialModal==='pin'?'New PIN':'New Password'):(credentialModal==='pin'?'Confirm PIN':'Confirm Password')}
        placeholderTextColor={palette.muted} style={{flex:1,minHeight:52,borderWidth:1,borderColor:palette.border,borderRadius:12,paddingHorizontal:12,color:palette.text,backgroundColor:palette.background,fontSize:16}}/>
       <Pressable accessibilityRole="button" accessibilityLabel={showSecret?'Hide credential':'Show credential'} onPress={()=>setShowSecret(v=>!v)} style={{padding:9}}>{glyph('M2 12s4-7 10-7 10 7 10 7-4 7-10 7S2 12 2 12zM12 9a3 3 0 1 0 0 6 3 3 0 0 0 0-6',palette.text)}</Pressable>
      </View>
