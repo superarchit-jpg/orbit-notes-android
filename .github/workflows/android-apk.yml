@@ -3,7 +3,7 @@ name: Build Orbit Notes Android APK
 on:
   workflow_dispatch:
   push:
-    branches: [main, v0.16-map-redesign]
+    branches: [main, v0.16-map-redesign, v1-development]
 
 permissions:
   contents: read
@@ -72,7 +72,7 @@ jobs:
   android-ui-smoke:
     name: Android emulator smoke test (advisory)
     needs: [build-android-apk]
-    if: ${{ github.ref_name == 'v0.16-map-redesign' }}
+    if: ${{ github.ref_name == 'main' || github.ref_name == 'v0.16-map-redesign' || github.ref_name == 'v1-development' }}
     runs-on: ubuntu-latest
     timeout-minutes: 35
     steps:
@@ -87,7 +87,7 @@ jobs:
 
       - name: Android UI smoke test
         id: smoke
-        continue-on-error: true
+        continue-on-error: ${{ github.ref_name != 'main' }}
         uses: reactivecircus/android-emulator-runner@v2
         with:
           api-level: 34
@@ -156,3 +156,41 @@ jobs:
           path: orbit-build-failure.md
           if-no-files-found: error
           retention-days: 14
+
+
+  publish-v1-stable:
+    name: Publish stable v1.0.0 release
+    needs: [build-android-apk, android-ui-smoke]
+    if: ${{ github.ref_name == 'main' && needs.build-android-apk.result == 'success' && needs.android-ui-smoke.result == 'success' }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      actions: read
+    steps:
+      - name: Check out validated release
+        uses: actions/checkout@v4
+      - name: Download validated APK
+        uses: actions/download-artifact@v4
+        with:
+          name: Orbit-Notes-Android-APK
+          path: release-apk
+      - name: Verify stable version and APK
+        run: |
+          node -e 'const a=require("./app.json").expo,p=require("./package.json");if(a.version!=="1.0.0"||a.android.versionCode!==19||p.version!=="1.0.0")throw Error("Version mismatch")'
+          test "$(find release-apk -maxdepth 1 -name '*.apk' -type f | wc -l)" -eq 1
+          unzip -t -q release-apk/*.apk
+      - name: Create Git tag and GitHub stable release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          if gh release view v1.0.0 >/dev/null 2>&1; then
+            existing="$(gh api "repos/$GITHUB_REPOSITORY/git/ref/tags/v1.0.0" --jq '.object.sha')"
+            if [ "$existing" != "$GITHUB_SHA" ]; then
+              echo "Tag v1.0.0 already exists at another commit: $existing" >&2
+              exit 1
+            fi
+            gh release upload v1.0.0 release-apk/*.apk --clobber
+          else
+            gh release create v1.0.0 release-apk/*.apk --target "$GITHUB_SHA" --title 'Orbit Notes v1.0.0 — Stable' --notes-file RELEASE_NOTES_v1.0.0.md --latest
+          fi

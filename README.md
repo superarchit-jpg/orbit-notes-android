@@ -1,4 +1,4 @@
-# Orbit Notes — Android (v0.16 development)
+# Orbit Notes — Android (v1.0.0 stable)
 
 Orbit Notes is a single-user, offline React Native / Expo Android note-taking application with a circular hierarchy map, a local note editor, labels, archive and seven-day Deleted recovery.
 
@@ -26,3 +26,7 @@ The map layout, zoom and rotation require device testing. Test encrypted backup/
 ## Notes
 
 The local PDF save flow uses Android Storage Access Framework and Base64 transfers, which can increase memory use for very large exports. SQLite note content is not separately encrypted at the application database layer; Android device protections apply.
+
+## Stable release and future development
+
+Version 1.0.0 is the stable baseline. See `RELEASE_NOTES_v1.0.0.md`. New features and fixes belong on `v1-development`, based on the v1.0.0 release; keep `main` and the stable tag unchanged except for deliberate future releases.

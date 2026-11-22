@@ -2,7 +2,7 @@
   "expo": {
     "name": "Orbit Notes",
     "slug": "orbit-notes",
-    "version": "0.16.0",
+    "version": "1.0.0",
     "orientation": "portrait",
     "androidStatusBar": {
       "translucent": false,
@@ -21,7 +21,7 @@
         "backgroundColor": "#5d6071"
       },
       "icon": "./assets/icon.png",
-      "versionCode": 18,
+      "versionCode": 19,
       "softwareKeyboardLayoutMode": "resize"
     },
     "icon": "./assets/icon.png",
