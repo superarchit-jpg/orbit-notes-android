@@ -16,6 +16,8 @@ const geometry = read('mapGeometry.ts');
 const trash = read('trash.ts');
 const app = read('App.tsx');
 const richEditor=read('RichNoteEditor.tsx');
+const settingsUi=read('OrbitSettings.tsx');
+const deletedViewer=read('DeletedMapReader.tsx');
 const security=read('appLock.ts');
 const store=read('storage.ts');
 const exp = read('export.ts');
@@ -214,7 +216,7 @@ console.log('PASS: pinned map and child note persistence regression');
 
 // Approved recording follow-up requirements.
 for(const marker of [
-  'thumbnailHeight=Math.min(284',
+  'thumbnailHeight=Math.min(332',
   "mapPrefs.viewMode==='grid'?[0,1]:[0]",
   "label={mapPrefs.viewMode==='grid'?'listView':'gridView'}",
   'accessibilityLabel="Sort maps"',
@@ -227,7 +229,7 @@ for(const marker of [
   'Delete label?',
   'setFolders(fs=>fs.map',
   'const confirmPinChange=async()=>',
-  "label=\"Delete stored PIN\"",
+  'onSaveCredential={async(value,kind)=>',
   "isPinLockEnabled()",
   'label="numbers" active={editorFormats.numbers} accessibilityLabel="Numbered list"',
   'label="underline" active={editorFormats.underline} accessibilityLabel="Underline text"'
@@ -242,7 +244,7 @@ for(const obsolete of [
 ]) check(!app.includes(obsolete),`Removed functionality resurfaced: ${obsolete}`);
 check(app.includes('accessibilityLabel="Center focused note"'),'Working recenter action must remain');
 console.log('PASS: 26 approved recording changes and scope exclusions');
-for(const marker of ['archiveSelection','showArchive','selectedTrash','acknowledgeTrashRetention','RichNoteEditor','credentialType','System Default','retentionNotice','bioPrompted.current'])
+for(const marker of ['archiveSelection','showArchive','selectedTrash','acknowledgeTrashRetention','RichNoteEditor','credentialType','mapPrefs.themeMode','retentionNotice','bioPrompted.current'])
   check(app.includes(marker),`Missing Stage 4 approved feature: ${marker}`);
 check(!app.includes("Updated {activeReader?stamp"),'Note reader must not show modification date');
 check(!app.includes("selected.includes(n.id)?'☑':'☐'"),'Card selection checkboxes must remain removed');
@@ -290,7 +292,7 @@ check(app.includes("setUndoBatch(result.batch.id)")&&app.includes("setTrash(t=>m
 for(const token of [
   'mapPreview(batch.notes.find(n=>n.parentId',
   "previewNotes:Note[]=notes",
-  "accessibilityLabel={'Restore '+",
+  "key={batch.id}",
   "label={showArchive?'Unarchive':'Archive'}",
   'borderBottomColor:palette.border,backgroundColor:editingFolderId'
 ]) check(app.includes(token),'Missing visible REF recovery/label UI: '+token);
@@ -414,9 +416,9 @@ check(app.includes('matchesMapQuery(n,notes,librarySearch)')&&librarySearch.incl
 check(app.includes('librarySearching||librarySearch.length>0')&&app.includes('accessibilityLabel="Clear search"'), 'Search mode must hide sort and view controls');
 check(app.includes('if(selected.length){setSelected([]);return true;}')&&app.includes('else if(selected.length)setSelected([])'), 'Back must clear selected maps before exiting');
 check(app.includes("setDeletedPreview(batch)")&&app.includes('onLongPress={()=>setSelectedTrash'), 'Deleted maps require tap preview and long press selection');
-check(app.includes('visible={deletedPreview!==null}')&&app.includes('Read only'), 'Deleted preview must not expose edit controls');
+check(app.includes('visible={deletedPreview!==null}')&&app.includes('<DeletedMapReader')&&deletedViewer.includes('Read only'), 'Deleted preview must open nonmutating gesture-enabled reader');
 check(app.includes('accessibilityLabel="New label name"')&&app.includes("setLabelManager(true)"), 'Label creation must share inline editing');
-check(app.includes("colorTarget==='node'")&&app.includes('Custom hex color')&&app.includes('accessibilityLabel="Dismiss color palette"'), 'All color palettes must support manual color and outside dismissal');
+check(app.includes("colorTarget==='node'")&&!app.includes('Custom hex color')&&app.includes('accessibilityLabel="Dismiss color palette"'), 'Palettes use presets only and dismiss outside');
 check(app.includes("accessibilityLabel={'More actions for '")&&app.includes("setCardMenuPosition({top:")&&app.includes("cardMenuId&&<View"), 'Library and Archive cards require anchored overflow menus');
 check(app.includes("setCardMenuId(null)")&&app.includes("setSelected([cardMenuId!])"), 'Card menu must dismiss safely while supporting labels and color actions');
 check(app.includes('accessibilityLabel="Text formatting"')&&app.includes('accessibilityLabel="Close formatting toolbar"'), 'Formatting controls must use a persistent popover');
@@ -434,6 +436,22 @@ check(app.includes("selected.includes(note.id)?{...addLabel(note,newId)"),'Label
 check(app.includes('if(name===\'restoreIcon\')return <Svg')&&app.includes('fill={color}'),'Restore must use a filled history-clock icon');
 check(app.includes("name==='format'")&&app.includes("name==='clearFormat'"),'Editor must use underlined-A and slashed-T reference icons');
 check(!app.includes('accessibilityLabel="Unarchive map"'),'Unarchive must not appear as a standalone card action');
+const securitySource=read('appLock.ts');
+check(settingsUi.includes("modeButton('light','Light')")&&settingsUi.includes("modeButton('dark','Dark')")&&settingsUi.includes("modeButton('system','System')"),'Theme must use three in-page pills');
+check(settingsUi.includes('<Switch accessibilityLabel="Enable app lock"')&&settingsUi.includes('<Switch accessibilityLabel="Biometric Unlock"'),'Lock and biometric settings must be genuine switches');
+check(settingsUi.includes('visible={credentialModal!==null}')&&settingsUi.includes("rgba(0,0,0,0.62)"),'Credential setup must be centered over a dimmed screen');
+check(settingsUi.includes("stage==='verify'")&&settingsUi.includes('onVerify(oldValue)'), 'Credential replacement must verify existing credential');
+check(securitySource.includes('/^\\d{4,}$/')&&securitySource.includes('Array.from(value).length<6'),'Credentials require minimum lengths without ceilings');
+check(settingsUi.includes("row('Backup & Restore'")&&settingsUi.includes("row('Create Backup'")&&settingsUi.includes("row('Restore Backup'"),'Manual encrypted backup and restore must remain available');
+check(!settingsUi.includes('App information and version')&&!settingsUi.includes('Encrypted local backup')&&!settingsUi.includes('Use device biometrics first'),'Removed settings help subtitles must not reappear');
+check(app.includes('setCredentialFallback(false)')&&app.includes('Use PIN instead')&&app.includes('Use Password instead'),'Lock screen must have biometric-first and credential fallback options');
+check(deletedViewer.includes('Gesture.Simultaneous(pan,pinch,rotate)')&&deletedViewer.includes('setReading')&&deletedViewer.includes('setCollapsed'),'Deleted viewer must support gestures and read-only hierarchy navigation');
+check(!app.includes('Deleted {stamp(batch.deletedAt)}')&&!app.includes("accessibilityLabel={'Restore '+"),'Deleted cards must not show timestamp or restore controls');
+check(app.includes("width:mapPrefs.viewMode==='grid'?'48.2%':'100%'"),'Deleted list/grid layout must follow library preference');
+check(app.includes('miniRotationStyle')&&app.includes('<Animated.View style={miniRotationStyle}>'),'Mini-map must rotate with the main map');
+check(app.includes("'allMaps':'M5 12L20 2M5 12H20M5 12L20 22'"),'Approved LIB-03 icon required');
+check(richEditor.includes('Empty formatted spans are editor artifacts'),'Rich editor must preserve blank lines without formatting tokens');
+console.log('PASS: REG-07, DEL-05/06, COL-03, MAP-11 and EDT-04 source regression guards');
 console.log('PASS: Google Keep video-reference styling, controls and icons');
 console.log('PASS: outstanding correction functional wiring guards');
 
