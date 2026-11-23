@@ -1319,16 +1319,7 @@ if(locked){
         </View>}
           {!menu&&showMiniMap&&<View style={{height:150,marginHorizontal:12,marginBottom:6,backgroundColor:palette.surface,borderColor:palette.border,borderWidth:1,borderRadius:16,overflow:'hidden',padding:10}}><Text style={styles.muted}>Map overview · {completeMap.length} notes</Text><Animated.View style={miniRotationStyle}><Svg width="100%" height={118} viewBox="0 0 1000 540" preserveAspectRatio="xMidYMid meet">{miniLines.map(l=><Line key={l.id} x1={l.x1*miniBounds.scale+miniBounds.dx} y1={l.y1*miniBounds.scale+miniBounds.dy} x2={l.x2*miniBounds.scale+miniBounds.dx} y2={l.y2*miniBounds.scale+miniBounds.dy} stroke={palette.connector} strokeWidth={2}/>)}{completeMap.map(v=><Circle key={v.note.id} cx={v.x*miniBounds.scale+miniBounds.dx} cy={v.y*miniBounds.scale+miniBounds.dy} r={v.note.id===focused?5:3.5} fill={v.note.id===focused?palette.accent:palette.muted}/>)}</Svg></Animated.View></View>}
 
-        {undoOpen&&(undoBatch||pendingBranch)&&(
-          <GestureDetector gesture={Gesture.Pan().activeOffsetX([-20,20]).onEnd(e=>{if(Math.abs(e.translationX)>55){runOnJS(clearUndoNotification)();}})}>
-          <View style={{position:'absolute',bottom:74,left:16,right:16,zIndex:42,backgroundColor:'#202124',borderRadius:8,padding:8,flexDirection:'row',alignItems:'center',justifyContent:'space-between'}}>
-            <Text style={{color:'#ffffff',flex:1}}>{pendingBranch?'Branch deleted':'Moved to Deleted'}</Text>
-            <Pressable accessibilityRole="button" accessibilityLabel="Undo" onPress={undoDeletion} style={{padding:8}}>
-              <Text style={{color:'#fbbc04',fontWeight:'700'}}>Undo</Text>
-            </Pressable>
-          </View>
-          </GestureDetector>
-        )}
+        {undoOpen&&(undoBatch||pendingBranch)&&(<SwipeUndoNotice message={pendingBranch?'Branch deleted':'Moved to Deleted'} onUndo={undoDeletion} onDismiss={clearUndoNotification} bottom={74}/>)}
         <Modal visible={gestureHelp} transparent animationType="fade" onRequestClose={()=>setGestureHelp(false)}>
           <View style={{flex:1,justifyContent:'flex-end',backgroundColor:'rgba(0,0,0,0.35)'}}>
             <Pressable style={StyleSheet.absoluteFill} accessibilityLabel="Dismiss gesture help" onPress={()=>setGestureHelp(false)}/>
@@ -1859,11 +1850,13 @@ if(locked){
                       {(mapPrefs.viewMode==='grid'?[0,1]:[0]).map(column=>(
                        <View key={column} style={{flex:1,gap:10}}>
                         {partitionLibraryColumns(chunk,mapPrefs.viewMode==='grid')[column].map(n=>(
+                    <LibraryGestureCard key={n.id} canSwipe={!showArchive&&selected.length===0} canDrag={librarySort==='custom'&&selected.length===0&&!showArchive}
+                      registerRef={view=>{libraryCardRefs.current[n.id]=view;}}
+                      onArchive={()=>archiveOne(n.id,true)} onDrop={(x,y)=>reorderCard(n.id,x,y)}>
                     <Pressable
-                      key={n.id}
                       accessibilityRole="button"
                       accessibilityLabel={`${n.title||'Untitled map'}${mapPrefs.pinned.includes(n.id)?', pinned':''}${selected.includes(n.id)?', selected':''}`}
-                      accessibilityHint="Tap to open; long press to select"
+                      accessibilityHint={librarySort==='custom'?"Tap to open; hold and drag to reorder; swipe to archive":"Tap to open; long press to select; swipe to archive"}
                       style={[styles.listRow,{backgroundColor:displayKeepColor(mapPrefs.cardColors[n.id],effectiveTheme,palette.surface),borderColor:selected.includes(n.id)?palette.accent:palette.border,borderWidth:selected.includes(n.id)?3:1},mapPrefs.viewMode==='grid'&&{width:'100%',alignItems:'stretch',flexDirection:'column',padding:10}]}
                       onPress={()=>{
                         if(selected.length){
@@ -1882,7 +1875,7 @@ if(locked){
                         }
                       }}
                       onLongPress={()=>
-                        setSelected(v=>
+                        librarySort!=='custom'&&setSelected(v=>
                           v.includes(n.id)
                             ?v
                             :[...v,n.id]
@@ -1915,6 +1908,7 @@ if(locked){
                         </Pressable>}
 
                     </Pressable>
+                    </LibraryGestureCard>
                         ))}
                        </View>
                       ))}
@@ -1940,14 +1934,10 @@ if(locked){
               <Text style={{fontSize:32,color:keepForeground(palette.accent)}}>+</Text>
             </Pressable>}
           {undoOpen&&(undoBatch||pendingBranch)&&(
-            <GestureDetector gesture={Gesture.Pan().activeOffsetX([-20,20]).onEnd(e=>{if(Math.abs(e.translationX)>55){runOnJS(clearUndoNotification)();}})}>
-              <View style={{position:'absolute',bottom:90,left:16,right:16,zIndex:60,backgroundColor:'#202124',borderRadius:8,padding:12,flexDirection:'row',alignItems:'center',justifyContent:'space-between',elevation:8}}> 
-                <Text style={{color:'#ffffff'}}>{pendingBranch?'Branch deleted':'Moved to Deleted'}</Text>
-                <Pressable accessibilityRole="button" accessibilityLabel="Undo" onPress={undoDeletion} style={{padding:8}}>
-                  <Text style={{color:'#fbbc04',fontWeight:'700'}}>Undo</Text>
-                </Pressable>
-              </View>
-            </GestureDetector>
+            <SwipeUndoNotice message={pendingBranch?'Branch deleted':'Moved to Deleted'} onUndo={undoDeletion} onDismiss={clearUndoNotification} bottom={archiveUndoIds.length?150:90}/>
+          )}
+          {archiveUndoIds.length>0&&(
+            <SwipeUndoNotice message={archiveUndoIds.length===1?'Map archived':archiveUndoIds.length+' maps archived'} onUndo={undoArchive} onDismiss={()=>setArchiveUndoIds([])}/>
           )}
           </InsetSafeAreaView></GestureHandlerRootView>
         </Modal>
