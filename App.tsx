@@ -48,17 +48,20 @@ const MaterialIcon=({name,color}:{name:string;color:string})=>{
   return data?<Svg width={23} height={23} viewBox="0 0 24 24"><Path d={data} fill="none" stroke={color} strokeWidth={1.7} strokeLinecap="round" strokeLinejoin="round"/>{name==='centerFocus'&&<Circle cx={12} cy={12} r={3.6} fill={color}/>}</Svg>:<Text style={{fontSize:name==='Fit'?14:22,color,fontWeight:'700'}}>{name}</Text>;
 };
 
-const LibraryGestureCard=({children,canSwipe,onArchive,canDrag,onDrop,registerRef}:{children:React.ReactNode;canSwipe:boolean;onArchive:()=>void;canDrag:boolean;onDrop:(x:number,y:number)=>void;registerRef:(view:View|null)=>void})=>{
+const LibraryGestureCard=({children,canSwipe,onArchive,canDrag,onDragStart,onDragMove,onDrop,registerRef}:{children:React.ReactNode;canSwipe:boolean;onArchive:()=>void;canDrag:boolean;onDragStart:()=>void;onDragMove:(x:number,y:number)=>void;onDrop:(x:number,y:number)=>void;registerRef:(view:View|null)=>void})=>{
  const dx=useSharedValue(0),dy=useSharedValue(0),dragging=useSharedValue(false);
+ const cardWidth=useSharedValue(W);
+ const lastDragUpdate=useSharedValue(0);
+ const swipeCommitted=useSharedValue(false);
  const swipe=Gesture.Pan().enabled(canSwipe).activeOffsetX([-18,18]).failOffsetY([-15,15])
    .onUpdate(e=>{dx.value=e.translationX;})
    .onEnd(e=>{
-     if(Math.abs(e.translationX)>W*0.48)dx.value=withTiming(e.translationX>0?W+80:-W-80,{duration:180},finished=>{if(finished)runOnJS(onArchive)();});
+     if(Math.abs(e.translationX)>cardWidth.value*0.65){swipeCommitted.value=true;dx.value=withTiming(e.translationX>0?W+cardWidth.value:-W-cardWidth.value,{duration:180},finished=>{if(finished)runOnJS(onArchive)();});}
      else dx.value=withTiming(0,{duration:190});
-   }).onFinalize(()=>{if(Math.abs(dx.value)<W*0.48)dx.value=withTiming(0);});
+   }).onFinalize(()=>{if(!swipeCommitted.value)dx.value=withTiming(0);});
  const drag=Gesture.Pan().enabled(canDrag).activateAfterLongPress(330)
-   .onStart(()=>{dragging.value=true;})
-   .onUpdate(e=>{dx.value=e.translationX;dy.value=e.translationY;})
+   .onStart(()=>{dragging.value=true;runOnJS(onDragStart)();})
+   .onUpdate(e=>{dx.value=e.translationX;dy.value=e.translationY;if(e.time-lastDragUpdate.value>110){lastDragUpdate.value=e.time;runOnJS(onDragMove)(e.absoluteX,e.absoluteY);}})
    .onEnd(e=>{runOnJS(onDrop)(e.absoluteX,e.absoluteY);})
    .onFinalize(()=>{dragging.value=false;dx.value=withTiming(0,{duration:180});dy.value=withTiming(0,{duration:180});});
  const gesture=Gesture.Race(drag,swipe);
@@ -67,14 +70,14 @@ const LibraryGestureCard=({children,canSwipe,onArchive,canDrag,onDrop,registerRe
    opacity:dragging.value?0.9:Math.max(0.16,1-Math.abs(dx.value)/(W*1.1)),
    zIndex:dragging.value?100:0,elevation:dragging.value?12:0
  }));
- return <View ref={registerRef} collapsable={false}><GestureDetector gesture={gesture}><Animated.View style={animated}>{children}</Animated.View></GestureDetector></View>;
+ return <View ref={registerRef} collapsable={false} onLayout={e=>{cardWidth.value=e.nativeEvent.layout.width;}}><GestureDetector gesture={gesture}><Animated.View style={animated}>{children}</Animated.View></GestureDetector></View>;
 };
 const SwipeUndoNotice=({message,onUndo,onDismiss,bottom=90}:{message:string;onUndo:()=>void;onDismiss:()=>void;bottom?:number})=>{
  const shift=useSharedValue(0);
- const pan=Gesture.Pan().activeOffsetX([-9999,12]).failOffsetY([-18,18]).onUpdate(e=>{shift.value=Math.max(0,e.translationX);})
-   .onEnd(e=>{if(e.translationX>90)shift.value=withTiming(W+50,{duration:190},finished=>{if(finished)runOnJS(onDismiss)();});else shift.value=withTiming(0,{duration:180});})
-   .onFinalize(()=>{if(shift.value<90)shift.value=withTiming(0);});
- const style=useAnimatedStyle(()=>({transform:[{translateX:shift.value}],opacity:Math.max(0.12,1-shift.value/W)}));
+ const pan=Gesture.Pan().activeOffsetX([-12,12]).failOffsetY([-18,18]).onUpdate(e=>{shift.value=e.translationX;})
+   .onEnd(e=>{if(Math.abs(e.translationX)>90)shift.value=withTiming(e.translationX>0?W+50:-W-50,{duration:190},finished=>{if(finished)runOnJS(onDismiss)();});else shift.value=withTiming(0,{duration:180});})
+   .onFinalize(()=>{if(Math.abs(shift.value)<90)shift.value=withTiming(0);});
+ const style=useAnimatedStyle(()=>({transform:[{translateX:shift.value}],opacity:Math.max(0.12,1-Math.abs(shift.value)/W)}));
  return <GestureDetector gesture={pan}><Animated.View style={[{position:'absolute',bottom,left:16,right:16,zIndex:60,backgroundColor:'#202124',borderRadius:8,padding:12,flexDirection:'row',alignItems:'center',justifyContent:'space-between',elevation:8},style]}>
    <Text style={{color:'#ffffff'}}>{message}</Text>
    <Pressable accessibilityRole="button" accessibilityLabel="Undo" onPress={onUndo} style={{padding:8}}><Text style={{color:'#fbbc04',fontWeight:'700'}}>Undo</Text></Pressable>
@@ -955,22 +958,28 @@ const undoArchive=()=>{
  setArchiveUndoIds([]);
 };
 const libraryCardRefs=useRef<Record<string,View|null>>({});
+const [draggingMapId,setDraggingMapId]=useState<string|null>(null);
+const dragUpdateBusy=useRef(false);
 const reorderCard=(draggedId:string,x:number,y:number)=>{
  if(librarySort!=='custom')return;
+ if(dragUpdateBusy.current)return;
+ dragUpdateBusy.current=true;
  const candidates=shown.filter(n=>n.id!==draggedId).map(n=>({id:n.id,ref:libraryCardRefs.current[n.id]})).filter(n=>n.ref);
  let remaining=candidates.length,bestId:string|null=null,bestDistance=Infinity;
- if(!remaining)return;
+ if(!remaining){dragUpdateBusy.current=false;return;}
  for(const candidate of candidates){
    candidate.ref!.measureInWindow((cx,cy,w,h)=>{
      const distance=Math.pow(cx+w/2-x,2)+Math.pow(cy+h/2-y,2);
      if(distance<bestDistance){bestDistance=distance;bestId=candidate.id;}
-     if(--remaining===0&&bestId){
+     if(--remaining===0){
+       dragUpdateBusy.current=false;
+       if(!bestId)return;
        const targetId=bestId;
        setMapPrefs(p=>{
          const allRoots=notes.filter(n=>n.parentId==='root').map(n=>n.id);
          const order=[...new Set([...(p.customOrder||[]),...allRoots])].filter(id=>allRoots.includes(id)&&id!==draggedId);
          const targetIndex=order.indexOf(targetId);
-         if(targetIndex<0)return p;
+         if(targetIndex<0||order.indexOf(draggedId)===targetIndex)return p;
          order.splice(targetIndex,0,draggedId);
          return {...p,customOrder:order};
        });
@@ -1614,10 +1623,10 @@ if(locked){
                   <MaterialIcon name="search" color={palette.muted}/>
                   <TextInput accessibilityLabel="Search all map contents" placeholder="Search Orbit Notes" placeholderTextColor={palette.muted} value={librarySearch} onFocus={()=>{setLibrarySearching(true);setSortMenu(false);}} onChangeText={setLibrarySearch} style={{flex:1,minWidth:20,fontSize:15,color:palette.text,paddingVertical:7}}/>
                   {librarySearching||librarySearch.length>0?<IconButton label="×" accessibilityLabel="Clear search" onPress={()=>{setLibrarySearch('');setLibrarySearching(false);Keyboard.dismiss();}}/>:<>
-                    <Pressable accessibilityRole="button" accessibilityLabel="Sort maps" onPress={()=>setSortMenu(v=>!v)} style={{minWidth:48,minHeight:48,justifyContent:'center',alignItems:'center'}}>
+                    <Pressable accessibilityRole="button" accessibilityLabel="Sort maps" onPress={()=>setSortMenu(v=>!v)} style={{minWidth:48,minHeight:48,justifyContent:'center',alignItems:'center',borderRadius:24,backgroundColor:librarySort==='created'||librarySort==='modified'?palette.background:'transparent'}}>
                       <Svg width={24} height={24} viewBox="0 0 24 24">
-                        <Path d="M7 20V4m-4 4 4-4 4 4" stroke={palette.text} strokeWidth={1.9} strokeLinecap="round" strokeLinejoin="round" fill="none" opacity={librarySort==='custom'||sortDirection==='asc'?1:0.28}/>
-                        <Path d="M17 4v16m-4-4 4 4 4-4" stroke={palette.text} strokeWidth={1.9} strokeLinecap="round" strokeLinejoin="round" fill="none" opacity={librarySort==='custom'||sortDirection==='desc'?1:0.28}/>
+                        <Path d="M10.5 15V4m-3.2 3.1 3.2-3.1 3.2 3.1" stroke={palette.text} strokeWidth={1.9} strokeLinecap="round" strokeLinejoin="round" fill="none" opacity={librarySort==='custom'||sortDirection==='asc'?1:0.28}/>
+                        <Path d="M13.5 9v11m-3.2-3.1 3.2 3.1 3.2-3.1" stroke={palette.text} strokeWidth={1.9} strokeLinecap="round" strokeLinejoin="round" fill="none" opacity={librarySort==='custom'||sortDirection==='desc'?1:0.28}/>
                       </Svg>
                     </Pressable>
                     <IconButton label={mapPrefs.viewMode==='grid'?'listView':'gridView'} accessibilityLabel={mapPrefs.viewMode==='grid'?'Switch to list view':'Switch to card view'} onPress={()=>setMapPrefs(p=>({...p,viewMode:p.viewMode==='grid'?'list':'grid'}))}/>
@@ -1850,9 +1859,12 @@ if(locked){
                       {(mapPrefs.viewMode==='grid'?[0,1]:[0]).map(column=>(
                        <View key={column} style={{flex:1,gap:10}}>
                         {partitionLibraryColumns(chunk,mapPrefs.viewMode==='grid')[column].map(n=>(
-                    <LibraryGestureCard key={n.id} canSwipe={!showArchive&&selected.length===0} canDrag={librarySort==='custom'&&selected.length===0&&!showArchive}
+                    <LibraryGestureCard key={n.id} canSwipe={!showArchive&&selected.length===0} canDrag={librarySort==='custom'&&!showArchive&&(selected.length===0||(selected.length===1&&selected.includes(n.id)))}
                       registerRef={view=>{libraryCardRefs.current[n.id]=view;}}
-                      onArchive={()=>archiveOne(n.id,true)} onDrop={(x,y)=>reorderCard(n.id,x,y)}>
+                      onArchive={()=>archiveOne(n.id,true)}
+                      onDragStart={()=>{setDraggingMapId(n.id);setSelected(v=>v.includes(n.id)?v:[...v,n.id]);}}
+                      onDragMove={(x,y)=>reorderCard(n.id,x,y)}
+                      onDrop={(x,y)=>{reorderCard(n.id,x,y);setDraggingMapId(null);}}>
                     <Pressable
                       accessibilityRole="button"
                       accessibilityLabel={`${n.title||'Untitled map'}${mapPrefs.pinned.includes(n.id)?', pinned':''}${selected.includes(n.id)?', selected':''}`}
@@ -1875,7 +1887,7 @@ if(locked){
                         }
                       }}
                       onLongPress={()=>
-                        librarySort!=='custom'&&setSelected(v=>
+                        setSelected(v=>
                           v.includes(n.id)
                             ?v
                             :[...v,n.id]
