@@ -71,7 +71,7 @@ const LibraryGestureCard=({children,canSwipe,onArchive,canDrag,onDrop,registerRe
 };
 const SwipeUndoNotice=({message,onUndo,onDismiss,bottom=90}:{message:string;onUndo:()=>void;onDismiss:()=>void;bottom?:number})=>{
  const shift=useSharedValue(0);
- const pan=Gesture.Pan().activeOffsetX([12,9999]).onUpdate(e=>{shift.value=Math.max(0,e.translationX);})
+ const pan=Gesture.Pan().activeOffsetX([-9999,12]).failOffsetY([-18,18]).onUpdate(e=>{shift.value=Math.max(0,e.translationX);})
    .onEnd(e=>{if(e.translationX>90)shift.value=withTiming(W+50,{duration:190},finished=>{if(finished)runOnJS(onDismiss)();});else shift.value=withTiming(0,{duration:180});})
    .onFinalize(()=>{if(shift.value<90)shift.value=withTiming(0);});
  const style=useAnimatedStyle(()=>({transform:[{translateX:shift.value}],opacity:Math.max(0.12,1-shift.value/W)}));
