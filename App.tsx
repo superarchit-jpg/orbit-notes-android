@@ -61,7 +61,7 @@ const LibraryGestureCard=({children,canSwipe,onArchive,canDrag,onDragStart,onDra
    }).onFinalize(()=>{if(!swipeCommitted.value)dx.value=withTiming(0);});
  const drag=Gesture.Pan().enabled(canDrag).activateAfterLongPress(330)
    .onStart(()=>{dragging.value=true;runOnJS(onDragStart)();})
-   .onUpdate(e=>{dx.value=e.translationX;dy.value=e.translationY;if(e.time-lastDragUpdate.value>110){lastDragUpdate.value=e.time;runOnJS(onDragMove)(e.absoluteX,e.absoluteY);}})
+   .onUpdate(e=>{dx.value=e.translationX;dy.value=e.translationY;if(Math.abs(e.translationY-lastDragUpdate.value)>18){lastDragUpdate.value=e.translationY;runOnJS(onDragMove)(e.absoluteX,e.absoluteY);}})
    .onEnd(e=>{runOnJS(onDrop)(e.absoluteX,e.absoluteY);})
    .onFinalize(()=>{dragging.value=false;dx.value=withTiming(0,{duration:180});dy.value=withTiming(0,{duration:180});});
  const gesture=Gesture.Race(drag,swipe);
