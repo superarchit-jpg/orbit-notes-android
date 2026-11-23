@@ -2,7 +2,7 @@
 import React,{useEffect,useRef,useState} from 'react';
 import {Image,Keyboard,Modal,Pressable,ScrollView,Switch,Text,TextInput,View} from 'react-native';
 import {SafeAreaView} from 'react-native-safe-area-context';
-import Svg,{Path,Circle} from 'react-native-svg';
+import Svg,{Path,Circle,Rect,G} from 'react-native-svg';
 import type {CredentialKind} from './appLock';
 
 type Palette={background:string;surface:string;control:string;text:string;muted:string;border:string;accent:string};
@@ -27,6 +27,39 @@ type Props={
  onClose:()=>void;
 };
 const glyph=(d:string,color:string)=><Svg width={23} height={23} viewBox="0 0 24 24"><Path d={d} fill="none" stroke={color} strokeWidth={1.7} strokeLinecap="round" strokeLinejoin="round"/></Svg>;
+/**
+ * Approved Orbit Notes App Info wallpaper, redrawn as native vectors.
+ * The paired theme palettes keep the central copy unobstructed without
+ * shipping a large bitmap or introducing any online dependency.
+ */
+const AppInfoBackdrop=({dark}:{dark:boolean})=>{
+ const ink=dark?'#60718E':'#BDB6AA';
+ const paper=dark?'#121827':'#F8F6F0';
+ const networks=[
+  {x:40,y:72,s:0.9},{x:313,y:102,s:0.83},{x:29,y:515,s:0.8},
+  {x:325,y:585,s:0.85},{x:48,y:699,s:0.95},{x:292,y:710,s:0.8}
+ ];
+ const papers=[{x:89,y:28,r:-6},{x:275,y:183,r:9},{x:28,y:348,r:-12},{x:297,y:461,r:12},{x:89,y:645,r:6},{x:231,y:729,r:-9}];
+ const sparks=[[19,23],[166,50],[337,33],[65,255],[307,324],[37,446],[335,544],[18,623],[241,606],[343,747]];
+ return <Svg pointerEvents="none" accessible={false} style={{position:'absolute',top:0,right:0,bottom:0,left:0}} width="100%" height="100%" viewBox="0 0 360 760" preserveAspectRatio="xMidYMid slice">
+   <Rect x={0} y={0} width={360} height={760} fill={paper}/>
+   <G stroke={ink} strokeWidth={1.1} fill="none" opacity={dark?0.57:0.29} strokeLinecap="round" strokeLinejoin="round">
+     {networks.map(({x,y,s},i)=><G key={'network'+i} transform={`translate(${x} ${y}) scale(${s})`}>
+       <Path d="M0 0L-23-20M0 0L29-27M0 0L37 19M0 0L-13 39"/>
+       <Circle cx={0} cy={0} r={13}/><Circle cx={-23} cy={-20} r={8}/><Circle cx={29} cy={-27} r={8}/><Circle cx={37} cy={19} r={8}/><Circle cx={-13} cy={39} r={8}/>
+     </G>)}
+     {papers.map(({x,y,r},i)=><G key={'paper'+i} transform={`translate(${x} ${y}) rotate(${r})`}>
+       <Path d="M-12-19H7L14-12V20H-12zM7-19v7h7M-6-6H8M-6 1H9M-6 8H3"/>
+     </G>)}
+     <Path d="M-37 239C-12 193 26 196 39 201M41 201A36 36 0 1 1 2 253M353 311A65 65 0 0 0 312 362M-33 576A60 60 0 0 0 37 514M285 674C315 631 346 638 384 647M170-18A83 83 0 0 1 115 63"/>
+     <Circle cx={52} cy={205} r={3}/><Circle cx={312} cy={362} r={3}/><Circle cx={37} cy={514} r={3}/>
+     <Path d="M301 248l13-17 8 5-14 17-9 3zM314 231l4-5 8 5-4 5M299 256l6-3"/>
+     <Path d="M146 673l13-16 8 6-14 15-9 3zM159 657l3-4 9 6-4 4"/>
+     {sparks.map(([x,y],i)=><Path key={'spark'+i} d={`M${x} ${y-7}Q${x+1} ${y-1} ${x+7} ${y}Q${x+1} ${y+1} ${x} ${y+7}Q${x-1} ${y+1} ${x-7} ${y}Q${x-1} ${y-1} ${x} ${y-7}Z`}/>)}
+     {[[175,112],[41,291],[332,396],[145,405],[226,555],[58,606],[295,75],[9,722],[194,735]].map(([x,y],i)=><Circle key={'dot'+i} cx={x} cy={y} r={i%3===0?2:1.2} fill={ink} stroke="none"/>)}
+   </G>
+ </Svg>;
+};
 export default function OrbitSettings({palette,themeMode,onTheme,lockEnabled,configured,selectedKind,biometric,onToggleLock,onToggleBiometric,onVerify,onSaveCredential,onResetCredential,onVerifyBiometric,registerBack,appVersion,buildNumber,onBackup,onLockNow,onClose}:Props){
  const [page,setPage]=useState<Page>('home');
  const [credentialModal,setCredentialModal]=useState<CredentialKind|null>(null);
@@ -113,7 +146,8 @@ export default function OrbitSettings({palette,themeMode,onTheme,lockEnabled,con
  const modeButton=(mode:'light'|'dark'|'system',title:string)=><Pressable key={mode} accessibilityRole="button" accessibilityLabel={title+' theme'} accessibilityState={{selected:themeMode===mode}} onPress={()=>onTheme(mode)} style={{flex:1,borderRadius:22,minHeight:43,justifyContent:'center',alignItems:'center',borderWidth:1,borderColor:themeMode===mode?palette.accent:palette.border,backgroundColor:themeMode===mode?palette.accent:palette.control}}>
    <Text style={{fontSize:14,fontWeight:'600',color:themeMode===mode?'#16233F':palette.text}}>{title}</Text>
  </Pressable>;
- return <SafeAreaView style={{flex:1,backgroundColor:palette.background}}>
+ return <SafeAreaView style={{flex:1,backgroundColor:page==='about'?(palette.background==='#ECEEFF'?'#F8F6F0':'#121827'):palette.background}}>
+   {page==='about'&&<AppInfoBackdrop dark={palette.background!=='#ECEEFF'}/>} 
   <View style={{minHeight:62,paddingHorizontal:16,flexDirection:'row',alignItems:'center',gap:14}}>
    <Pressable accessibilityRole="button" accessibilityLabel={page==='home'?'Back to previous library screen':'Back to Settings'} onPress={goBack} style={{width:44,height:48,justifyContent:'center',alignItems:'center'}}>{glyph('M20 12H4m7-7-7 7 7 7',palette.text)}</Pressable>
    <Text style={{fontSize:22,fontWeight:'600',color:palette.text}}>{page==='home'?'Settings':page==='appLock'?'App Lock':page==='backup'?'Backup & Restore':'App Info'}</Text>
