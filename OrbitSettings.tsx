@@ -1,6 +1,6 @@
 /** Settings redesign: UI isolated from stored SQLite data and secure credential material. */
 import React,{useEffect,useRef,useState} from 'react';
-import {Keyboard,Modal,Pressable,ScrollView,Switch,Text,TextInput,View} from 'react-native';
+import {Image,Keyboard,Modal,Pressable,ScrollView,Switch,Text,TextInput,View} from 'react-native';
 import {SafeAreaView} from 'react-native-safe-area-context';
 import Svg,{Path,Circle} from 'react-native-svg';
 import type {CredentialKind} from './appLock';
@@ -116,9 +116,9 @@ export default function OrbitSettings({palette,themeMode,onTheme,lockEnabled,con
  return <SafeAreaView style={{flex:1,backgroundColor:palette.background}}>
   <View style={{minHeight:62,paddingHorizontal:16,flexDirection:'row',alignItems:'center',gap:14}}>
    <Pressable accessibilityRole="button" accessibilityLabel={page==='home'?'Back to previous library screen':'Back to Settings'} onPress={goBack} style={{width:44,height:48,justifyContent:'center',alignItems:'center'}}>{glyph('M20 12H4m7-7-7 7 7 7',palette.text)}</Pressable>
-   <Text style={{fontSize:22,fontWeight:'600',color:palette.text}}>{page==='home'?'Settings':page==='appLock'?'App Lock':page==='backup'?'Backup & Restore':'About Orbit Notes'}</Text>
+   <Text style={{fontSize:22,fontWeight:'600',color:palette.text}}>{page==='home'?'Settings':page==='appLock'?'App Lock':page==='backup'?'Backup & Restore':'App Info'}</Text>
   </View>
-  <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={{paddingHorizontal:20,paddingTop:14,paddingBottom:48,gap:12}}>
+  <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={page==='about'?{flexGrow:1,paddingHorizontal:20,paddingVertical:24}:{paddingHorizontal:20,paddingTop:14,paddingBottom:48,gap:12}}>
    {page==='home'?<>
     {label('APPEARANCE')}
     <Text style={[text,{fontWeight:'600'}]}>Theme</Text>
@@ -129,7 +129,7 @@ export default function OrbitSettings({palette,themeMode,onTheme,lockEnabled,con
     {row('Backup & Restore','M4 4h16v16H4zM8 8h8M8 12h8M8 16h5',()=>setPage('backup'))}
     {divider}
     {label('ABOUT')}
-    {row('About Orbit Notes','M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20zM12 11v6m0-10h.01',()=>setPage('about'))}
+    {row('App Info','M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20zM12 11v6m0-10h.01',()=>setPage('about'))}
    </>:page==='appLock'?<>
     <View style={{flexDirection:'row',alignItems:'center',minHeight:52,justifyContent:'space-between'}}>
      <Text style={[text,{fontWeight:'600'}]}>App Lock</Text>
@@ -160,10 +160,12 @@ export default function OrbitSettings({palette,themeMode,onTheme,lockEnabled,con
     {row('Create Backup','M12 3v12m-5-5 5 5 5-5M5 17v4h14v-4',()=>onBackup('save'))}
     {divider}
     {row('Restore Backup','M12 21V9m-5 5 5-5 5 5M5 7V3h14v4',()=>onBackup('restore'))}
-   </>:<View style={{alignItems:'center',padding:20,gap:10}}>
-     <Text style={{fontSize:23,fontWeight:'600',color:palette.text}}>Orbit Notes</Text>
-     <Text style={{fontSize:14,color:palette.muted}}>Android · Offline</Text>
-     <Text style={{fontSize:14,color:palette.muted}}>Version {appVersion}</Text>
+   </>:<View style={{flex:1,alignItems:'center',justifyContent:'center',paddingHorizontal:20,gap:12}}>
+     <Text accessibilityRole="header" style={{fontSize:27,fontWeight:'600',color:palette.text}}>Orbit Notes</Text>
+     <Text style={{fontSize:16,color:palette.muted}}>Version {appVersion}</Text>
+     <Image source={require('./assets/icon.png')} accessibilityLabel="Orbit Notes app icon" resizeMode="contain" style={{width:128,height:128,borderRadius:28,marginVertical:38}}/>
+     <Text style={{fontSize:15,color:palette.muted}}>Developed by Archit Gupta</Text>
+     <Text style={{fontSize:15,color:palette.muted}}>Powered by AI</Text>
     </View>}
   </ScrollView>
   <Modal visible={credentialModal!==null} transparent animationType="fade" onShow={showBiometricPrompt} onRequestClose={dismissCredential}>
