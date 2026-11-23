@@ -92,10 +92,13 @@ export type MapPreferences={
   trashRetentionAcknowledged:boolean;
   trashRetentionWarningSeen:boolean;
   themeMode?:'light'|'dark'|'system';
+  librarySort?:'custom'|'created'|'modified'|'title';
+  sortDirection?:'asc'|'desc';
+  customOrder?:string[];
 };
 export const emptyMapPreferences=():MapPreferences=>({
   offsets:{},collapsed:{},colors:{},pinned:[],
-  theme:'light',viewMode:'grid',cardColors:{},noteColors:{},archived:[],trashRetentionAcknowledged:false,trashRetentionWarningSeen:false,themeMode:'light'
+  theme:'light',viewMode:'grid',cardColors:{},noteColors:{},archived:[],trashRetentionAcknowledged:false,trashRetentionWarningSeen:false,themeMode:'light',librarySort:'custom',sortDirection:'desc',customOrder:[]
 });
 export async function loadMapPreferences():Promise<MapPreferences>{
   await writeQueue;
@@ -116,7 +119,10 @@ export async function loadMapPreferences():Promise<MapPreferences>{
       archived:Array.isArray(parsed.archived)?parsed.archived.filter((x):x is string=>typeof x==='string'):[],
       trashRetentionAcknowledged:parsed.trashRetentionAcknowledged===true,
       trashRetentionWarningSeen:parsed.trashRetentionWarningSeen===true,
-      themeMode:parsed.themeMode==='system'?'system':parsed.theme==='dark'?'dark':'light'
+      themeMode:parsed.themeMode==='system'?'system':parsed.theme==='dark'?'dark':'light',
+      librarySort:['custom','created','modified','title'].includes(parsed.librarySort||'')?parsed.librarySort:'custom',
+      sortDirection:parsed.sortDirection==='asc'?'asc':'desc',
+      customOrder:Array.isArray(parsed.customOrder)?parsed.customOrder.filter((id):id is string=>typeof id==='string'):[]
     };
   }catch{return emptyMapPreferences();}
 }
