@@ -110,7 +110,10 @@ const [deletedPreview,setDeletedPreview]=useState<TrashBatch|null>(null);
 const [formatToolbar,setFormatToolbar]=useState(false);
 const [manualColor,setManualColor]=useState('');
 const [zoomPercent,setZoomPercent]=useState(100);
-const [librarySort,setLibrarySort]=useState<'modified'|'title'|'created'>('modified');
+const librarySort=mapPrefs.librarySort||'custom';
+const sortDirection=mapPrefs.sortDirection||'desc';
+const setLibrarySort=(next:'custom'|'created'|'modified'|'title')=>setMapPrefs(p=>({...p,librarySort:next,sortDirection:'desc'}));
+const toggleLibraryDirection=()=>setMapPrefs(p=>({...p,sortDirection:p.sortDirection==='asc'?'desc':'asc'}));
 type DialogAction={text:string;style?:string;onPress?:()=>void};
 const [appDialog,setAppDialog]=useState<{title:string;message?:string;buttons?:DialogAction[]}|null>(null);
 const showDialog=(title:string,message?:string,buttons?:DialogAction[])=>setAppDialog({title,message,buttons});
@@ -874,7 +877,20 @@ const noteBodyView=(value:string)=>value.split('\n').map((line,index)=>(
   </View>
 ));
 const listNotes=notes.filter(n=>n.parentId==='root'&&(showArchive?mapPrefs.archived.includes(n.id):!mapPrefs.archived.includes(n.id)));
-const shown=useMemo(()=>listNotes.filter(n=>(!folderFilter||hasLabel(n,folderFilter))&&matchesMapQuery(n,notes,librarySearch)).sort((a,b)=>Number(mapPrefs.pinned.includes(b.id))-Number(mapPrefs.pinned.includes(a.id))||(librarySort==='title'?a.title.localeCompare(b.title):librarySort==='created'?Number(a.id.split('-')[0])-Number(b.id.split('-')[0]):b.updatedAt-a.updatedAt)),[notes,folderFilter,librarySearch,librarySort,mapPrefs.pinned,mapPrefs.archived,showArchive]);
+const shown=useMemo(()=>{
+ const order=mapPrefs.customOrder||[];
+ const direction=sortDirection==='asc'?1:-1;
+ return listNotes.filter(n=>(!folderFilter||hasLabel(n,folderFilter))&&matchesMapQuery(n,notes,librarySearch)).sort((a,b)=>{
+   if(librarySort==='custom'){
+     const ai=order.indexOf(a.id),bi=order.indexOf(b.id);
+     return (ai<0?Number.MAX_SAFE_INTEGER:ai)-(bi<0?Number.MAX_SAFE_INTEGER:bi) || (ai<0&&bi<0?b.updatedAt-a.updatedAt:0);
+   }
+   const pinned=Number(mapPrefs.pinned.includes(b.id))-Number(mapPrefs.pinned.includes(a.id));
+   if(pinned)return pinned;
+   const result=librarySort==='title'?a.title.localeCompare(b.title,undefined,{sensitivity:'base'}):librarySort==='created'?Number(a.id.split('-')[0])-Number(b.id.split('-')[0]):a.updatedAt-b.updatedAt;
+   return direction*result || a.id.localeCompare(b.id);
+ });
+},[notes,folderFilter,librarySearch,librarySort,sortDirection,mapPrefs.customOrder,mapPrefs.pinned,mapPrefs.archived,showArchive]);
 
 // Group nearby cards into virtualized masonry sections under a single scroll owner.
  // Each section keeps the approved alternating two-column order and variable card heights.
@@ -1537,7 +1553,12 @@ if(locked){
                   <MaterialIcon name="search" color={palette.muted}/>
                   <TextInput accessibilityLabel="Search all map contents" placeholder="Search Orbit Notes" placeholderTextColor={palette.muted} value={librarySearch} onFocus={()=>{setLibrarySearching(true);setSortMenu(false);}} onChangeText={setLibrarySearch} style={{flex:1,minWidth:20,fontSize:15,color:palette.text,paddingVertical:7}}/>
                   {librarySearching||librarySearch.length>0?<IconButton label="×" accessibilityLabel="Clear search" onPress={()=>{setLibrarySearch('');setLibrarySearching(false);Keyboard.dismiss();}}/>:<>
-                    <IconButton label="sort" accessibilityLabel="Sort maps" onPress={()=>setSortMenu(v=>!v)}/>
+                    <Pressable accessibilityRole="button" accessibilityLabel="Sort maps" onPress={()=>setSortMenu(v=>!v)} style={{minWidth:48,minHeight:48,justifyContent:'center',alignItems:'center'}}>
+                      <Svg width={24} height={24} viewBox="0 0 24 24">
+                        <Path d="M7 20V4m-4 4 4-4 4 4" stroke={palette.text} strokeWidth={1.9} strokeLinecap="round" strokeLinejoin="round" fill="none" opacity={librarySort==='custom'||sortDirection==='asc'?1:0.28}/>
+                        <Path d="M17 4v16m-4-4 4 4 4-4" stroke={palette.text} strokeWidth={1.9} strokeLinecap="round" strokeLinejoin="round" fill="none" opacity={librarySort==='custom'||sortDirection==='desc'?1:0.28}/>
+                      </Svg>
+                    </Pressable>
                     <IconButton label={mapPrefs.viewMode==='grid'?'listView':'gridView'} accessibilityLabel={mapPrefs.viewMode==='grid'?'Switch to list view':'Switch to card view'} onPress={()=>setMapPrefs(p=>({...p,viewMode:p.viewMode==='grid'?'list':'grid'}))}/>
                   </>}
                 </View>
@@ -1584,10 +1605,17 @@ if(locked){
                         {sortMenu&&<View style={[styles.bottomSheet,{left:0,right:0,bottom:0,borderRadius:0,borderTopLeftRadius:24,borderTopRightRadius:24,backgroundColor:palette.surface,borderColor:palette.border,padding:16,gap:4}]}>
               <Text style={{fontSize:18,fontWeight:'600',color:palette.text,paddingVertical:10}}>Sort by</Text>
               <View style={{height:1,backgroundColor:palette.border,marginHorizontal:-16}}/>
-              {(['created','modified','title'] as const).map(option=>(
-                <Pressable key={option} accessibilityRole="button" accessibilityState={{selected:librarySort===option}} onPress={()=>{setLibrarySort(option);setSortMenu(false);}} style={{minHeight:52,flexDirection:'row',alignItems:'center',gap:14,paddingHorizontal:12}}>
-                  <Text style={{fontSize:20,color:palette.accent}}>{librarySort===option?'◉':'○'}</Text>
-                  <Text style={{color:palette.text,fontSize:16}}>{option==='created'?'Date created':option==='modified'?'Date modified':'Title'}</Text>
+              {(['custom','created','modified','title'] as const).map(option=>(
+                <Pressable key={option} accessibilityRole="button" accessibilityState={{selected:librarySort===option}}
+                  accessibilityLabel={option==='custom'?'Custom sort':option==='created'?'Date created':option==='modified'?'Date modified':'Title'}
+                  onPress={()=>{if(librarySort===option&&option!=='custom')toggleLibraryDirection();else setLibrarySort(option);setSortMenu(false);}}
+                  style={{minHeight:52,flexDirection:'row',alignItems:'center',paddingHorizontal:12}}>
+                  <View style={{width:30,alignItems:'flex-start'}}>
+                    {librarySort===option&&(option==='custom'
+                      ?<MaterialIcon name="✓" color={palette.text}/>
+                      :<Svg width={22} height={22} viewBox="0 0 24 24"><Path d={sortDirection==='desc'?'M12 4v16m-6-6 6 6 6-6':'M12 20V4m-6 6 6-6 6 6'} stroke={palette.text} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" fill="none"/></Svg>)}
+                  </View>
+                  <Text style={{color:palette.text,fontSize:16}}>{option==='custom'?'Custom':option==='created'?'Date created':option==='modified'?'Date modified':'Title'}</Text>
                 </Pressable>
               ))}
             </View>}
