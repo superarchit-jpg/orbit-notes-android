@@ -6,7 +6,7 @@ import {AppState,BackHandler,Dimensions,KeyboardAvoidingView,useColorScheme,Moda
 import Svg,{Line,Circle,Rect,Path,Text as SvgText} from 'react-native-svg';
 import {SafeAreaProvider,SafeAreaView as InsetSafeAreaView} from 'react-native-safe-area-context';
 import {Gesture,GestureDetector,GestureHandlerRootView} from 'react-native-gesture-handler';
-import Animated,{FadeInLeft,FadeOutLeft,runOnJS,useAnimatedReaction,useAnimatedStyle,useSharedValue,withTiming} from 'react-native-reanimated';
+import Animated,{FadeInLeft,FadeOutLeft,LinearTransition,runOnJS,useAnimatedReaction,useAnimatedStyle,useSharedValue,withTiming} from 'react-native-reanimated';
 import type {SharedValue} from 'react-native-reanimated';
 import {loadSnapshot,saveSnapshot,loadMapPreferences,saveMapPreferences,emptyMapPreferences} from './storage';
 import {radialTree,fitMap} from './mapGeometry';
@@ -70,7 +70,7 @@ const LibraryGestureCard=({children,canSwipe,onArchive,canDrag,onDragStart,onDra
    opacity:dragging.value?0.9:Math.max(0.16,1-Math.abs(dx.value)/(W*1.1)),
    zIndex:dragging.value?100:0,elevation:dragging.value?12:0
  }));
- return <View ref={registerRef} collapsable={false} onLayout={e=>{cardWidth.value=e.nativeEvent.layout.width;}}><GestureDetector gesture={gesture}><Animated.View style={animated}>{children}</Animated.View></GestureDetector></View>;
+ return <Animated.View layout={LinearTransition.duration(190)} ref={registerRef} collapsable={false} onLayout={e=>{cardWidth.value=e.nativeEvent.layout.width;}}><GestureDetector gesture={gesture}><Animated.View style={animated}>{children}</Animated.View></GestureDetector></Animated.View>;
 };
 const SwipeUndoNotice=({message,onUndo,onDismiss,bottom=90}:{message:string;onUndo:()=>void;onDismiss:()=>void;bottom?:number})=>{
  const shift=useSharedValue(0);
