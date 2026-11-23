@@ -47,6 +47,40 @@ const MaterialIcon=({name,color}:{name:string;color:string})=>{
   const data=ICON_PATHS[name];
   return data?<Svg width={23} height={23} viewBox="0 0 24 24"><Path d={data} fill="none" stroke={color} strokeWidth={1.7} strokeLinecap="round" strokeLinejoin="round"/>{name==='centerFocus'&&<Circle cx={12} cy={12} r={3.6} fill={color}/>}</Svg>:<Text style={{fontSize:name==='Fit'?14:22,color,fontWeight:'700'}}>{name}</Text>;
 };
+
+const LibraryGestureCard=({children,canSwipe,onArchive,canDrag,onDrop,registerRef}:{children:React.ReactNode;canSwipe:boolean;onArchive:()=>void;canDrag:boolean;onDrop:(x:number,y:number)=>void;registerRef:(view:View|null)=>void})=>{
+ const dx=useSharedValue(0),dy=useSharedValue(0),dragging=useSharedValue(false);
+ const swipe=Gesture.Pan().enabled(canSwipe).activeOffsetX([-18,18]).failOffsetY([-15,15])
+   .onUpdate(e=>{dx.value=e.translationX;})
+   .onEnd(e=>{
+     if(Math.abs(e.translationX)>W*0.48)dx.value=withTiming(e.translationX>0?W+80:-W-80,{duration:180},finished=>{if(finished)runOnJS(onArchive)();});
+     else dx.value=withTiming(0,{duration:190});
+   }).onFinalize(()=>{if(Math.abs(dx.value)<W*0.48)dx.value=withTiming(0);});
+ const drag=Gesture.Pan().enabled(canDrag).activateAfterLongPress(330)
+   .onStart(()=>{dragging.value=true;})
+   .onUpdate(e=>{dx.value=e.translationX;dy.value=e.translationY;})
+   .onEnd(e=>{runOnJS(onDrop)(e.absoluteX,e.absoluteY);})
+   .onFinalize(()=>{dragging.value=false;dx.value=withTiming(0,{duration:180});dy.value=withTiming(0,{duration:180});});
+ const gesture=Gesture.Race(drag,swipe);
+ const animated=useAnimatedStyle(()=>({
+   transform:[{translateX:dx.value},{translateY:dy.value},{scale:dragging.value?1.035:1}],
+   opacity:dragging.value?0.9:Math.max(0.16,1-Math.abs(dx.value)/(W*1.1)),
+   zIndex:dragging.value?100:0,elevation:dragging.value?12:0
+ }));
+ return <View ref={registerRef} collapsable={false}><GestureDetector gesture={gesture}><Animated.View style={animated}>{children}</Animated.View></GestureDetector></View>;
+};
+const SwipeUndoNotice=({message,onUndo,onDismiss,bottom=90}:{message:string;onUndo:()=>void;onDismiss:()=>void;bottom?:number})=>{
+ const shift=useSharedValue(0);
+ const pan=Gesture.Pan().activeOffsetX([12,9999]).onUpdate(e=>{shift.value=Math.max(0,e.translationX);})
+   .onEnd(e=>{if(e.translationX>90)shift.value=withTiming(W+50,{duration:190},finished=>{if(finished)runOnJS(onDismiss)();});else shift.value=withTiming(0,{duration:180});})
+   .onFinalize(()=>{if(shift.value<90)shift.value=withTiming(0);});
+ const style=useAnimatedStyle(()=>({transform:[{translateX:shift.value}],opacity:Math.max(0.12,1-shift.value/W)}));
+ return <GestureDetector gesture={pan}><Animated.View style={[{position:'absolute',bottom,left:16,right:16,zIndex:60,backgroundColor:'#202124',borderRadius:8,padding:12,flexDirection:'row',alignItems:'center',justifyContent:'space-between',elevation:8},style]}>
+   <Text style={{color:'#ffffff'}}>{message}</Text>
+   <Pressable accessibilityRole="button" accessibilityLabel="Undo" onPress={onUndo} style={{padding:8}}><Text style={{color:'#fbbc04',fontWeight:'700'}}>Undo</Text></Pressable>
+ </Animated.View></GestureDetector>;
+};
+
 const Upright=({angle,children}:{angle:SharedValue<number>;children:React.ReactNode})=>{
   const style=useAnimatedStyle(()=>({transform:[{rotateZ:`${-angle.value}rad`}]}));
   return <Animated.View style={[{alignItems:'center',justifyContent:'center'},style]}>{children}</Animated.View>;
@@ -72,6 +106,7 @@ export default function App(){
 const [notes,setNotes]=useState<Note[]>(initial),[folders,setFolders]=useState<Folder[]>([]),[focused,setFocused]=useState('root'),[overview,setOverview]=useState(false),[menu,setMenu]=useState(true),[reader,setReader]=useState<string|null>(null),[editing,setEditing]=useState(false),[title,setTitle]=useState(''),[body,setBody]=useState(''),[folderName,setFolderName]=useState(''),[creatingFolder,setCreatingFolder]=useState(false),[selected,setSelected]=useState<string[]>([]),[folderFilter,setFolderFilter]=useState<string|null>(null),[loaded,setLoaded]=useState(false),[storageError,setStorageError]=useState<string|null>(null),[trash,setTrash]=useState<TrashBatch[]>([]),[showTrash,setShowTrash]=useState(false),[undoBatch,setUndoBatch]=useState<string|null>(null);
 
 const [mapPrefs,setMapPrefs]=useState(emptyMapPreferences);
+const [archiveUndoIds,setArchiveUndoIds]=useState<string[]>([]);
 const [pendingBranch,setPendingBranch]=useState<TrashBatch|null>(null);
  // Branch undo exists only in memory; never in the recoverable seven-day Deleted store.
  const branchUndoDeadline=useRef<number|null>(null);
@@ -903,10 +938,45 @@ const shown=useMemo(()=>{
  const archiveSelection=(archive:boolean)=>{
   const targetIds=new Set(selected.filter(x=>x!=='root'));
   setMapPrefs(p=>({...p,archived:archive?[...new Set([...p.archived,...targetIds])]:p.archived.filter(x=>!targetIds.has(x))}));
+  if(archive)setArchiveUndoIds([...targetIds]);
   setSelected([]);setSelectionMenu(false);
 };
 const archiveOne=(id:string,archive:boolean)=>{
   setMapPrefs(p=>({...p,archived:archive?[...new Set([...p.archived,id])]:p.archived.filter(x=>x!==id)}));
+  if(archive)setArchiveUndoIds([id]);
+};
+useEffect(()=>{
+ if(!archiveUndoIds.length)return;
+ const timeout=setTimeout(()=>setArchiveUndoIds([]),5000);
+ return()=>clearTimeout(timeout);
+},[archiveUndoIds]);
+const undoArchive=()=>{
+ setMapPrefs(p=>({...p,archived:p.archived.filter(id=>!archiveUndoIds.includes(id))}));
+ setArchiveUndoIds([]);
+};
+const libraryCardRefs=useRef<Record<string,View|null>>({});
+const reorderCard=(draggedId:string,x:number,y:number)=>{
+ if(librarySort!=='custom')return;
+ const candidates=shown.filter(n=>n.id!==draggedId).map(n=>({id:n.id,ref:libraryCardRefs.current[n.id]})).filter(n=>n.ref);
+ let remaining=candidates.length,bestId:string|null=null,bestDistance=Infinity;
+ if(!remaining)return;
+ for(const candidate of candidates){
+   candidate.ref!.measureInWindow((cx,cy,w,h)=>{
+     const distance=Math.pow(cx+w/2-x,2)+Math.pow(cy+h/2-y,2);
+     if(distance<bestDistance){bestDistance=distance;bestId=candidate.id;}
+     if(--remaining===0&&bestId){
+       const targetId=bestId;
+       setMapPrefs(p=>{
+         const allRoots=notes.filter(n=>n.parentId==='root').map(n=>n.id);
+         const order=[...new Set([...(p.customOrder||[]),...allRoots])].filter(id=>allRoots.includes(id)&&id!==draggedId);
+         const targetIndex=order.indexOf(targetId);
+         if(targetIndex<0)return p;
+         order.splice(targetIndex,0,draggedId);
+         return {...p,customOrder:order};
+       });
+     }
+   });
+ }
 };
 const moveSelection=(folderId:string|null)=>{
   if(!folderId)return;
