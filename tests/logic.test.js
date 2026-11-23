@@ -503,10 +503,12 @@ check(!app.includes('label="Undo deletion"')&&!app.includes('accessibilityLabel=
  'Undo action label must be Undo in both map and library contexts');
 console.log('PASS: RC branch-only permanent deletion, deadline, matching Undo and map recovery');
 
-check(app.includes("const LibraryGestureCard=")&&app.includes('onArchive={()=>archiveOne(n.id,true)}')&&app.includes("Math.abs(e.translationX)>W*0.48"),'Library cards must support a deliberate swipe-to-archive threshold');
+check(app.includes("const LibraryGestureCard=")&&app.includes('onArchive={()=>archiveOne(n.id,true)}')&&app.includes("Math.abs(e.translationX)>cardWidth.value*0.65"),'Library cards must support a deliberate swipe-to-archive threshold');
 check(app.includes("const reorderCard=")&&app.includes("measureInWindow")&&app.includes("customOrder:order"),'Custom drag reordering must persist in map preferences');
 check(app.includes("['custom','created','modified','title']")&&app.includes('toggleLibraryDirection')&&app.includes("sortDirection==='asc'"),'Keep sort sheet must support Custom and both directions');
-check(app.includes('const SwipeUndoNotice=')&&app.includes('runOnJS(onDismiss)()')&&app.includes("Math.max(0,e.translationX)"),'Every Undo popup uses shared right-only swipe animation');
+check(app.includes('const SwipeUndoNotice=')&&app.includes('runOnJS(onDismiss)()')&&app.includes('Math.abs(e.translationX)>90')&&app.includes('e.translationX>0?W+50:-W-50'),'Every Undo popup uses shared right-only swipe animation');
+check(app.includes("onDragMove={(x,y)=>reorderCard(n.id,x,y)}")&&app.includes("onDragStart={()=>{setDraggingMapId(n.id);setSelected("),'Custom reorder must update while dragging and allow selection');
+check(app.includes("backgroundColor:librarySort==='created'||librarySort==='modified'?palette.background:'transparent'"),'Sort icon uses shade in date sorting');
 console.log('PASS: Keep sort, drag, swipe archive and Undo gesture guards');
 
 check(app.includes("const mapCount=ids.length")&&app.includes("Move ${mapCount} map${mapCount===1?'':'s'} to Deleted?"),
