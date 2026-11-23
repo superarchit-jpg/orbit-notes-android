@@ -493,15 +493,22 @@ check(app.includes("const wholeMap=note.parentId==='root'") &&
  'Nested-branch deletion must permanently remove descendants after temporary Undo');
 const permanentBranchBlock=app.slice(app.indexOf('}else{\n        // Exclude branch deletion'),app.indexOf('setUndoOpen(true);',app.indexOf('}else{\n        // Exclude branch deletion')));
 check(!permanentBranchBlock.includes('setTrash('),'Temporary branch deletion must never enter Deleted');
-check(app.includes('const clearUndoNotification=()=>')&&app.includes('runOnJS(clearUndoNotification)()'),
+check(app.includes('const clearUndoNotification=()=>')&&app.includes('onDismiss={clearUndoNotification}')&&app.includes('runOnJS(onDismiss)()'),
  'Swiping Undo away must invalidate the temporary restore snapshot');
 check(app.includes("setNotes(existing=>restoreBatch(existing,pendingBranch))")&&app.includes('branchUndoDeadline.current!==null&&Date.now()>=branchUndoDeadline.current'),
  'Undo must restore the full branch only before deadline');
-check(app.includes("color:'#fbbc04'")&&app.split("color:'#fbbc04'").length===3,
+check(app.includes("color:'#fbbc04'")&&app.includes('const SwipeUndoNotice=')&&app.split('onUndo={undoDeletion}').length===3,
  'Branch Undo must use the same yellow as whole-map Undo');
 check(!app.includes('label="Undo deletion"')&&!app.includes('accessibilityLabel="Undo deletion"'),
  'Undo action label must be Undo in both map and library contexts');
 console.log('PASS: RC branch-only permanent deletion, deadline, matching Undo and map recovery');
+
+check(app.includes("const LibraryGestureCard=")&&app.includes('onArchive={()=>archiveOne(n.id,true)}')&&app.includes("Math.abs(e.translationX)>W*0.48"),'Library cards must support a deliberate swipe-to-archive threshold');
+check(app.includes("const reorderCard=")&&app.includes("measureInWindow")&&app.includes("customOrder:order"),'Custom drag reordering must persist in map preferences');
+check(app.includes("['custom','created','modified','title']")&&app.includes('toggleLibraryDirection')&&app.includes("sortDirection==='asc'"),'Keep sort sheet must support Custom and both directions');
+check(app.includes('const SwipeUndoNotice=')&&app.includes('runOnJS(onDismiss)()')&&app.includes("Math.max(0,e.translationX)"),'Every Undo popup uses shared right-only swipe animation');
+console.log('PASS: Keep sort, drag, swipe archive and Undo gesture guards');
+
 check(app.includes("const mapCount=ids.length")&&app.includes("Move ${mapCount} map${mapCount===1?'':'s'} to Deleted?"),
  'Multi-map deletion confirmation must count selected maps, not descendant notes');
 check(app.includes("splitDeletedMaps([result.batch])")&&app.includes("setUndoMapIds(deletedMaps.map(batch=>batch.id))"),
