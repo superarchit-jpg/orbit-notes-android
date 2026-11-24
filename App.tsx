@@ -59,11 +59,27 @@ const LibraryGestureCard=({children,position,onMeasure,canSwipe,onArchive,canDra
      if(Math.abs(e.translationX)>cardWidth.value*0.65){swipeCommitted.value=true;dx.value=withTiming(e.translationX>0?W+cardWidth.value:-W-cardWidth.value,{duration:180},finished=>{if(finished)runOnJS(onArchive)();});}
      else dx.value=withTiming(0,{duration:190});
    }).onFinalize(()=>{if(!swipeCommitted.value)dx.value=withTiming(0);});
+ const dragActivated=useSharedValue(false);
  const drag=Gesture.Pan().enabled(canDrag).activateAfterLongPress(330)
-   .onStart(()=>{dragging.value=true;runOnJS(onDragStart)();})
-   .onUpdate(e=>{dx.value=e.translationX;dy.value=e.translationY;if(Math.hypot(e.translationX-lastDragX.value,e.translationY-lastDragY.value)>10){lastDragX.value=e.translationX;lastDragY.value=e.translationY;runOnJS(onDragMove)(e.translationX,e.translationY);}})
-   .onEnd(e=>{runOnJS(onDrop)(e.absoluteX,e.absoluteY);})
-   .onFinalize(()=>{dragging.value=false;dx.value=withTiming(0,{duration:180});dy.value=withTiming(0,{duration:180});});
+   .onStart(()=>{dragActivated.value=false;lastDragX.value=0;lastDragY.value=0;})
+   .onUpdate(e=>{
+     // A stationary long press selects. The gesture becomes a drag only
+     // after the card moves at least 7% of its own width.
+     if(!dragActivated.value){
+       if(Math.hypot(e.translationX,e.translationY)<cardWidth.value*0.07)return;
+       dragActivated.value=true;dragging.value=true;runOnJS(onDragStart)();
+     }
+     dx.value=e.translationX;dy.value=e.translationY;
+     if(Math.hypot(e.translationX-lastDragX.value,e.translationY-lastDragY.value)>8){
+       lastDragX.value=e.translationX;lastDragY.value=e.translationY;
+       runOnJS(onDragMove)(e.translationX,e.translationY);
+     }
+   })
+   .onEnd(e=>{if(dragActivated.value)runOnJS(onDrop)(e.absoluteX,e.absoluteY);})
+   .onFinalize(()=>{
+     dragActivated.value=false;dragging.value=false;
+     dx.value=withTiming(0,{duration:180});dy.value=withTiming(0,{duration:180});
+   });
  const gesture=Gesture.Race(drag,swipe);
  const animated=useAnimatedStyle(()=>({
    transform:[{translateX:dx.value},{translateY:dy.value},{scale:dragging.value?1.035:1}],
