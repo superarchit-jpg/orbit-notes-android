@@ -494,6 +494,10 @@ const showNodeActions=(target:string)=>setNodeActions(target);
 
 const newMap=()=>{
   const newId=id();
+  // Append new maps to Custom order to avoid relocating existing cards.
+  if((mapPrefs.librarySort||'custom')==='custom'){
+    setMapPrefs(p=>({...p,customOrder:[...new Set([...(p.customOrder||[]),...shown.map(n=>n.id),newId])]}));
+  }
   setNotes(ns=>[...ns,{
     id:newId,parentId:'root',title:'',body:'',
     updatedAt:Date.now(),folderId:folderFilter
@@ -990,7 +994,7 @@ const reorderCard=(draggedId:string,dx:number,dy:number)=>{
     }
     if(--pending!==0)return;
     dragUpdateBusy.current=false;
-    if(!hovered){lastDragTarget.current=null;return;}
+    if(!hovered)return;
     const targetId=hovered;
     if(lastDragTarget.current===targetId)return;
     lastDragTarget.current=targetId;
