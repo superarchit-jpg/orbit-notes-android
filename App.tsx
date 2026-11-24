@@ -1225,7 +1225,48 @@ if(locked){
     </PaletteContext.Provider>
   );
 }
-  return (
+  const libraryToolbar=(
+<View style={[styles.header,{gap:2}]}>
+              <IconButton label={selected.length||showTrash&&selectedTrash.length?'×':'☰'} accessibilityLabel={selected.length||showTrash&&selectedTrash.length?'Clear selection':'Open sidebar'} onPress={()=>{if(showTrash&&selectedTrash.length)setSelectedTrash([]);else if(selected.length)setSelected([]);else setSidebar(v=>!v);}}/>
+              {selected.length>0&&<Text accessibilityLabel={selected.length+' maps selected'} style={{fontSize:18,fontWeight:'600',color:palette.text,minWidth:24}}>{selected.length}</Text>}
+              {showTrash?(
+                <View style={{flex:1,flexDirection:'row',alignItems:'center',justifyContent:'space-between'}}>
+                  <Text style={{color:palette.text,fontSize:21,fontWeight:'600'}}>{selectedTrash.length?selectedTrash.length+' selected':'Deleted'}</Text>
+                  <View style={{flexDirection:'row',alignItems:'center'}}>
+                    {selectedTrash.length>0&&<IconButton label="restoreIcon" accessibilityLabel="Restore selected deleted maps" onPress={restoreSelectedTrash}/>}
+                    <IconButton label="⋮" accessibilityLabel="Deleted items menu" onPress={()=>setTrashMenu(v=>!v)}/>
+                  </View>
+                </View>
+              ):selected.length===0&&showArchive?(
+                <Text style={{flex:1,color:palette.text,fontSize:21,fontWeight:'600'}}>Archive</Text>
+              ):selected.length===0?(
+                <View style={{flex:1,flexDirection:'row',alignItems:'center',backgroundColor:palette.control,borderRadius:26,paddingLeft:12,minHeight:48}}>
+                  <MaterialIcon name="search" color={palette.muted}/>
+                  <TextInput accessibilityLabel="Search all map contents" placeholder="Search Orbit Notes" placeholderTextColor={palette.muted} value={librarySearch} onFocus={()=>{setLibrarySearching(true);setSortMenu(false);}} onChangeText={setLibrarySearch} style={{flex:1,minWidth:20,fontSize:15,color:palette.text,paddingVertical:7}}/>
+                  {librarySearching||librarySearch.length>0?<IconButton label="×" accessibilityLabel="Clear search" onPress={()=>{setLibrarySearch('');setLibrarySearching(false);Keyboard.dismiss();}}/>:<>
+                    <IconButton label={mapPrefs.viewMode==='grid'?'listView':'gridView'} accessibilityLabel={mapPrefs.viewMode==='grid'?'Switch to list view':'Switch to card view'} onPress={()=>setMapPrefs(p=>({...p,viewMode:p.viewMode==='grid'?'list':'grid'}))}/>
+                    <Pressable accessibilityRole="button" accessibilityLabel="Sort maps" onPress={()=>setSortMenu(v=>!v)} style={{minWidth:48,minHeight:48,justifyContent:'center',alignItems:'center',borderRadius:24,backgroundColor:librarySort==='created'||librarySort==='modified'?palette.background:'transparent'}}>
+                      <Svg width={24} height={24} viewBox="0 0 24 24">
+                        <Path d="M9.1 12V4m-3.2 3.1 3.2-3.1 3.2 3.1" stroke={palette.text} strokeWidth={1.9} strokeLinecap="round" strokeLinejoin="round" fill="none" opacity={librarySort==='custom'||sortDirection==='asc'?1:0.28}/>
+                        <Path d="M14.9 12v8m-3.2-3.1 3.2 3.1 3.2-3.1" stroke={palette.text} strokeWidth={1.9} strokeLinecap="round" strokeLinejoin="round" fill="none" opacity={librarySort==='custom'||sortDirection==='desc'?1:0.28}/>
+                      </Svg>
+                    </Pressable>
+                  </>}
+                </View>
+              ):(
+                <View style={{flex:1,flexDirection:'row',alignItems:'center',justifyContent:'flex-end'}}>
+                  <IconButton label={selected.every(id=>mapPrefs.pinned.includes(id))?'★':'pin'} accessibilityLabel="Pin or unpin selected maps" onPress={()=>{
+                    setMapPrefs(p=>{const allPinned=selected.every(id=>p.pinned.includes(id));return {...p,pinned:allPinned?p.pinned.filter(id=>!selected.includes(id)):[...new Set([...p.pinned,...selected])]};});
+                    setSelected([]);
+                  }}/>
+                  <IconButton label="palette" accessibilityLabel="Change selected card colors" onPress={()=>{setManualColor(selected.length===1?mapPrefs.cardColors[selected[0]]||'':'');setColorTarget('cards');}}/>
+                  <IconButton label="label" accessibilityLabel="Assign labels to selected maps" onPress={()=>{setLabelQuery('');setMoveFolderMenu(true);}}/>
+                  <IconButton label="⋮" accessibilityLabel="More selection actions" onPress={()=>setSelectionMenu(v=>!v)}/>
+                </View>
+              )}
+            </View>
+);
+return (
   <PaletteContext.Provider value={palette}>
   <SafeAreaProvider>
     <GestureHandlerRootView style={{flex:1}}>
@@ -1619,48 +1660,12 @@ if(locked){
         <Modal
           visible={menu}
           animationType="slide"
+          statusBarTranslucent
+          navigationBarTranslucent
           onRequestClose={()=>{if(sidebar)setSidebar(false);else if(selectionMenu||moveFolderMenu||sortMenu||trashMenu||cardMenuId){setSelectionMenu(false);setMoveFolderMenu(false);setSortMenu(false);setTrashMenu(false);setCardMenuId(null);}else if(selected.length)setSelected([]);else if(selectedTrash.length)setSelectedTrash([]);else BackHandler.exitApp();}}
         >
-          <GestureHandlerRootView style={{flex:1}}><InsetSafeAreaView style={[styles.screen,{backgroundColor:palette.background}]} edges={['top','bottom']}>
-            <View style={[styles.header,{gap:2}]}>
-              <IconButton label={selected.length||showTrash&&selectedTrash.length?'×':'☰'} accessibilityLabel={selected.length||showTrash&&selectedTrash.length?'Clear selection':'Open sidebar'} onPress={()=>{if(showTrash&&selectedTrash.length)setSelectedTrash([]);else if(selected.length)setSelected([]);else setSidebar(v=>!v);}}/>
-              {selected.length>0&&<Text accessibilityLabel={selected.length+' maps selected'} style={{fontSize:18,fontWeight:'600',color:palette.text,minWidth:24}}>{selected.length}</Text>}
-              {showTrash?(
-                <View style={{flex:1,flexDirection:'row',alignItems:'center',justifyContent:'space-between'}}>
-                  <Text style={{color:palette.text,fontSize:21,fontWeight:'600'}}>{selectedTrash.length?selectedTrash.length+' selected':'Deleted'}</Text>
-                  <View style={{flexDirection:'row',alignItems:'center'}}>
-                    {selectedTrash.length>0&&<IconButton label="restoreIcon" accessibilityLabel="Restore selected deleted maps" onPress={restoreSelectedTrash}/>}
-                    <IconButton label="⋮" accessibilityLabel="Deleted items menu" onPress={()=>setTrashMenu(v=>!v)}/>
-                  </View>
-                </View>
-              ):selected.length===0&&showArchive?(
-                <Text style={{flex:1,color:palette.text,fontSize:21,fontWeight:'600'}}>Archive</Text>
-              ):selected.length===0?(
-                <View style={{flex:1,flexDirection:'row',alignItems:'center',backgroundColor:palette.control,borderRadius:26,paddingLeft:12,minHeight:48}}>
-                  <MaterialIcon name="search" color={palette.muted}/>
-                  <TextInput accessibilityLabel="Search all map contents" placeholder="Search Orbit Notes" placeholderTextColor={palette.muted} value={librarySearch} onFocus={()=>{setLibrarySearching(true);setSortMenu(false);}} onChangeText={setLibrarySearch} style={{flex:1,minWidth:20,fontSize:15,color:palette.text,paddingVertical:7}}/>
-                  {librarySearching||librarySearch.length>0?<IconButton label="×" accessibilityLabel="Clear search" onPress={()=>{setLibrarySearch('');setLibrarySearching(false);Keyboard.dismiss();}}/>:<>
-                    <IconButton label={mapPrefs.viewMode==='grid'?'listView':'gridView'} accessibilityLabel={mapPrefs.viewMode==='grid'?'Switch to list view':'Switch to card view'} onPress={()=>setMapPrefs(p=>({...p,viewMode:p.viewMode==='grid'?'list':'grid'}))}/>
-                    <Pressable accessibilityRole="button" accessibilityLabel="Sort maps" onPress={()=>setSortMenu(v=>!v)} style={{minWidth:48,minHeight:48,justifyContent:'center',alignItems:'center',borderRadius:24,backgroundColor:librarySort==='created'||librarySort==='modified'?palette.background:'transparent'}}>
-                      <Svg width={24} height={24} viewBox="0 0 24 24">
-                        <Path d="M9.1 12V4m-3.2 3.1 3.2-3.1 3.2 3.1" stroke={palette.text} strokeWidth={1.9} strokeLinecap="round" strokeLinejoin="round" fill="none" opacity={librarySort==='custom'||sortDirection==='asc'?1:0.28}/>
-                        <Path d="M14.9 12v8m-3.2-3.1 3.2 3.1 3.2-3.1" stroke={palette.text} strokeWidth={1.9} strokeLinecap="round" strokeLinejoin="round" fill="none" opacity={librarySort==='custom'||sortDirection==='desc'?1:0.28}/>
-                      </Svg>
-                    </Pressable>
-                  </>}
-                </View>
-              ):(
-                <View style={{flex:1,flexDirection:'row',alignItems:'center',justifyContent:'flex-end'}}>
-                  <IconButton label={selected.every(id=>mapPrefs.pinned.includes(id))?'★':'pin'} accessibilityLabel="Pin or unpin selected maps" onPress={()=>{
-                    setMapPrefs(p=>{const allPinned=selected.every(id=>p.pinned.includes(id));return {...p,pinned:allPinned?p.pinned.filter(id=>!selected.includes(id)):[...new Set([...p.pinned,...selected])]};});
-                    setSelected([]);
-                  }}/>
-                  <IconButton label="palette" accessibilityLabel="Change selected card colors" onPress={()=>{setManualColor(selected.length===1?mapPrefs.cardColors[selected[0]]||'':'');setColorTarget('cards');}}/>
-                  <IconButton label="label" accessibilityLabel="Assign labels to selected maps" onPress={()=>{setLabelQuery('');setMoveFolderMenu(true);}}/>
-                  <IconButton label="⋮" accessibilityLabel="More selection actions" onPress={()=>setSelectionMenu(v=>!v)}/>
-                </View>
-              )}
-            </View>
+          <GestureHandlerRootView style={{flex:1}}><InsetSafeAreaView style={[styles.screen,{backgroundColor:palette.background}]} edges={['top']}>
+            {(showTrash||showArchive)&&libraryToolbar}
 
             {(selectionMenu||moveFolderMenu||sidebar||sortMenu||trashMenu||cardMenuId)&&<Pressable accessibilityLabel="Close menu" onPress={()=>{setSelectionMenu(false);setMoveFolderMenu(false);setSidebar(false);setSortMenu(false);setTrashMenu(false);setCardMenuId(null);}} style={[StyleSheet.absoluteFill,{zIndex:20,elevation:10,backgroundColor:sidebar?'rgba(0,0,0,0.32)':'transparent'}]}/>}
             {cardMenuId&&<View style={{position:'absolute',top:cardMenuPosition.top,left:cardMenuPosition.left,zIndex:34,elevation:22,width:176,borderRadius:15,padding:6,backgroundColor:palette.surface,borderWidth:1,borderColor:palette.border}}>
@@ -1868,7 +1873,8 @@ if(locked){
                 </View></ScrollView>
               ):(
                 <View style={{flex:1}}>
-                  <FlatList style={{flex:1}} contentContainerStyle={{gap:10,paddingHorizontal:12,paddingTop:12,paddingBottom:24}}
+                  <FlatList style={{flex:1}} contentContainerStyle={{gap:10,paddingHorizontal:12,paddingTop:0,paddingBottom:64}}
+                    ListHeaderComponent={libraryToolbar}
                     data={libraryChunks} keyExtractor={(_,index)=>'chunk-'+index}
                     initialNumToRender={2} maxToRenderPerBatch={2} windowSize={5} removeClippedSubviews={false}
                     renderItem={({item:chunk})=>{
@@ -1969,7 +1975,7 @@ if(locked){
               <Svg width={116} height={116} viewBox="0 0 116 116" accessibilityLabel="Empty Archive illustration"><Path d="M23 49h70v48H23z" stroke={palette.muted} fill="none" strokeWidth={3} strokeLinejoin="round"/><Path d="M17 36h82v13H17z" stroke={palette.muted} fill={palette.background} strokeWidth={3} strokeLinejoin="round"/><Path d="M58 56v23m-10-10 10 10 10-10" stroke={palette.muted} fill="none" strokeWidth={3} strokeLinecap="round" strokeLinejoin="round"/><Path d="M44 88h28" stroke={palette.muted} strokeWidth={3.5} strokeLinecap="round"/></Svg>
               <Text style={{color:palette.muted,fontSize:16,fontWeight:'500',textAlign:'center',marginTop:14}}>{librarySearch.trim()?'No matching maps':'Your archived maps appear here'}</Text>
             </View>}
-            {!showTrash&&!showArchive&&selected.length===0&&<Pressable accessibilityRole="button" accessibilityLabel="Create new map" onPress={newMap} style={{position:'absolute',right:22,bottom:26,width:60,height:60,borderRadius:20,backgroundColor:palette.accent,alignItems:'center',justifyContent:'center',elevation:5,zIndex:10}}>
+            {!showTrash&&!showArchive&&selected.length===0&&<Pressable accessibilityRole="button" accessibilityLabel="Create new map" onPress={newMap} style={{position:'absolute',right:22,bottom:48,width:60,height:60,borderRadius:20,backgroundColor:palette.accent,alignItems:'center',justifyContent:'center',elevation:5,zIndex:10}}>
               <Text style={{fontSize:32,color:keepForeground(palette.accent)}}>+</Text>
             </Pressable>}
           {undoOpen&&(undoBatch||pendingBranch)&&(
