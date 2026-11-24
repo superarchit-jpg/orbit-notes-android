@@ -188,13 +188,13 @@ console.log('PASS: numbered lists and combined formatting emit semantic ordered-
 
 console.log('PASS: executable layout and trash tests');
 
-const {KEEP_LIGHT_PRESETS,KEEP_DARK_PRESETS,KEEP_DARK_BACKGROUND,displayKeepColor,swatchKeepColor,keepForeground,keepChipStyle}=require(path.join(temp,'keepTheme.js'));
+const {KEEP_LIGHT_PRESETS,KEEP_DARK_PRESETS,KEEP_DARK_BACKGROUND,ORBIT_LIGHT_PRESETS,ORBIT_DARK_PRESETS,displayKeepColor,swatchKeepColor,keepForeground,keepChipStyle}=require(path.join(temp,'keepTheme.js'));
 assert.equal(KEEP_LIGHT_PRESETS.length,20);
 assert.equal(KEEP_DARK_PRESETS.length,20);
 assert.equal(KEEP_DARK_BACKGROUND,'#11182A');
 assert.equal(swatchKeepColor(1,'light'),'#FAAFA9');
 assert.equal(swatchKeepColor(1,'dark'),'#740D32');
-assert.equal(displayKeepColor('#FAAFA9','dark','#11182A'),'#740D32');
+assert.equal(displayKeepColor('#FAAFA9','dark','#11182A'),ORBIT_DARK_PRESETS[1],'legacy pink selection must use coordinated Option A dark tone');
 assert.equal(displayKeepColor('#FAAFA9','light','#ffffff'),'#FAAFA9');
 assert.equal(displayKeepColor('#123456','dark','#11182A'),'#123456','manual colors must survive theme changes');
 assert.equal(displayKeepColor(undefined,'dark','#0A0E1A'),'#0A0E1A');
@@ -205,5 +205,8 @@ console.log('PASS: paired Keep palettes, readable dark cards and distinct label 
 
 assert.equal(KEEP_LIGHT_PRESETS.slice(12).length,8,'two new dark-preset rows');
 assert.equal(KEEP_DARK_PRESETS.slice(12).length,8);
-assert.equal(displayKeepColor(KEEP_LIGHT_PRESETS[17],'dark','#000000'),KEEP_DARK_PRESETS[17]);
-console.log('PASS: twenty preset colors; historical color values preserved');
+assert.equal(displayKeepColor(KEEP_LIGHT_PRESETS[17],'dark','#000000'),ORBIT_DARK_PRESETS[17]);
+assert.equal(displayKeepColor(ORBIT_LIGHT_PRESETS[17],'dark','#000000'),ORBIT_DARK_PRESETS[17]);
+assert.equal(swatchKeepColor(0,'light'),ORBIT_LIGHT_PRESETS[0]);
+assert.equal(swatchKeepColor(0,'dark'),ORBIT_DARK_PRESETS[0]);
+console.log('PASS: twenty coordinated Option A presets; legacy stored colors are mapped without changing saved data');
