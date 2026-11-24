@@ -61,7 +61,7 @@ const LibraryGestureCard=({children,canSwipe,onArchive,canDrag,onDragStart,onDra
    }).onFinalize(()=>{if(!swipeCommitted.value)dx.value=withTiming(0);});
  const drag=Gesture.Pan().enabled(canDrag).activateAfterLongPress(330)
    .onStart(()=>{dragging.value=true;runOnJS(onDragStart)();})
-   .onUpdate(e=>{dx.value=e.translationX;dy.value=e.translationY;if(Math.abs(e.translationY-lastDragUpdate.value)>18){lastDragUpdate.value=e.translationY;runOnJS(onDragMove)(e.absoluteX,e.absoluteY);}})
+   .onUpdate(e=>{dx.value=e.translationX;dy.value=e.translationY;if(Math.abs(e.translationX)+Math.abs(e.translationY)-lastDragUpdate.value>14){lastDragUpdate.value=Math.abs(e.translationX)+Math.abs(e.translationY);runOnJS(onDragMove)(e.absoluteX,e.absoluteY);}})
    .onEnd(e=>{runOnJS(onDrop)(e.absoluteX,e.absoluteY);})
    .onFinalize(()=>{dragging.value=false;dx.value=withTiming(0,{duration:180});dy.value=withTiming(0,{duration:180});});
  const gesture=Gesture.Race(drag,swipe);
@@ -70,7 +70,7 @@ const LibraryGestureCard=({children,canSwipe,onArchive,canDrag,onDragStart,onDra
    opacity:dragging.value?0.9:Math.max(0.16,1-Math.abs(dx.value)/(W*1.1)),
    zIndex:dragging.value?100:0,elevation:dragging.value?12:0
  }));
- return <Animated.View layout={LinearTransition.duration(350)} ref={registerRef} collapsable={false} onLayout={e=>{cardWidth.value=e.nativeEvent.layout.width;}}><GestureDetector gesture={gesture}><Animated.View style={animated}>{children}</Animated.View></GestureDetector></Animated.View>;
+ return <Animated.View layout={LinearTransition.duration(480)} ref={registerRef} collapsable={false} onLayout={e=>{cardWidth.value=e.nativeEvent.layout.width;}}><GestureDetector gesture={gesture}><Animated.View style={animated}>{children}</Animated.View></GestureDetector></Animated.View>;
 };
 const SwipeUndoNotice=({message,onUndo,onDismiss,bottom=90}:{message:string;onUndo:()=>void;onDismiss:()=>void;bottom?:number})=>{
  const shift=useSharedValue(0);
@@ -975,7 +975,7 @@ const dragUpdateBusy=useRef(false);
   for(const candidate of candidates){
     candidate.ref!.measureInWindow((cx,cy,w,h)=>{
       // Only rearrange when the finger is actually over an adjacent map.
-      if(w>0&&h>0&&x>=cx&&x<=cx+w&&y>=cy&&y<=cy+h){
+      if(w>0&&h>0&&x>=cx-w*0.22&&x<=cx+w*1.22&&y>=cy-h*0.22&&y<=cy+h*1.22){
         const distance=Math.pow(cx+w/2-x,2)+Math.pow(cy+h/2-y,2);
         if(distance<closest){closest=distance;hoveredId=candidate.id;}
       }
@@ -1635,13 +1635,13 @@ if(locked){
                   <MaterialIcon name="search" color={palette.muted}/>
                   <TextInput accessibilityLabel="Search all map contents" placeholder="Search Orbit Notes" placeholderTextColor={palette.muted} value={librarySearch} onFocus={()=>{setLibrarySearching(true);setSortMenu(false);}} onChangeText={setLibrarySearch} style={{flex:1,minWidth:20,fontSize:15,color:palette.text,paddingVertical:7}}/>
                   {librarySearching||librarySearch.length>0?<IconButton label="×" accessibilityLabel="Clear search" onPress={()=>{setLibrarySearch('');setLibrarySearching(false);Keyboard.dismiss();}}/>:<>
+                    <IconButton label={mapPrefs.viewMode==='grid'?'listView':'gridView'} accessibilityLabel={mapPrefs.viewMode==='grid'?'Switch to list view':'Switch to card view'} onPress={()=>setMapPrefs(p=>({...p,viewMode:p.viewMode==='grid'?'list':'grid'}))}/>
                     <Pressable accessibilityRole="button" accessibilityLabel="Sort maps" onPress={()=>setSortMenu(v=>!v)} style={{minWidth:48,minHeight:48,justifyContent:'center',alignItems:'center',borderRadius:24,backgroundColor:librarySort==='created'||librarySort==='modified'?palette.background:'transparent'}}>
                       <Svg width={24} height={24} viewBox="0 0 24 24">
-                        <Path d="M10.5 12V4m-3.2 3.1 3.2-3.1 3.2 3.1" stroke={palette.text} strokeWidth={1.9} strokeLinecap="round" strokeLinejoin="round" fill="none" opacity={librarySort==='custom'||sortDirection==='asc'?1:0.28}/>
-                        <Path d="M13.5 12v8m-3.2-3.1 3.2 3.1 3.2-3.1" stroke={palette.text} strokeWidth={1.9} strokeLinecap="round" strokeLinejoin="round" fill="none" opacity={librarySort==='custom'||sortDirection==='desc'?1:0.28}/>
+                        <Path d="M9.1 12V4m-3.2 3.1 3.2-3.1 3.2 3.1" stroke={palette.text} strokeWidth={1.9} strokeLinecap="round" strokeLinejoin="round" fill="none" opacity={librarySort==='custom'||sortDirection==='asc'?1:0.28}/>
+                        <Path d="M14.9 12v8m-3.2-3.1 3.2 3.1 3.2-3.1" stroke={palette.text} strokeWidth={1.9} strokeLinecap="round" strokeLinejoin="round" fill="none" opacity={librarySort==='custom'||sortDirection==='desc'?1:0.28}/>
                       </Svg>
                     </Pressable>
-                    <IconButton label={mapPrefs.viewMode==='grid'?'listView':'gridView'} accessibilityLabel={mapPrefs.viewMode==='grid'?'Switch to list view':'Switch to card view'} onPress={()=>setMapPrefs(p=>({...p,viewMode:p.viewMode==='grid'?'list':'grid'}))}/>
                   </>}
                 </View>
               ):(
