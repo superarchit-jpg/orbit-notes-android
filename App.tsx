@@ -67,10 +67,10 @@ const LibraryGestureCard=({children,position,onMeasure,canSwipe,onArchive,canDra
  const gesture=Gesture.Race(drag,swipe);
  const animated=useAnimatedStyle(()=>({
    transform:[{translateX:dx.value},{translateY:dy.value},{scale:dragging.value?1.035:1}],
-   opacity:dragging.value?0.9:Math.max(0.16,1-Math.abs(dx.value)/(W*1.1)),
-   zIndex:dragging.value?100:0,elevation:dragging.value?12:0
+   opacity:dragging.value?0.9:Math.max(0.16,1-Math.abs(dx.value)/(W*1.1))
  }));
- return <Animated.View layout={LinearTransition.duration(480)} ref={registerRef} collapsable={false} style={{position:'absolute',top:position.top,left:position.left,width:position.width}} onLayout={e=>{cardWidth.value=e.nativeEvent.layout.width;onMeasure(e.nativeEvent.layout.height);}}><GestureDetector gesture={gesture}><Animated.View style={animated}>{children}</Animated.View></GestureDetector></Animated.View>;
+ const stackStyle=useAnimatedStyle(()=>({zIndex:dragging.value?100:0,elevation:dragging.value?12:0}));
+ return <Animated.View layout={LinearTransition.duration(480)} ref={registerRef} collapsable={false} style={[{position:'absolute',top:position.top,left:position.left,width:position.width},stackStyle]} onLayout={e=>{cardWidth.value=e.nativeEvent.layout.width;onMeasure(e.nativeEvent.layout.height);}}><GestureDetector gesture={gesture}><Animated.View style={animated}>{children}</Animated.View></GestureDetector></Animated.View>;
 };
 const SwipeUndoNotice=({message,onUndo,onDismiss,bottom=90}:{message:string;onUndo:()=>void;onDismiss:()=>void;bottom?:number})=>{
  const shift=useSharedValue(0);
