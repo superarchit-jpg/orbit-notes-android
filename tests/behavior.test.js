@@ -6,7 +6,7 @@ try{
  execFileSync('tsc',['layout.ts','trash.ts','mapGeometry.ts','noteFormatting.ts','labels.ts','librarySearch.ts','richTextMarkup.ts','keepTheme.ts','libraryColumns.ts','orbitThemeTokens.ts','pdfNodeStyle.ts','--module','commonjs','--target','es2020','--outDir',temp,'--skipLibCheck','--noEmitOnError','false'],{stdio:'pipe'});
 }catch(e){if(!fs.existsSync(path.join(temp,'layout.js')))throw e;}
 // Audit regressions: alternating masonry order, large collections and theme roles.
-const {partitionLibraryColumns}=require(path.join(temp,'libraryColumns.js'));
+const {partitionLibraryColumns,balancedLibraryPositions}=require(path.join(temp,'libraryColumns.js'));
 const many=Array.from({length:250},(_,i)=>'map-'+i);
 const grid=partitionLibraryColumns(many,true);
 assert.equal(grid.length,2);
@@ -18,6 +18,17 @@ const {LIGHT,DARK,uiRoles}=require(path.join(temp,'orbitThemeTokens.js'));
 assert.equal(uiRoles(LIGHT).textPrimary,LIGHT.text);
 assert.equal(uiRoles(DARK).surface,DARK.surface);
 assert.equal(uiRoles(LIGHT).selectedBackground,LIGHT.accent);
+const sample=[{id:'one'},{id:'two'},{id:'three'},{id:'four'}];
+const sizes={one:300,two:95,three:100,four:120};
+const balanced=balancedLibraryPositions(sample,sizes,true);
+assert.deepEqual(balanced.map(p=>p.column),[0,1,1,1],
+ 'Variable-height maps should fill the shortest column, not alternate blindly');
+const kept=balancedLibraryPositions(sample,sizes,true,{one:0,two:1,three:1,four:1});
+assert.deepEqual(kept.map(p=>p.column),balanced.map(p=>p.column),
+ 'Unchanged cards should retain their balanced column placement');
+assert.deepEqual(balancedLibraryPositions(sample,sizes,false).map(p=>p.column),[0,0,0,0],
+ 'List mode must remain one column');
+console.log('PASS: stable height-balanced Custom library placement');
 console.log('PASS: virtualized-library partition and semantic theme roles');
 
 const {radialLayout,overviewLayout}=require(path.join(temp,'layout.js'));
