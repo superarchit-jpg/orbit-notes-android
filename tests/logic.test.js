@@ -507,7 +507,7 @@ check(app.includes("const LibraryGestureCard=")&&app.includes('onArchive={()=>ar
 check(app.includes("const reorderCard=")&&app.includes("measureInWindow")&&app.includes("customOrder:next"),'Custom drag reordering must persist in map preferences');
 check(app.includes("['custom','created','modified','title']")&&app.includes('toggleLibraryDirection')&&app.includes("sortDirection==='asc'"),'Keep sort sheet must support Custom and both directions');
 check(app.includes('const SwipeUndoNotice=')&&app.includes('runOnJS(onDismiss)()')&&app.includes('Math.abs(e.translationX)>90')&&app.includes('e.translationX>0?W+50:-W-50'),'Every Undo popup uses shared right-only swipe animation');
-check(app.includes("onDragMove={(dx,dy)=>reorderCard(n.id,dx,dy)}")&&app.includes("onDragStart={()=>{setDraggingMapId(n.id);setSelected("),'Custom reorder must update while dragging and allow selection');
+check(app.includes("onDragMove={(dx,dy)=>reorderCard(n.id,dx,dy)}")&&app.includes("setDragOrigin({id:n.id,top,left:column*(cellWidth+gutter),chunk:chunkIndex})"),'Custom reorder must update while dragging and allow selection');
 check(app.includes("backgroundColor:librarySort==='created'||librarySort==='modified'?palette.background:'transparent'"),'Sort icon uses shade in date sorting');
 console.log('PASS: Keep sort, drag, swipe archive and Undo gesture guards');
 
