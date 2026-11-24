@@ -1921,7 +1921,9 @@ return (
                 </View></ScrollView>
               ):(
                 <View style={{flex:1}}>
-                  <FlatList style={{flex:1}} contentContainerStyle={{gap:10,paddingHorizontal:12,paddingTop:0,paddingBottom:64}}
+                  <FlatList ref={libraryListRef} style={{flex:1}} contentContainerStyle={{gap:10,paddingHorizontal:12,paddingTop:0,paddingBottom:64}}
+                    scrollEventThrottle={32}
+                    onScroll={e=>{libraryScrollOffset.current=e.nativeEvent.contentOffset.y;}}
                     ListHeaderComponent={selected.length>0?<View style={{height:60}}/>:libraryToolbar}
                     data={libraryChunks} extraData={libraryCardHeights} keyExtractor={(_,index)=>'chunk-'+index}
                     initialNumToRender={2} maxToRenderPerBatch={2} windowSize={5} removeClippedSubviews={false}
@@ -1944,8 +1946,18 @@ return (
                       registerRef={view=>{libraryCardRefs.current[n.id]=view;}}
                       onArchive={()=>archiveOne(n.id,true)}
                       onDragStart={()=>{lastDragTarget.current=null;setDragOrigin({id:n.id,top,left:column*(cellWidth+gutter),chunk:chunkIndex});setDraggingMapId(n.id);setSelected(v=>v.includes(n.id)?v:[...v,n.id]);}}
-                      onDragMove={(dx,dy)=>reorderCard(n.id,dx,dy)}
-                      onDrop={(_x,_y)=>{lastDragTarget.current=null;setDraggingMapId(null);setDragOrigin(null);}}>
+                      onDragMove={(dx,dy)=>{
+                        reorderCard(n.id,dx,dy);
+                        libraryCardRefs.current[n.id]?.measureInWindow((x,y,w,h)=>{
+                          const fingerY=y+dy+h/2;
+                          if(fingerY>H-135)libraryListRef.current?.scrollToOffset({offset:libraryScrollOffset.current+24,animated:true});
+                          else if(fingerY<130)libraryListRef.current?.scrollToOffset({offset:Math.max(0,libraryScrollOffset.current-24),animated:true});
+                        });
+                      }}
+                      onDrop={(_x,_y)=>{
+                        lastDragTarget.current=null;setDraggingMapId(null);setDragOrigin(null);
+                        setSelected([]);setSelectionMenu(false);setCardMenuId(null);
+                      }}>
                     <Pressable
                       accessibilityRole="button"
                       accessibilityLabel={`${n.title||'Untitled map'}${mapPrefs.pinned.includes(n.id)?', pinned':''}${selected.includes(n.id)?', selected':''}`}
