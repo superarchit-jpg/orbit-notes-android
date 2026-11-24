@@ -95,10 +95,11 @@ export type MapPreferences={
   librarySort?:'custom'|'created'|'modified'|'title';
   sortDirection?:'asc'|'desc';
   customOrder?:string[];
+  customColumns?:Record<string,0|1>;
 };
 export const emptyMapPreferences=():MapPreferences=>({
   offsets:{},collapsed:{},colors:{},pinned:[],
-  theme:'light',viewMode:'grid',cardColors:{},noteColors:{},archived:[],trashRetentionAcknowledged:false,trashRetentionWarningSeen:false,themeMode:'light',librarySort:'custom',sortDirection:'desc',customOrder:[]
+  theme:'light',viewMode:'grid',cardColors:{},noteColors:{},archived:[],trashRetentionAcknowledged:false,trashRetentionWarningSeen:false,themeMode:'light',librarySort:'custom',sortDirection:'desc',customOrder:[],customColumns:{}
 });
 export async function loadMapPreferences():Promise<MapPreferences>{
   await writeQueue;
@@ -122,7 +123,8 @@ export async function loadMapPreferences():Promise<MapPreferences>{
       themeMode:parsed.themeMode==='system'?'system':parsed.theme==='dark'?'dark':'light',
       librarySort:['custom','created','modified','title'].includes(parsed.librarySort||'')?parsed.librarySort:'custom',
       sortDirection:parsed.sortDirection==='asc'?'asc':'desc',
-      customOrder:Array.isArray(parsed.customOrder)?parsed.customOrder.filter((id):id is string=>typeof id==='string'):[]
+      customOrder:Array.isArray(parsed.customOrder)?parsed.customOrder.filter((id):id is string=>typeof id==='string'):[],
+      customColumns:parsed.customColumns&&typeof parsed.customColumns==='object'?Object.fromEntries(Object.entries(parsed.customColumns).filter(([,value])=>value===0||value===1)) as Record<string,0|1>:{}
     };
   }catch{return emptyMapPreferences();}
 }
