@@ -532,7 +532,7 @@ console.log('PASS: independent deleted maps, grouped recovery compatibility, and
 
 check(!exp.includes('fill="#f8fafc"')&&!exp.includes('<rect x="${minX}"')&&exp.includes('${edges}${circles}'),
  'All PDF export pages must have a white page background without a blue diagram rectangle');
-check(app.includes('LinearTransition.duration(480)')&&app.includes('if(!hovered)return')&&app.includes('if(next.every((id,i)=>id===original[i]))return p'),
+check(app.includes('LinearTransition.duration(480)')&&app.includes('fraction>=0.70')&&app.includes('return next.every((id,i)=>id===current[i])?p:{...p,customOrder:next}'),
  'Custom cards should move only after entering a new card and animate neighboring moves slowly');
 check(app.includes('M9.1 12V4')&&app.includes('M14.9 12v8'),
  'Sorting glyph arrow shafts must stay compact');
