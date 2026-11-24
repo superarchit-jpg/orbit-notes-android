@@ -28,6 +28,10 @@ assert.deepEqual(kept.map(p=>p.column),balanced.map(p=>p.column),
  'Unchanged cards should retain their balanced column placement');
 assert.deepEqual(balancedLibraryPositions(sample,sizes,false).map(p=>p.column),[0,0,0,0],
  'List mode must remain one column');
+const forced=balancedLibraryPositions([{id:'solo'}],{solo:120},true,{}, {solo:1});
+assert.equal(forced[0].column,1,'An odd final card can remain in the right column');
+const manual=balancedLibraryPositions([{id:'left'},{id:'right'},{id:'moved'}],{left:200,right:200,moved:100},true,{}, {moved:1});
+assert.equal(manual[2].column,1,'Manual cross-column drop is honored before automatic balancing');
 console.log('PASS: stable height-balanced Custom library placement');
 console.log('PASS: virtualized-library partition and semantic theme roles');
 
