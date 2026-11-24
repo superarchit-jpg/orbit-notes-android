@@ -54,7 +54,7 @@ const MaterialIcon=({name,color}:{name:string;color:string})=>{
   return data?<Svg width={23} height={23} viewBox="0 0 24 24"><Path d={data} fill="none" stroke={color} strokeWidth={1.7} strokeLinecap="round" strokeLinejoin="round"/></Svg>:<Text style={{fontSize:22,color,fontWeight:'700'}}>{name}</Text>;
 };
 
-const LibraryGestureCard=({children,position,onMeasure,canSwipe,onArchive,canDrag,onDragStart,onDragMove,onDrop,registerRef}:{children:React.ReactNode;position:{top:number;left:number;width:number};onMeasure:(height:number)=>void;canSwipe:boolean;onArchive:()=>void;canDrag:boolean;onDragStart:()=>void;onDragMove:(x:number,y:number)=>void;onDrop:(x:number,y:number)=>void;registerRef:(view:View|null)=>void})=>{
+const LibraryGestureCard=({children,position,onMeasure,canSwipe,onArchive,canDrag,onSelect,onDragStart,onDragMove,onDrop,registerRef}:{children:React.ReactNode;position:{top:number;left:number;width:number};onMeasure:(height:number)=>void;canSwipe:boolean;onArchive:()=>void;canDrag:boolean;onSelect:()=>void;onDragStart:()=>void;onDragMove:(x:number,y:number)=>void;onDrop:(x:number,y:number)=>void;registerRef:(view:View|null)=>void})=>{
  const dx=useSharedValue(0),dy=useSharedValue(0),dragging=useSharedValue(false);
  const cardWidth=useSharedValue(W);
  const lastDragX=useSharedValue(0),lastDragY=useSharedValue(0);
@@ -86,7 +86,11 @@ const LibraryGestureCard=({children,position,onMeasure,canSwipe,onArchive,canDra
      dragActivated.value=false;dragging.value=false;
      dx.value=withTiming(0,{duration:180});dy.value=withTiming(0,{duration:180});
    });
- const gesture=Gesture.Race(drag,swipe);
+ // A stationary hold selects. Dragging beyond 7% takes precedence and never
+ // opens the selection toolbar. Both recognizers share the same touch.
+ const hold=Gesture.LongPress().enabled(canDrag).minDuration(480).maxDistance(8)
+   .onStart(()=>{if(!dragActivated.value)runOnJS(onSelect)();});
+ const gesture=Gesture.Race(Gesture.Simultaneous(drag,hold),swipe);
  const animated=useAnimatedStyle(()=>({
    transform:[{translateX:dx.value},{translateY:dy.value},{scale:dragging.value?1.035:1}],
    opacity:dragging.value?0.9:Math.max(0.16,1-Math.abs(dx.value)/(W*1.1))
@@ -1971,7 +1975,8 @@ return (
                       onMeasure={height=>recordCardHeight(n.id,height)} canSwipe={!showArchive&&selected.length===0} canDrag={librarySort==='custom'&&!showArchive&&(selected.length===0||(selected.length===1&&selected.includes(n.id)))}
                       registerRef={view=>{libraryCardRefs.current[n.id]=view;}}
                       onArchive={()=>archiveOne(n.id,true)}
-                      onDragStart={()=>{lastDragTarget.current=null;setDragOrigin({id:n.id,top,left:column*(cellWidth+gutter),chunk:chunkIndex});setDraggingMapId(n.id);setSelected(v=>v.includes(n.id)?v:[...v,n.id]);}}
+                      onSelect={()=>setSelected(v=>v.includes(n.id)?v:[...v,n.id])}
+                      onDragStart={()=>{lastDragTarget.current=null;setDragOrigin({id:n.id,top,left:column*(cellWidth+gutter),chunk:chunkIndex});setDraggingMapId(n.id);}}
                       onDragMove={(dx,dy)=>{
                         reorderCard(n.id,dx,dy);
                         libraryCardRefs.current[n.id]?.measureInWindow((x,y,w,h)=>{
@@ -2006,7 +2011,7 @@ return (
                         }
                       }}
                       onLongPress={()=>
-                        setSelected(v=>
+                        librarySort!=='custom'&&setSelected(v=>
                           v.includes(n.id)
                             ?v
                             :[...v,n.id]
