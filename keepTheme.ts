@@ -5,13 +5,21 @@ export const KEEP_DARK_PRESETS=['#0A0E1A','#740D32','#762C1E','#86550A','#2B5635
 export const KEEP_DARK_BACKGROUND='#11182A';
 export const KEEP_DARK_SURFACE='#0A0E1A';
 export const KEEP_DARK_SELECTED='#ADC3F9';
+/** Option A card presets; legacy Keep colors remain accepted in stored notes. */
+export const ORBIT_LIGHT_PRESETS=['#FFFCF7','#F6DAD7','#F2D5BE','#F8EAC6','#E7EBCF','#D4E8DF','#DFEAF1','#C9DDE8','#E6DDF0','#F1DED7','#EAE1D5','#EFECE7','#DFA9A2','#DBAD8B','#D6C08A','#B9CDA8','#9FC5BE','#91AFC4','#B5A9CD','#CBA5B8'] as const;
+export const ORBIT_DARK_PRESETS=['#222B36','#563A45','#604739','#564A32','#414B3C','#31534B','#344654','#345568','#49415A','#554249','#4B4741','#363941','#634147','#644935','#675B3C','#3D5744','#325B55','#37516A','#4E4868','#60455B'] as const;
 export function displayKeepColor(stored:string|undefined,theme:OrbitTheme,fallback:string):string{
  if(!stored)return fallback;
- const i=KEEP_LIGHT_PRESETS.findIndex(x=>x.toLowerCase()===stored.toLowerCase());
- return theme==='dark'&&i>=0?KEEP_DARK_PRESETS[i]:stored;
+ const value=stored.toLowerCase();
+ const legacy=KEEP_LIGHT_PRESETS.findIndex(x=>x.toLowerCase()===value);
+ const revised=ORBIT_LIGHT_PRESETS.findIndex(x=>x.toLowerCase()===value);
+ const darkLegacy=KEEP_DARK_PRESETS.findIndex(x=>x.toLowerCase()===value);
+ const darkRevised=ORBIT_DARK_PRESETS.findIndex(x=>x.toLowerCase()===value);
+ const index=revised>=0?revised:legacy>=0?legacy:darkRevised>=0?darkRevised:darkLegacy;
+ return index<0?stored:theme==='dark'?ORBIT_DARK_PRESETS[index]:ORBIT_LIGHT_PRESETS[index];
 }
 export function swatchKeepColor(index:number,theme:OrbitTheme):string{
- return theme==='dark'?KEEP_DARK_PRESETS[index]:KEEP_LIGHT_PRESETS[index];
+ return theme==='dark'?ORBIT_DARK_PRESETS[index]:ORBIT_LIGHT_PRESETS[index];
 }
 function relativeLuminance(hex:string):number{
  if(!/^#[0-9a-f]{6}$/i.test(hex))return 0;
@@ -19,9 +27,9 @@ function relativeLuminance(hex:string):number{
  return 0.2126*components[0]+0.7152*components[1]+0.0722*components[2];
 }
 export function keepForeground(background:string):string{
- return relativeLuminance(background)>0.28?'#202A42':'#F4F5FF';
+ return relativeLuminance(background)>0.28?'#2E3036':'#F5F1E9';
 }
 export function keepChipStyle(cardBackground:string):{backgroundColor:string;color:string;borderColor:string}{
  const darkCard=relativeLuminance(cardBackground)<0.28;
- return darkCard?{backgroundColor:'rgba(255,255,255,0.19)',color:'#F3F4FF',borderColor:'rgba(255,255,255,0.12)'}:{backgroundColor:'rgba(255,255,255,0.54)',color:'#283551',borderColor:'rgba(48,61,85,0.08)'};
+ return darkCard?{backgroundColor:'rgba(255,255,255,0.19)',color:'#F5F1E9',borderColor:'rgba(255,255,255,0.12)'}:{backgroundColor:'rgba(255,255,255,0.54)',color:'#32363B',borderColor:'rgba(48,61,85,0.08)'};
 }
