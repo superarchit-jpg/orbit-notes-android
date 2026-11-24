@@ -480,7 +480,7 @@ check(!localSave.includes("pptx: 'application/")&&localSave.includes("export typ
  'Local export must support PDF only');
 check(!app.includes('const enablePin=')&&!app.includes('const disablePin=')&&!app.includes('const confirmPinChange='),
  'Obsolete PIN flow must remain removed; active OrbitSettings handles credential changes');
-check(app.includes('data={libraryChunks}')&&app.split('<FlatList').length===2,
+check(app.includes('data={libraryChunks}')&&(app.match(/<FlatList\\s+ref=/g)||[]).length===1,
  'Library must have exactly one virtualized scrolling list');
 check(app.includes('M58 56v23m-10-10 10 10 10-10')&&!app.includes('M58 11v40'),
  'Empty Archive must keep only the approved internal arrow illustration');
