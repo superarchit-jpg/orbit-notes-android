@@ -554,7 +554,7 @@ console.log('PASS: continuous masonry, scrolling Library header and navigation-f
 
 check(app.includes('strongest.overlap>=0.70')&&app.includes('dragOrigin?.id===n.id')&&app.includes('setDragOrigin(null)'),
  'Custom drag must use 70-percent card coverage and freeze its origin until release');
-check(app.includes('balancedLibraryPositions(chunk,libraryCardHeights,grid,layoutColumnRef.current)'),
+check(app.includes('balancedLibraryPositions(chunk,libraryCardHeights,grid,layoutColumnRef.current,mapPrefs.customColumns||{})'),
  'Variable-height cards must use balanced masonry with stable prior column placement');
 check(app.includes("selected.length>0&&<View style={{position:'absolute'")&&app.includes('ListHeaderComponent={selected.length>0?<View'),
  'Multi-selection toolbar must be fixed while regular Library toolbar scrolls');
