@@ -223,7 +223,7 @@ console.log('PASS: pinned map and child note persistence regression');
 // Approved recording follow-up requirements.
 for(const marker of [
   'thumbnailHeight=Math.min(332',
-  "balancedLibraryPositions(chunk,libraryCardHeights,grid,layoutColumnRef.current)",
+  "balancedLibraryPositions(chunk,libraryCardHeights,grid,layoutColumnRef.current,mapPrefs.customColumns||{})",
   "label={mapPrefs.viewMode==='grid'?'listView':'gridView'}",
   'accessibilityLabel="Sort maps"',
   'label="palette" accessibilityLabel="Node color"',
@@ -507,7 +507,7 @@ check(app.includes("const LibraryGestureCard=")&&app.includes('onArchive={()=>ar
 check(app.includes("const reorderCard=")&&app.includes("measureInWindow")&&app.includes("customOrder:next"),'Custom drag reordering must persist in map preferences');
 check(app.includes("['custom','created','modified','title']")&&app.includes('toggleLibraryDirection')&&app.includes("sortDirection==='asc'"),'Keep sort sheet must support Custom and both directions');
 check(app.includes('const SwipeUndoNotice=')&&app.includes('runOnJS(onDismiss)()')&&app.includes('Math.abs(e.translationX)>90')&&app.includes('e.translationX>0?W+50:-W-50'),'Every Undo popup uses shared right-only swipe animation');
-check(app.includes("onDragMove={(dx,dy)=>reorderCard(n.id,dx,dy)}")&&app.includes("setDragOrigin({id:n.id,top,left:column*(cellWidth+gutter),chunk:chunkIndex})"),'Custom reorder must update while dragging and allow selection');
+check(app.includes("onDragMove={(dx,dy)=>{")&&app.includes("setDragOrigin({id:n.id,top,left:column*(cellWidth+gutter),chunk:chunkIndex})"),'Custom reorder must update while dragging and allow selection');
 check(app.includes("backgroundColor:librarySort==='created'||librarySort==='modified'?palette.background:'transparent'"),'Sort icon uses shade in date sorting');
 console.log('PASS: Keep sort, drag, swipe archive and Undo gesture guards');
 
@@ -532,7 +532,7 @@ console.log('PASS: independent deleted maps, grouped recovery compatibility, and
 
 check(!exp.includes('fill="#f8fafc"')&&!exp.includes('<rect x="${minX}"')&&exp.includes('${edges}${circles}'),
  'All PDF export pages must have a white page background without a blue diagram rectangle');
-check(app.includes('LinearTransition.duration(480)')&&app.includes('fraction>=0.70')&&app.includes('return next.every((id,i)=>id===current[i])?p:{...p,customOrder:next}'),
+check(app.includes('LinearTransition.duration(480)')&&app.includes('strongest.overlap>=0.70')&&app.includes('customOrder:next,customColumns:cols'),
  'Custom cards should move only after entering a new card and animate neighboring moves slowly');
 check(app.includes('M9.1 12V4')&&app.includes('M14.9 12v8'),
  'Sorting glyph arrow shafts must stay compact');
@@ -552,7 +552,7 @@ check(iconPaths.includes("'listView':'M4 6h16v5H4zM4 14h16v5H4z'")&&iconPaths.in
  'List and grid icons must use smaller boxes');
 console.log('PASS: continuous masonry, scrolling Library header and navigation-footer regressions');
 
-check(app.includes('fraction>=0.70')&&app.includes('dragOrigin?.id===n.id')&&app.includes('setDragOrigin(null)'),
+check(app.includes('strongest.overlap>=0.70')&&app.includes('dragOrigin?.id===n.id')&&app.includes('setDragOrigin(null)'),
  'Custom drag must use 70-percent card coverage and freeze its origin until release');
 check(app.includes('balancedLibraryPositions(chunk,libraryCardHeights,grid,layoutColumnRef.current)'),
  'Variable-height cards must use balanced masonry with stable prior column placement');
@@ -561,3 +561,15 @@ check(app.includes("selected.length>0&&<View style={{position:'absolute'")&&app.
 check(app.includes("customOrder:[...new Set([...(p.customOrder||[]),...shown.map(n=>n.id),newId])]"),
  'New maps must append to Custom order without reshuffling existing maps');
 console.log('PASS: responsive 70-percent drag, stable column balancing, selected toolbar and new map placement');
+
+check(app.includes('{showTrash&&libraryToolbar}')&&!app.includes('{(showTrash||showArchive)&&libraryToolbar}'),
+ 'Archive must render its heading exactly once');
+check(app.includes('cardWidth.value*0.07')&&app.includes('setSelected([]);setSelectionMenu(false);setCardMenuId(null);'),
+ 'Stationary long press must select; completed drag must clear selection');
+check(app.includes('libraryListRef.current?.scrollToOffset')&&app.includes("targetKey=atEnd?'__end__':target"),
+ 'Library must auto-scroll while dragging and accept an end-of-list target');
+check(app.includes('customColumns:cols')&&store.includes('customColumns?:Record<string,0|1>'),
+ 'Custom sort must preserve explicit column targets offline');
+check(app.includes('minWidth:42,minHeight:42')&&app.includes('borderRadius:21'),
+ 'Sort circle must fit within the search pill');
+console.log('PASS: latest drag thresholds, Archive header, custom columns and navigation corrections');
