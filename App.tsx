@@ -1875,7 +1875,7 @@ return (
                 <View style={{flex:1}}>
                   <FlatList style={{flex:1}} contentContainerStyle={{gap:10,paddingHorizontal:12,paddingTop:0,paddingBottom:64}}
                     ListHeaderComponent={libraryToolbar}
-                    data={libraryChunks} keyExtractor={(_,index)=>'chunk-'+index}
+                    data={libraryChunks} extraData={libraryCardHeights} keyExtractor={(_,index)=>'chunk-'+index}
                     initialNumToRender={2} maxToRenderPerBatch={2} windowSize={5} removeClippedSubviews={false}
                     renderItem={({item:chunk})=>{
                      const grid=mapPrefs.viewMode==='grid';
