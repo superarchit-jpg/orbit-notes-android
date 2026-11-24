@@ -534,7 +534,7 @@ check(!exp.includes('fill="#f8fafc"')&&!exp.includes('<rect x="${minX}"')&&exp.i
  'All PDF export pages must have a white page background without a blue diagram rectangle');
 check(app.includes('LinearTransition.duration(480)')&&app.includes('if(!hoveredId)return')&&app.includes('if(next.every((id,i)=>id===original[i]))return p'),
  'Custom cards should move only after entering a new card and animate neighboring moves slowly');
-check(app.includes('M10.5 12V4')&&app.includes('M13.5 12v8'),
+check(app.includes('M9.1 12V4')&&app.includes('M14.9 12v8'),
  'Sorting glyph arrow shafts must stay compact');
 check(settingsUi.includes("centerSpark")&&settingsUi.includes("centerDot")&&settingsUi.includes('opacity={dark?0.30:0.19}'),
  'App Info motif must continue behind content in both light and dark modes');
