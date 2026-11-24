@@ -33,8 +33,8 @@ const glyph=(d:string,color:string)=><Svg width={23} height={23} viewBox="0 0 24
  * shipping a large bitmap or introducing any online dependency.
  */
 const AppInfoBackdrop=({dark}:{dark:boolean})=>{
- const ink=dark?'#60718E':'#BDB6AA';
- const paper=dark?'#121827':'#F8F6F0';
+ const ink=dark?'#8D9EAB':'#BDB6AA';
+ const paper=dark?'#191F29':'#F8F6F0';
  const networks=[
   {x:40,y:72,s:0.9},{x:313,y:102,s:0.83},{x:29,y:515,s:0.8},
   {x:325,y:585,s:0.85},{x:48,y:699,s:0.95},{x:292,y:710,s:0.8}
@@ -165,10 +165,10 @@ export default function OrbitSettings({palette,themeMode,onTheme,lockEnabled,con
    {glyph('m9 18 6-6-6-6',palette.muted)}
  </Pressable>;
  const modeButton=(mode:'light'|'dark'|'system',title:string)=><Pressable key={mode} accessibilityRole="button" accessibilityLabel={title+' theme'} accessibilityState={{selected:themeMode===mode}} onPress={()=>onTheme(mode)} style={{flex:1,borderRadius:22,minHeight:43,justifyContent:'center',alignItems:'center',borderWidth:1,borderColor:themeMode===mode?palette.accent:palette.border,backgroundColor:themeMode===mode?palette.accent:palette.control}}>
-   <Text style={{fontSize:14,fontWeight:'600',color:themeMode===mode?'#16233F':palette.text}}>{title}</Text>
+   <Text style={{fontSize:14,fontWeight:'600',color:themeMode===mode?(palette.background==='#F8F6F0'?'#2E3036':'#F1ECE5'):palette.text}}>{title}</Text>
  </Pressable>;
- return <SafeAreaView style={{flex:1,backgroundColor:page==='about'?(palette.background==='#ECEEFF'?'#F8F6F0':'#121827'):palette.background}}>
-   {page==='about'&&<AppInfoBackdrop dark={palette.background!=='#ECEEFF'}/>} 
+ return <SafeAreaView style={{flex:1,backgroundColor:page==='about'?(palette.background==='#F8F6F0'?'#F8F6F0':'#191F29'):palette.background}}>
+   {page==='about'&&<AppInfoBackdrop dark={palette.background!=='#F8F6F0'}/>} 
   <View style={{minHeight:62,paddingHorizontal:16,flexDirection:'row',alignItems:'center',gap:14}}>
    <Pressable accessibilityRole="button" accessibilityLabel={page==='home'?'Back to previous library screen':'Back to Settings'} onPress={goBack} style={{width:44,height:48,justifyContent:'center',alignItems:'center'}}>{glyph('M20 12H4m7-7-7 7 7 7',palette.text)}</Pressable>
    <Text style={{fontSize:22,fontWeight:'600',color:palette.text}}>{page==='home'?'Settings':page==='appLock'?'App Lock':page==='backup'?'Backup & Restore':'App Info'}</Text>
@@ -241,7 +241,7 @@ export default function OrbitSettings({palette,themeMode,onTheme,lockEnabled,con
      <View style={{flexDirection:'row',justifyContent:'flex-end',alignItems:'center',gap:8}}>
       {stage==='verify'&&biometric&&<Pressable accessibilityRole="button" accessibilityLabel="Verify with biometrics" onPress={verifyWithBiometrics} disabled={busy} style={{padding:12}}><Text style={{color:palette.text}}>Biometrics</Text></Pressable>}
       <Pressable accessibilityRole="button" accessibilityLabel="Cancel credential change" onPress={dismissCredential} style={{padding:12}}><Text style={{color:palette.text}}>Cancel</Text></Pressable>
-      <Pressable accessibilityRole="button" accessibilityLabel={stage==='confirm'?'Save credential':'Continue credential setup'} onPress={submit} disabled={busy} style={{padding:12,borderRadius:14,backgroundColor:palette.accent,opacity:busy?0.5:1}}><Text style={{color:'#15233B',fontWeight:'600'}}>{stage==='confirm'?'Save':'Continue'}</Text></Pressable>
+      <Pressable accessibilityRole="button" accessibilityLabel={stage==='confirm'?'Save credential':'Continue credential setup'} onPress={submit} disabled={busy} style={{padding:12,borderRadius:14,backgroundColor:palette.accent,opacity:busy?0.5:1}}><Text style={{color:palette.background==='#F8F6F0'?'#FFFFFF':'#1B2630',fontWeight:'600'}}>{stage==='confirm'?'Save':'Continue'}</Text></Pressable>
      </View>
     </View>
    </View>
