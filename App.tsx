@@ -70,7 +70,7 @@ const LibraryGestureCard=({children,canSwipe,onArchive,canDrag,onDragStart,onDra
    opacity:dragging.value?0.9:Math.max(0.16,1-Math.abs(dx.value)/(W*1.1)),
    zIndex:dragging.value?100:0,elevation:dragging.value?12:0
  }));
- return <Animated.View layout={LinearTransition.duration(190)} ref={registerRef} collapsable={false} onLayout={e=>{cardWidth.value=e.nativeEvent.layout.width;}}><GestureDetector gesture={gesture}><Animated.View style={animated}>{children}</Animated.View></GestureDetector></Animated.View>;
+ return <Animated.View layout={LinearTransition.duration(350)} ref={registerRef} collapsable={false} onLayout={e=>{cardWidth.value=e.nativeEvent.layout.width;}}><GestureDetector gesture={gesture}><Animated.View style={animated}>{children}</Animated.View></GestureDetector></Animated.View>;
 };
 const SwipeUndoNotice=({message,onUndo,onDismiss,bottom=90}:{message:string;onUndo:()=>void;onDismiss:()=>void;bottom?:number})=>{
  const shift=useSharedValue(0);
@@ -960,32 +960,44 @@ const undoArchive=()=>{
 const libraryCardRefs=useRef<Record<string,View|null>>({});
 const [draggingMapId,setDraggingMapId]=useState<string|null>(null);
 const dragUpdateBusy=useRef(false);
-const reorderCard=(draggedId:string,x:number,y:number)=>{
- if(librarySort!=='custom')return;
- if(dragUpdateBusy.current)return;
- dragUpdateBusy.current=true;
- const candidates=shown.filter(n=>n.id!==draggedId).map(n=>({id:n.id,ref:libraryCardRefs.current[n.id]})).filter(n=>n.ref);
- let remaining=candidates.length,bestId:string|null=null,bestDistance=Infinity;
- if(!remaining){dragUpdateBusy.current=false;return;}
- for(const candidate of candidates){
-   candidate.ref!.measureInWindow((cx,cy,w,h)=>{
-     const distance=Math.pow(cx+w/2-x,2)+Math.pow(cy+h/2-y,2);
-     if(distance<bestDistance){bestDistance=distance;bestId=candidate.id;}
-     if(--remaining===0){
-       dragUpdateBusy.current=false;
-       if(!bestId)return;
-       const targetId=bestId;
-       setMapPrefs(p=>{
-         const allRoots=notes.filter(n=>n.parentId==='root').map(n=>n.id);
-         const order=[...new Set([...(p.customOrder||[]),...allRoots])].filter(id=>allRoots.includes(id)&&id!==draggedId);
-         const targetIndex=order.indexOf(targetId);
-         if(targetIndex<0||order.indexOf(draggedId)===targetIndex)return p;
-         order.splice(targetIndex,0,draggedId);
-         return {...p,customOrder:order};
-       });
-     }
-   });
- }
+// Keep-like insertion: move only when the drag enters another card.
+ // Do not rewrite state for repeated samples over an unchanged destination.
+ const reorderCard=(draggedId:string,x:number,y:number)=>{
+  if(librarySort!=='custom'||dragUpdateBusy.current)return;
+  const candidates=shown.filter(n=>n.id!==draggedId)
+    .map(n=>({id:n.id,ref:libraryCardRefs.current[n.id]}))
+    .filter(n=>n.ref);
+  if(!candidates.length)return;
+  dragUpdateBusy.current=true;
+  let remaining=candidates.length;
+  let hoveredId:string|null=null;
+  let closest=Infinity;
+  for(const candidate of candidates){
+    candidate.ref!.measureInWindow((cx,cy,w,h)=>{
+      // Only rearrange when the finger is actually over an adjacent map.
+      if(w>0&&h>0&&x>=cx&&x<=cx+w&&y>=cy&&y<=cy+h){
+        const distance=Math.pow(cx+w/2-x,2)+Math.pow(cy+h/2-y,2);
+        if(distance<closest){closest=distance;hoveredId=candidate.id;}
+      }
+      if(--remaining!==0)return;
+      dragUpdateBusy.current=false;
+      if(!hoveredId)return;
+      const targetId=hoveredId;
+      setMapPrefs(p=>{
+        const allRoots=notes.filter(n=>n.parentId==='root').map(n=>n.id);
+        const original=[...new Set([...(p.customOrder||[]),...shown.map(n=>n.id),...allRoots])]
+          .filter(id=>allRoots.includes(id));
+        const currentIndex=original.indexOf(draggedId);
+        const targetIndex=original.indexOf(targetId);
+        if(currentIndex<0||targetIndex<0||currentIndex===targetIndex)return p;
+        const next=original.slice();
+        next.splice(currentIndex,1);
+        next.splice(next.indexOf(targetId),0,draggedId);
+        if(next.every((id,i)=>id===original[i]))return p;
+        return {...p,customOrder:next};
+      });
+    });
+  }
 };
 const moveSelection=(folderId:string|null)=>{
   if(!folderId)return;
@@ -1625,8 +1637,8 @@ if(locked){
                   {librarySearching||librarySearch.length>0?<IconButton label="×" accessibilityLabel="Clear search" onPress={()=>{setLibrarySearch('');setLibrarySearching(false);Keyboard.dismiss();}}/>:<>
                     <Pressable accessibilityRole="button" accessibilityLabel="Sort maps" onPress={()=>setSortMenu(v=>!v)} style={{minWidth:48,minHeight:48,justifyContent:'center',alignItems:'center',borderRadius:24,backgroundColor:librarySort==='created'||librarySort==='modified'?palette.background:'transparent'}}>
                       <Svg width={24} height={24} viewBox="0 0 24 24">
-                        <Path d="M10.5 15V4m-3.2 3.1 3.2-3.1 3.2 3.1" stroke={palette.text} strokeWidth={1.9} strokeLinecap="round" strokeLinejoin="round" fill="none" opacity={librarySort==='custom'||sortDirection==='asc'?1:0.28}/>
-                        <Path d="M13.5 9v11m-3.2-3.1 3.2 3.1 3.2-3.1" stroke={palette.text} strokeWidth={1.9} strokeLinecap="round" strokeLinejoin="round" fill="none" opacity={librarySort==='custom'||sortDirection==='desc'?1:0.28}/>
+                        <Path d="M10.5 12V4m-3.2 3.1 3.2-3.1 3.2 3.1" stroke={palette.text} strokeWidth={1.9} strokeLinecap="round" strokeLinejoin="round" fill="none" opacity={librarySort==='custom'||sortDirection==='asc'?1:0.28}/>
+                        <Path d="M13.5 12v8m-3.2-3.1 3.2 3.1 3.2-3.1" stroke={palette.text} strokeWidth={1.9} strokeLinecap="round" strokeLinejoin="round" fill="none" opacity={librarySort==='custom'||sortDirection==='desc'?1:0.28}/>
                       </Svg>
                     </Pressable>
                     <IconButton label={mapPrefs.viewMode==='grid'?'listView':'gridView'} accessibilityLabel={mapPrefs.viewMode==='grid'?'Switch to list view':'Switch to card view'} onPress={()=>setMapPrefs(p=>({...p,viewMode:p.viewMode==='grid'?'list':'grid'}))}/>
