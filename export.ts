@@ -48,7 +48,7 @@ function pdfMapPage(root:Note,notes:Note[],colors:Record<string,string>={},theme
    const y=n.y-(lines.length-1)*6.5-(body?7:0);
    return `<circle cx="${n.x}" cy="${n.y}" r="${radius}" fill="${nodeStyle.fill}" stroke="${nodeStyle.stroke}" stroke-width="2"/><text x="${n.x}" y="${y}" text-anchor="middle" font-family="sans-serif" font-size="12" font-weight="600" fill="${nodeStyle.text}">${label}</text>${body?`<text x="${n.x}" y="${n.y+radius-13}" text-anchor="middle" font-family="sans-serif" font-size="8" fill="${nodeStyle.text}">${esc(body.slice(0,Math.floor(radius/4))) }${body.length>Math.floor(radius/4)?'…':''}</text>`:''}`;
  }).join('');
- const diagram=`<svg xmlns="http://www.w3.org/2000/svg" viewBox="${minX} ${minY} ${width} ${height}" preserveAspectRatio="xMidYMid meet" style="width:100%;height:100%;display:block"><rect x="${minX}" y="${minY}" width="${width}" height="${height}" fill="#f8fafc"/>${edges}${circles}</svg>`;
+ const diagram=`<svg xmlns="http://www.w3.org/2000/svg" viewBox="${minX} ${minY} ${width} ${height}" preserveAspectRatio="xMidYMid meet" style="width:100%;height:100%;display:block">${edges}${circles}</svg>`;
  return `<div class="page">${diagram}</div>`;
 }
 function pdfDocument(pages:string[]):string{
