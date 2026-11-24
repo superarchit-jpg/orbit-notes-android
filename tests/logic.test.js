@@ -532,10 +532,22 @@ console.log('PASS: independent deleted maps, grouped recovery compatibility, and
 
 check(!exp.includes('fill="#f8fafc"')&&!exp.includes('<rect x="${minX}"')&&exp.includes('${edges}${circles}'),
  'All PDF export pages must have a white page background without a blue diagram rectangle');
-check(app.includes('LinearTransition.duration(350)')&&app.includes('if(!hoveredId)return')&&app.includes('if(next.every((id,i)=>id===original[i]))return p'),
+check(app.includes('LinearTransition.duration(480)')&&app.includes('if(!hoveredId)return')&&app.includes('if(next.every((id,i)=>id===original[i]))return p'),
  'Custom cards should move only after entering a new card and animate neighboring moves slowly');
 check(app.includes('M10.5 12V4')&&app.includes('M13.5 12v8'),
  'Sorting glyph arrow shafts must stay compact');
 check(settingsUi.includes("centerSpark")&&settingsUi.includes("centerDot")&&settingsUi.includes('opacity={dark?0.30:0.19}'),
  'App Info motif must continue behind content in both light and dark modes');
 console.log('PASS: PDF background, Custom motion, sort icon, App Info regression checks');
+
+check(app.includes('const libraryToolbar=(')&&app.includes('ListHeaderComponent={libraryToolbar}')&&app.includes('extraData={libraryCardHeights}'),
+ 'Library search and sidebar controls should scroll with the card content, and measured masonry cards should update the list');
+check(app.includes("position:{top:number;left:number;width:number}")&&app.includes("position={{top,left:column*(cellWidth+gutter),width:cellWidth}}"),
+ 'Cards must keep their identity when transitioning between masonry columns');
+check(app.includes("navigationBarTranslucent")&&app.includes("edges={['top']}")&&app.includes("bottom:48,width:60,height:60"),
+ 'Library cards must extend behind the navigation footer while the Add button remains above it');
+check(app.indexOf("accessibilityLabel={mapPrefs.viewMode==='grid'?'Switch to list view'")<app.indexOf('accessibilityLabel="Sort maps"'),
+ 'View toggle must precede Sort in the Library search control');
+check(iconPaths.includes("'listView':'M4 6h16v5H4zM4 14h16v5H4z'")&&iconPaths.includes("'gridView':'M3 5h8v6H3z"),
+ 'List and grid icons must use smaller boxes');
+console.log('PASS: continuous masonry, scrolling Library header and navigation-footer regressions');
