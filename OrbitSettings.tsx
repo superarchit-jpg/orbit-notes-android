@@ -58,6 +58,27 @@ const AppInfoBackdrop=({dark}:{dark:boolean})=>{
      {sparks.map(([x,y],i)=><Path key={'spark'+i} d={`M${x} ${y-7}Q${x+1} ${y-1} ${x+7} ${y}Q${x+1} ${y+1} ${x} ${y+7}Q${x-1} ${y+1} ${x-7} ${y}Q${x-1} ${y-1} ${x} ${y-7}Z`}/>)}
      {[[175,112],[41,291],[332,396],[145,405],[226,555],[58,606],[295,75],[9,722],[194,735]].map(([x,y],i)=><Circle key={'dot'+i} cx={x} cy={y} r={i%3===0?2:1.2} fill={ink} stroke="none"/>)}
    </G>
+   {/* Continue the approved pattern through the central content zone; the
+       original app icon and opaque text remain over this subdued layer. */}
+   <G stroke={ink} strokeWidth={1} fill="none" opacity={dark?0.30:0.19} strokeLinecap="round" strokeLinejoin="round">
+     <G transform="translate(117 307) scale(0.72)">
+       <Path d="M0 0L-23-20M0 0L29-27M0 0L37 19M0 0L-13 39"/>
+       <Circle cx={0} cy={0} r={13}/><Circle cx={-23} cy={-20} r={8}/><Circle cx={29} cy={-27} r={8}/><Circle cx={37} cy={19} r={8}/><Circle cx={-13} cy={39} r={8}/>
+     </G>
+     <G transform="translate(256 427) scale(0.7)">
+       <Path d="M0 0L-23-20M0 0L29-27M0 0L37 19M0 0L-13 39"/>
+       <Circle cx={0} cy={0} r={13}/><Circle cx={-23} cy={-20} r={8}/><Circle cx={29} cy={-27} r={8}/><Circle cx={37} cy={19} r={8}/><Circle cx={-13} cy={39} r={8}/>
+     </G>
+     <G transform="translate(178 235) rotate(-11)">
+       <Path d="M-12-19H7L14-12V20H-12zM7-19v7h7M-6-6H8M-6 1H9M-6 8H3"/>
+     </G>
+     <G transform="translate(98 476) rotate(9)">
+       <Path d="M-12-19H7L14-12V20H-12zM7-19v7h7M-6-6H8M-6 1H9M-6 8H3"/>
+     </G>
+     <Path d="M224 272A36 36 0 0 0 260 307M73 375A38 38 0 0 1 108 350"/>
+     {[[205,339],[155,455],[278,356],[82,291],[216,492]].map(([x,y],i)=><Path key={'centerSpark'+i} d={`M${x} ${y-6}Q${x+1} ${y-1} ${x+6} ${y}Q${x+1} ${y+1} ${x} ${y+6}Q${x-1} ${y+1} ${x-6} ${y}Q${x-1} ${y-1} ${x} ${y-6}Z`}/>)}
+     {[[152,348],[211,391],[266,473],[124,401],[205,283]].map(([x,y],i)=><Circle key={'centerDot'+i} cx={x} cy={y} r={1.5} fill={ink} stroke="none"/>)}
+   </G>
  </Svg>;
 };
 export default function OrbitSettings({palette,themeMode,onTheme,lockEnabled,configured,selectedKind,biometric,onToggleLock,onToggleBiometric,onVerify,onSaveCredential,onResetCredential,onVerifyBiometric,registerBack,appVersion,buildNumber,onBackup,onLockNow,onClose}:Props){
