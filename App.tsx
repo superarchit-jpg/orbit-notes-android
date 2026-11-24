@@ -48,7 +48,7 @@ const MaterialIcon=({name,color}:{name:string;color:string})=>{
   return data?<Svg width={23} height={23} viewBox="0 0 24 24"><Path d={data} fill="none" stroke={color} strokeWidth={1.7} strokeLinecap="round" strokeLinejoin="round"/>{name==='centerFocus'&&<Circle cx={12} cy={12} r={3.6} fill={color}/>}</Svg>:<Text style={{fontSize:name==='Fit'?14:22,color,fontWeight:'700'}}>{name}</Text>;
 };
 
-const LibraryGestureCard=({children,canSwipe,onArchive,canDrag,onDragStart,onDragMove,onDrop,registerRef}:{children:React.ReactNode;canSwipe:boolean;onArchive:()=>void;canDrag:boolean;onDragStart:()=>void;onDragMove:(x:number,y:number)=>void;onDrop:(x:number,y:number)=>void;registerRef:(view:View|null)=>void})=>{
+const LibraryGestureCard=({children,position,onMeasure,canSwipe,onArchive,canDrag,onDragStart,onDragMove,onDrop,registerRef}:{children:React.ReactNode;position:{top:number;left:number;width:number};onMeasure:(height:number)=>void;canSwipe:boolean;onArchive:()=>void;canDrag:boolean;onDragStart:()=>void;onDragMove:(x:number,y:number)=>void;onDrop:(x:number,y:number)=>void;registerRef:(view:View|null)=>void})=>{
  const dx=useSharedValue(0),dy=useSharedValue(0),dragging=useSharedValue(false);
  const cardWidth=useSharedValue(W);
  const lastDragUpdate=useSharedValue(0);
@@ -70,7 +70,7 @@ const LibraryGestureCard=({children,canSwipe,onArchive,canDrag,onDragStart,onDra
    opacity:dragging.value?0.9:Math.max(0.16,1-Math.abs(dx.value)/(W*1.1)),
    zIndex:dragging.value?100:0,elevation:dragging.value?12:0
  }));
- return <Animated.View layout={LinearTransition.duration(480)} ref={registerRef} collapsable={false} onLayout={e=>{cardWidth.value=e.nativeEvent.layout.width;}}><GestureDetector gesture={gesture}><Animated.View style={animated}>{children}</Animated.View></GestureDetector></Animated.View>;
+ return <Animated.View layout={LinearTransition.duration(480)} ref={registerRef} collapsable={false} style={{position:'absolute',top:position.top,left:position.left,width:position.width}} onLayout={e=>{cardWidth.value=e.nativeEvent.layout.width;onMeasure(e.nativeEvent.layout.height);}}><GestureDetector gesture={gesture}><Animated.View style={animated}>{children}</Animated.View></GestureDetector></Animated.View>;
 };
 const SwipeUndoNotice=({message,onUndo,onDismiss,bottom=90}:{message:string;onUndo:()=>void;onDismiss:()=>void;bottom?:number})=>{
  const shift=useSharedValue(0);
@@ -958,6 +958,11 @@ const undoArchive=()=>{
  setArchiveUndoIds([]);
 };
 const libraryCardRefs=useRef<Record<string,View|null>>({});
+const [libraryCardHeights,setLibraryCardHeights]=useState<Record<string,number>>({});
+const recordCardHeight=(id:string,height:number)=>{
+ if(height<20)return;
+ setLibraryCardHeights(p=>Math.abs((p[id]??0)-height)<2?p:{...p,[id]:height});
+};
 const [draggingMapId,setDraggingMapId]=useState<string|null>(null);
 const dragUpdateBusy=useRef(false);
 // Keep-like insertion: move only when the drag enters another card.
@@ -1866,12 +1871,24 @@ if(locked){
                   <FlatList style={{flex:1}} contentContainerStyle={{gap:10,paddingHorizontal:12,paddingTop:12,paddingBottom:24}}
                     data={libraryChunks} keyExtractor={(_,index)=>'chunk-'+index}
                     initialNumToRender={2} maxToRenderPerBatch={2} windowSize={5} removeClippedSubviews={false}
-                    renderItem={({item:chunk})=>(
-                     <View style={{flexDirection:'row',alignItems:'flex-start',gap:10}}>
-                      {(mapPrefs.viewMode==='grid'?[0,1]:[0]).map(column=>(
-                       <View key={column} style={{flex:1,gap:10}}>
-                        {partitionLibraryColumns(chunk,mapPrefs.viewMode==='grid')[column].map(n=>(
-                    <LibraryGestureCard key={n.id} canSwipe={!showArchive&&selected.length===0} canDrag={librarySort==='custom'&&!showArchive&&(selected.length===0||(selected.length===1&&selected.includes(n.id)))}
+                    renderItem={({item:chunk})=>{
+                     const grid=mapPrefs.viewMode==='grid';
+                     const availableWidth=W-24;
+                     const gutter=10;
+                     const cellWidth=grid?(availableWidth-gutter)/2:availableWidth;
+                     const columns=[0,0];
+                     const positions=chunk.map((n,index)=>{
+                       const column=grid?index%2:0;
+                       const top=columns[column];
+                       columns[column]+=(libraryCardHeights[n.id]??(grid?152:88))+gutter;
+                       return {n,column,top};
+                     });
+                     const chunkHeight=Math.max(0,...columns)-gutter;
+                     return <View style={{height:Math.max(0,chunkHeight),width:'100%',position:'relative'}}>
+                      {positions.map(({n,column,top})=>(
+                    <LibraryGestureCard key={n.id}
+                      position={{top,left:column*(cellWidth+gutter),width:cellWidth}}
+                      onMeasure={height=>recordCardHeight(n.id,height)} canSwipe={!showArchive&&selected.length===0} canDrag={librarySort==='custom'&&!showArchive&&(selected.length===0||(selected.length===1&&selected.includes(n.id)))}
                       registerRef={view=>{libraryCardRefs.current[n.id]=view;}}
                       onArchive={()=>archiveOne(n.id,true)}
                       onDragStart={()=>{setDraggingMapId(n.id);setSelected(v=>v.includes(n.id)?v:[...v,n.id]);}}
@@ -1933,11 +1950,9 @@ if(locked){
 
                     </Pressable>
                     </LibraryGestureCard>
-                        ))}
-                       </View>
                       ))}
-                     </View>
-                    )}/>
+                     </View>;
+                    }}/>
 
                   {shown.length===0&&!showArchive&&(
                     <View style={{position:'absolute',left:0,right:0,top:44,alignItems:'center',paddingVertical:48,paddingHorizontal:20,gap:12}}>
