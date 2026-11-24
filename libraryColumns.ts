@@ -12,7 +12,8 @@ export function partitionLibraryColumns<T>(items:readonly T[],grid:boolean):T[][
  */
 export function balancedLibraryPositions<T extends {id:string}>(
  items:readonly T[],heights:Readonly<Record<string,number>>,grid:boolean,
- previous:Readonly<Record<string,number>>={}
+ previous:Readonly<Record<string,number>>={},
+ forced:Readonly<Record<string,0|1>>={}
 ):{item:T;column:number;top:number}[]{
  const bottoms=[0,0],gap=10;
  return items.map(item=>{
@@ -21,7 +22,7 @@ export function balancedLibraryPositions<T extends {id:string}>(
   if(grid){
    const preferred=previous[item.id];
    const lower=bottoms[0]<=bottoms[1]?0:1;
-   column=(preferred===0||preferred===1)&&bottoms[preferred]-bottoms[lower]<=h*0.35?preferred:lower;
+   column=forced[item.id]===0||forced[item.id]===1?forced[item.id]:(preferred===0||preferred===1)&&bottoms[preferred]-bottoms[lower]<=h*0.35?preferred:lower;
   }
   const top=bottoms[column];
   bottoms[column]+=h+gap;
