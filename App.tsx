@@ -45,13 +45,15 @@ const MaterialIcon=({name,color}:{name:string;color:string})=>{
   if(name==='clearFormat')return <Svg width={25} height={25} viewBox="0 0 24 24"><SvgText x={4} y={18} fontSize={18} fontWeight="bold" fill={color}>T</SvgText><Line x1={4} y1={20} x2={21} y2={3} stroke={color} strokeWidth={2.5} strokeLinecap="round"/></Svg>;
   if(['bold','italic','underline'].includes(name))return <Text style={{fontSize:21,color,fontWeight:name==='bold'?'900':'600',fontStyle:name==='italic'?'italic':'normal',textDecorationLine:name==='underline'?'underline':'none'}}>{name==='bold'?'B':name==='italic'?'I':'U'}</Text>;
   const data=ICON_PATHS[name];
-  if(name==='miniMapIcon')return <Svg width={23} height={23} viewBox="0 0 24 24">
+  const compact=['Fit','parentNote','centerFocus','miniMapIcon'].includes(name);
+  const iconSize=compact?21:23;
+  if(name==='miniMapIcon')return <Svg width={iconSize} height={iconSize} viewBox="0 0 24 24">
     <Path d={data} fill="none" stroke={color} strokeWidth={1.7} strokeLinecap="round" strokeLinejoin="round"/>
     <Rect x={9} y={2} width={6} height={6} rx={1} stroke={color} fill="none" strokeWidth={1.7}/>
     <Rect x={3} y={16} width={6} height={6} rx={1} stroke={color} fill="none" strokeWidth={1.7}/>
     <Rect x={15} y={16} width={6} height={6} rx={1} stroke={color} fill="none" strokeWidth={1.7}/>
   </Svg>;
-  return data?<Svg width={23} height={23} viewBox="0 0 24 24"><Path d={data} fill="none" stroke={color} strokeWidth={1.7} strokeLinecap="round" strokeLinejoin="round"/></Svg>:<Text style={{fontSize:22,color,fontWeight:'700'}}>{name}</Text>;
+  return data?<Svg width={iconSize} height={iconSize} viewBox="0 0 24 24"><Path d={data} fill="none" stroke={color} strokeWidth={1.7} strokeLinecap="round" strokeLinejoin="round"/></Svg>:<Text style={{fontSize:22,color,fontWeight:'700'}}>{name}</Text>;
 };
 
 const LibraryGestureCard=({children,position,onMeasure,canSwipe,onArchive,canDrag,onSelect,onDragStart,onDragMove,onDrop,registerRef}:{children:React.ReactNode;position:{top:number;left:number;width:number};onMeasure:(height:number)=>void;canSwipe:boolean;onArchive:()=>void;canDrag:boolean;onSelect:()=>void;onDragStart:()=>void;onDragMove:(x:number,y:number)=>void;onDrop:(x:number,y:number)=>void;registerRef:(view:View|null)=>void})=>{
@@ -154,8 +156,8 @@ const effectiveTheme=mapPrefs.themeMode==='system'?(deviceTheme==='dark'?'dark':
 const palette=effectiveTheme==='dark'?DARK:LIGHT;
  const roles=uiRoles(palette);
 const darkSelection=effectiveTheme==='dark';
-const selectedSidebarColor=darkSelection?'#AFC3F9':'#FEF3C7';
-const selectedSidebarText=darkSelection?'#172441':palette.text;
+const selectedSidebarColor=darkSelection?'#3C5367':'#F0E8DB';
+const selectedSidebarText=darkSelection?'#F1ECE5':palette.text;
 const noteDisplayColor=displayKeepColor(mapPrefs.noteColors[reader||''],effectiveTheme,palette.background);
 const noteDisplayText=keepForeground(noteDisplayColor);
 const [showMiniMap,setShowMiniMap]=useState(false);
@@ -1451,7 +1453,8 @@ return (
               <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{gap:12,paddingBottom:16}}>
                 <Text style={[styles.section,{color:palette.text}]}>Map gestures</Text>
                 <Text style={{color:palette.text,fontSize:15,lineHeight:24}}>Tap to focus a node.{"\n"}Double-tap to read.{"\n"}Triple-tap to edit.{"\n"}Long-press for note actions.{"\n"}Drag around a branch to rotate children.{"\n"}Use two fingers to zoom or rotate the map.</Text>
-                <Text style={[styles.section,{color:palette.text,marginTop:8}]}>Map-control symbol guide</Text>
+                <View style={{height:1,backgroundColor:palette.border,marginTop:8,marginBottom:4}}/>
+                <Text style={[styles.section,{color:palette.text}]}>Icon Guide</Text>
                 {([
                   ['Fit','Fit map','Scale the visible map to fit the screen.'],
                   ['expandBranch','Expand branch','Reveal the children of the focused node.'],
