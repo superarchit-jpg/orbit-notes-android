@@ -434,7 +434,7 @@ check(!app.includes('<Button label="Close" onPress={()=>setGestureHelp(false)}/>
 check(!app.includes('<Button label="Cancel" onPress={()=>setColorTarget(null)}/>'), 'Palettes must not show Cancel');
 const keepTheme=read('keepTheme.ts');
 check(themeTokens.includes("background:'#191F29'")&&themeTokens.includes("surface:'#222B36'")&&keepTheme.includes('ORBIT_DARK_PRESETS'),'Dark mode must use approved Option A slate and coordinated card presets');
-check(app.includes("selectedSidebarColor=darkSelection?'#AFC3F9'")&&app.includes('selectedSidebarText'),'Dark selected navigation must use a blue highlight with contrasting text');
+check(app.includes("selectedSidebarColor=darkSelection?'#3C5367'")&&app.includes('selectedSidebarText'),'Dark selected navigation must use a blue highlight with contrasting text');
 check(app.includes('displayKeepColor(mapPrefs.cardColors[n.id],effectiveTheme,palette.surface)')&&app.includes('keepChipStyle(displayKeepColor('),'Cards and label chips must adapt to Dark mode');
 check(app.includes('displayKeepColor(mapPrefs.colors[n.id],effectiveTheme')&&app.includes('noteDisplayColor'),'Node and note colors must adapt to Dark mode');
 check(app.includes('visible={moveFolderMenu} animationType="slide"')&&app.includes('accessibilityRole="checkbox"')&&app.includes('Search or create labels'),'Label assignment must use searchable checkbox modal');
