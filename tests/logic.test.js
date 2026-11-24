@@ -573,3 +573,17 @@ check(app.includes('customColumns:cols')&&store.includes('customColumns?:Record<
 check(app.includes('minWidth:42,minHeight:42')&&app.includes('borderRadius:21'),
  'Sort circle must fit within the search pill');
 console.log('PASS: latest drag thresholds, Archive header, custom columns and navigation corrections');
+
+check(iconPaths.includes("'Fit':'M3 7V5")&&iconPaths.includes("'parentNote':'M5 3h14")&&iconPaths.includes("'centerFocus':'M12 2v4"),
+ 'Approved scan-line, preceding-level and crosshair paths must be registered');
+check(iconPaths.includes("'expandBranch':'M7 9l5-5")&&iconPaths.includes("'collapseBranch':'M7 10l5 5"),
+ 'Approved inward and outward chevrons must distinguish branch states');
+check(iconPaths.includes("'miniMapIcon':'M12 8v4")&&app.includes("if(name==='miniMapIcon')return <Svg"),
+ 'The mini-map icon must display the selected network graph');
+check(app.includes('Map-control symbol guide')&&app.includes("['Fit','Fit map'")&&app.includes("['miniMapIcon','Mini-map'")&&app.includes("['parentNote','Preceding level'"),
+ 'Map Help must describe the same icons used in the map controls');
+check(app.includes('accessibilityLabel="Fit map to screen" onPress={fitCurrentMap}')&&
+ app.includes('accessibilityLabel="Go to parent note" onPress={()=>{if(parent)moveTo(parent.id);}}')&&
+ app.includes('accessibilityLabel={showMiniMap?"Hide mini-map":"Show mini-map"}'),
+ 'Approved icon changes must not alter map-control actions');
+console.log('PASS: map-control icon approvals and Help symbol guide');
