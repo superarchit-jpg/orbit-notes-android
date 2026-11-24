@@ -51,7 +51,7 @@ const MaterialIcon=({name,color}:{name:string;color:string})=>{
 const LibraryGestureCard=({children,position,onMeasure,canSwipe,onArchive,canDrag,onDragStart,onDragMove,onDrop,registerRef}:{children:React.ReactNode;position:{top:number;left:number;width:number};onMeasure:(height:number)=>void;canSwipe:boolean;onArchive:()=>void;canDrag:boolean;onDragStart:()=>void;onDragMove:(x:number,y:number)=>void;onDrop:(x:number,y:number)=>void;registerRef:(view:View|null)=>void})=>{
  const dx=useSharedValue(0),dy=useSharedValue(0),dragging=useSharedValue(false);
  const cardWidth=useSharedValue(W);
- const lastDragUpdate=useSharedValue(0);
+ const lastDragX=useSharedValue(0),lastDragY=useSharedValue(0);
  const swipeCommitted=useSharedValue(false);
  const swipe=Gesture.Pan().enabled(canSwipe).activeOffsetX([-18,18]).failOffsetY([-15,15])
    .onUpdate(e=>{dx.value=e.translationX;})
@@ -61,7 +61,7 @@ const LibraryGestureCard=({children,position,onMeasure,canSwipe,onArchive,canDra
    }).onFinalize(()=>{if(!swipeCommitted.value)dx.value=withTiming(0);});
  const drag=Gesture.Pan().enabled(canDrag).activateAfterLongPress(330)
    .onStart(()=>{dragging.value=true;runOnJS(onDragStart)();})
-   .onUpdate(e=>{dx.value=e.translationX;dy.value=e.translationY;if(Math.abs(e.translationX)+Math.abs(e.translationY)-lastDragUpdate.value>14){lastDragUpdate.value=Math.abs(e.translationX)+Math.abs(e.translationY);runOnJS(onDragMove)(e.translationX,e.translationY);}})
+   .onUpdate(e=>{dx.value=e.translationX;dy.value=e.translationY;if(Math.hypot(e.translationX-lastDragX.value,e.translationY-lastDragY.value)>10){lastDragX.value=e.translationX;lastDragY.value=e.translationY;runOnJS(onDragMove)(e.translationX,e.translationY);}})
    .onEnd(e=>{runOnJS(onDrop)(e.absoluteX,e.absoluteY);})
    .onFinalize(()=>{dragging.value=false;dx.value=withTiming(0,{duration:180});dy.value=withTiming(0,{duration:180});});
  const gesture=Gesture.Race(drag,swipe);
