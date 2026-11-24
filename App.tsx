@@ -1979,7 +1979,7 @@ return (
                       registerRef={view=>{libraryCardRefs.current[n.id]=view;}}
                       onArchive={()=>archiveOne(n.id,true)}
                       onSelect={()=>setSelected(v=>v.includes(n.id)?v:[...v,n.id])}
-                      onDragStart={()=>{lastDragTarget.current=null;setDragOrigin({id:n.id,top,left:column*(cellWidth+gutter),chunk:chunkIndex});setDraggingMapId(n.id);}}
+                      onDragStart={()=>{lastDragTarget.current=null;setSelected([]);setSelectionMenu(false);setDragOrigin({id:n.id,top,left:column*(cellWidth+gutter),chunk:chunkIndex});setDraggingMapId(n.id);}}
                       onDragMove={(dx,dy)=>{
                         reorderCard(n.id,dx,dy);
                         libraryCardRefs.current[n.id]?.measureInWindow((x,y,w,h)=>{
