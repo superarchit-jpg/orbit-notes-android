@@ -1354,7 +1354,7 @@ return (
         </View>
 
         <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{flexGrow:0,maxHeight:48}} contentContainerStyle={{alignItems:'center',paddingHorizontal:12,gap:4}}>
-          {ancestors.filter(n=>n.id!=='root').map((n,i)=><Pressable key={n.id} accessibilityRole="button" accessibilityLabel={`Focus ${n.title||'Untitled'}`} onPress={()=>moveTo(n.id)} style={{padding:8}}><Text style={{color:n.id===focused?'#1d4ed8':'#475569',fontWeight:n.id===focused?'800':'500'}}>{i?'› ':''}{n.title||'Untitled'}</Text></Pressable>)}
+          {ancestors.filter(n=>n.id!=='root').map((n,i)=><Pressable key={n.id} accessibilityRole="button" accessibilityLabel={`Focus ${n.title||'Untitled'}`} onPress={()=>moveTo(n.id)} style={{padding:8}}><Text style={{color:n.id===focused?'#1d4ed8':'#686B70',fontWeight:n.id===focused?'800':'500'}}>{i?'› ':''}{n.title||'Untitled'}</Text></Pressable>)}
         </ScrollView>
         {(nodeActions||mapMenu)&&<Pressable accessibilityLabel="Close menu" onPress={()=>{setNodeActions(null);setMapMenu(false);}} style={[StyleSheet.absoluteFill,{zIndex:20,elevation:10}]}/>}
         {nodeActions&&<View style={[styles.bottomSheet,{backgroundColor:palette.surface,borderColor:palette.border,borderTopLeftRadius:24,borderTopRightRadius:24,padding:16,gap:8,left:0,right:0}]}>
@@ -1694,7 +1694,7 @@ return (
                     value={title}
                     onChangeText={setTitle}
                     placeholder="Heading"
-                    placeholderTextColor={effectiveTheme==='dark'?'#DCE5F5':'#65708A'}
+                    placeholderTextColor={effectiveTheme==='dark'?'#E2EAF0':'#686B70'}
                   />
                 </View>
                 <View style={[styles.editorField,{flex:1}]}>
@@ -1793,7 +1793,7 @@ return (
               ))}
             </View>}
             <Modal visible={moveFolderMenu} animationType="slide" onRequestClose={()=>{setMoveFolderMenu(false);setLabelQuery('');}}>
-              <InsetSafeAreaView edges={['top','bottom']} style={[styles.screen,{backgroundColor:effectiveTheme==='dark'?palette.background:'#FAF7FE'}]}>
+              <InsetSafeAreaView edges={['top','bottom']} style={[styles.screen,{backgroundColor:effectiveTheme==='dark'?palette.background:'#FFFCF7'}]}>
                 <View style={{minHeight:74,flexDirection:'row',alignItems:'center',paddingHorizontal:10,gap:4}}>
                   <IconButton label="←" accessibilityLabel="Back to selected maps" onPress={()=>{setMoveFolderMenu(false);setLabelQuery('');Keyboard.dismiss();}}/>
                   <TextInput accessibilityLabel="Search or create labels" value={labelQuery} onChangeText={setLabelQuery} placeholder="Enter label name" placeholderTextColor={palette.muted} autoCapitalize="sentences"
@@ -2129,17 +2129,17 @@ const styles=StyleSheet.create({
     right:12,
     zIndex:32,
     elevation:18,
-    backgroundColor:'#fffdfb',
+    backgroundColor:'#FFFCF7',
     padding:14,
     borderRadius:22,
     gap:10,
     maxHeight:'75%',
     borderWidth:1,
-    borderColor:'#e7cfc7'
+    borderColor:'#D8D0C5'
   },
   screen:{
     flex:1,
-    backgroundColor:'#fff8f5'
+    backgroundColor:'#F8F6F0'
   },
   header:{
     minHeight:60,
@@ -2151,18 +2151,18 @@ const styles=StyleSheet.create({
   logo:{
     fontSize:21,
     fontWeight:'800',
-    color:'#362722'
+    color:'#2E3036'
   },
   button:{
     borderRadius:12,
-    backgroundColor:'#e2e8f0',
+    backgroundColor:'#F0E8DB',
     paddingVertical:12,
     paddingHorizontal:14,
     minHeight:48,
     justifyContent:'center'
   },
   primary:{
-    backgroundColor:'#b65e4d'
+    backgroundColor:'#536F86'
   },
   danger:{
     backgroundColor:'#dc2626'
@@ -2170,7 +2170,7 @@ const styles=StyleSheet.create({
   buttonText:{
     fontSize:14,
     fontWeight:'700',
-    color:'#563f38'
+    color:'#2E3036'
   },
   toolbar:{
     flexDirection:'row',
@@ -2184,7 +2184,7 @@ const styles=StyleSheet.create({
   canvas:{
     flex:1,
     overflow:'hidden',
-    backgroundColor:'#fff9f6'
+    backgroundColor:'#FBF7F0'
   },
   world:{
     position:'absolute',
@@ -2219,7 +2219,7 @@ const styles=StyleSheet.create({
     minWidth:152,
     maxWidth:208,
     borderWidth:1,
-    borderColor:'#cbd5e1'
+    borderColor:'#D8D0C5'
   },
   sidebar:{
     position:'absolute',
@@ -2227,15 +2227,15 @@ const styles=StyleSheet.create({
     bottom:0,
     left:0,
     width:'82%',
-    backgroundColor:'#fffdfb',
+    backgroundColor:'#FFFCF7',
     zIndex:40,
     elevation:20,
     borderRightWidth:1,
-    borderRightColor:'#cbd5e1'
+    borderRightColor:'#D8D0C5'
   },
   muted:{
     fontSize:12,
-    color:'#755d55'
+    color:'#686B70'
   },
   editor:{
     paddingHorizontal:20,
@@ -2249,13 +2249,13 @@ const styles=StyleSheet.create({
   editorLabel:{
     fontSize:14,
     fontWeight:'700',
-    color:'#334155'
+    color:'#686B70'
   },
   input:{
     borderWidth:1,
-    borderColor:'#e7cfc7',
+    borderColor:'#D8D0C5',
     borderRadius:14,
-    backgroundColor:'#fffdfb',
+    backgroundColor:'#FFFCF7',
     padding:14,
     fontSize:16
   },
@@ -2263,19 +2263,19 @@ const styles=StyleSheet.create({
     fontSize:28,
     fontFamily:'Roboto',
     fontWeight:'600',
-    color:'#0f172a'
+    color:'#2E3036'
   },
   readBody:{
     fontSize:17,
     lineHeight:27,
-    color:'#334155',
+    color:'#686B70',
     marginVertical:15
   },
   section:{
     fontSize:17,
     fontFamily:'Roboto',
     fontWeight:'600',
-    color:'#0f172a'
+    color:'#2E3036'
   },
   wrap:{
     flexDirection:'row',
@@ -2291,21 +2291,21 @@ const styles=StyleSheet.create({
     padding:14,
     borderRadius:14,
     borderWidth:1,
-    borderColor:'#e2e8f0'
+    borderColor:'#F0E8DB'
   },
   listIndex:{
     fontSize:17,
     fontWeight:'800',
-    color:'#315fd6'
+    color:'#536F86'
   },
   listTitle:{
     fontSize:16,
     fontFamily:'Roboto',
     fontWeight:'600',
-    color:'#0f172a'
+    color:'#2E3036'
   },
   checkbox:{
     fontSize:25,
-    color:'#315fd6'
+    color:'#536F86'
   }
 });
