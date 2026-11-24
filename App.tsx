@@ -1251,7 +1251,7 @@ if(locked){
                   <TextInput accessibilityLabel="Search all map contents" placeholder="Search Orbit Notes" placeholderTextColor={palette.muted} value={librarySearch} onFocus={()=>{setLibrarySearching(true);setSortMenu(false);}} onChangeText={setLibrarySearch} style={{flex:1,minWidth:20,fontSize:15,color:palette.text,paddingVertical:7}}/>
                   {librarySearching||librarySearch.length>0?<IconButton label="×" accessibilityLabel="Clear search" onPress={()=>{setLibrarySearch('');setLibrarySearching(false);Keyboard.dismiss();}}/>:<>
                     <IconButton label={mapPrefs.viewMode==='grid'?'listView':'gridView'} accessibilityLabel={mapPrefs.viewMode==='grid'?'Switch to list view':'Switch to card view'} onPress={()=>setMapPrefs(p=>({...p,viewMode:p.viewMode==='grid'?'list':'grid'}))}/>
-                    <Pressable accessibilityRole="button" accessibilityLabel="Sort maps" onPress={()=>setSortMenu(v=>!v)} style={{minWidth:48,minHeight:48,justifyContent:'center',alignItems:'center',borderRadius:24,marginRight:10,backgroundColor:librarySort==='created'||librarySort==='modified'?palette.background:'transparent'}}>
+                    <Pressable accessibilityRole="button" accessibilityLabel="Sort maps" onPress={()=>setSortMenu(v=>!v)} style={{minWidth:42,minHeight:42,justifyContent:'center',alignItems:'center',borderRadius:21,marginRight:10,marginVertical:3,backgroundColor:librarySort==='created'||librarySort==='modified'?palette.background:'transparent'}}>
                       <Svg width={24} height={24} viewBox="0 0 24 24">
                         <Path d="M9.1 12V4m-3.2 3.1 3.2-3.1 3.2 3.1" stroke={palette.text} strokeWidth={1.9} strokeLinecap="round" strokeLinejoin="round" fill="none" opacity={librarySort==='custom'||sortDirection==='asc'?1:0.28}/>
                         <Path d="M14.9 12v8m-3.2-3.1 3.2 3.1 3.2-3.1" stroke={palette.text} strokeWidth={1.9} strokeLinecap="round" strokeLinejoin="round" fill="none" opacity={librarySort==='custom'||sortDirection==='desc'?1:0.28}/>
@@ -1671,7 +1671,7 @@ return (
           onRequestClose={()=>{if(sidebar)setSidebar(false);else if(selectionMenu||moveFolderMenu||sortMenu||trashMenu||cardMenuId){setSelectionMenu(false);setMoveFolderMenu(false);setSortMenu(false);setTrashMenu(false);setCardMenuId(null);}else if(selected.length)setSelected([]);else if(selectedTrash.length)setSelectedTrash([]);else BackHandler.exitApp();}}
         >
           <GestureHandlerRootView style={{flex:1}}><InsetSafeAreaView style={[styles.screen,{backgroundColor:palette.background}]} edges={['top']}>
-            {(showTrash||showArchive)&&libraryToolbar}
+            {showTrash&&libraryToolbar}
              {!showTrash&&!showArchive&&selected.length>0&&<View style={{position:'absolute',top:0,left:0,right:0,zIndex:12,elevation:8,backgroundColor:palette.background}}>{libraryToolbar}</View>}
 
             {(selectionMenu||moveFolderMenu||sidebar||sortMenu||trashMenu||cardMenuId)&&<Pressable accessibilityLabel="Close menu" onPress={()=>{setSelectionMenu(false);setMoveFolderMenu(false);setSidebar(false);setSortMenu(false);setTrashMenu(false);setCardMenuId(null);}} style={[StyleSheet.absoluteFill,{zIndex:20,elevation:10,backgroundColor:sidebar?'rgba(0,0,0,0.32)':'transparent'}]}/>}
