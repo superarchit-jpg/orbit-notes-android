@@ -1,7 +1,7 @@
 import React,{useEffect,useMemo,useState,useRef} from 'react';
 import {ICON_PATHS} from './orbitIcons';
 import {LIGHT,DARK,uiRoles} from './orbitThemeTokens';
-import {partitionLibraryColumns} from './libraryColumns';
+import {partitionLibraryColumns,balancedLibraryPositions} from './libraryColumns';
 import {AppState,BackHandler,Dimensions,KeyboardAvoidingView,useColorScheme,Modal,Platform,Pressable,ScrollView,FlatList,Keyboard,StatusBar,StyleSheet,Text,TextInput,View} from 'react-native';
 import Svg,{Line,Circle,Rect,Path,Text as SvgText} from 'react-native-svg';
 import {SafeAreaProvider,SafeAreaView as InsetSafeAreaView} from 'react-native-safe-area-context';
@@ -61,7 +61,7 @@ const LibraryGestureCard=({children,position,onMeasure,canSwipe,onArchive,canDra
    }).onFinalize(()=>{if(!swipeCommitted.value)dx.value=withTiming(0);});
  const drag=Gesture.Pan().enabled(canDrag).activateAfterLongPress(330)
    .onStart(()=>{dragging.value=true;runOnJS(onDragStart)();})
-   .onUpdate(e=>{dx.value=e.translationX;dy.value=e.translationY;if(Math.abs(e.translationX)+Math.abs(e.translationY)-lastDragUpdate.value>14){lastDragUpdate.value=Math.abs(e.translationX)+Math.abs(e.translationY);runOnJS(onDragMove)(e.absoluteX,e.absoluteY);}})
+   .onUpdate(e=>{dx.value=e.translationX;dy.value=e.translationY;if(Math.abs(e.translationX)+Math.abs(e.translationY)-lastDragUpdate.value>14){lastDragUpdate.value=Math.abs(e.translationX)+Math.abs(e.translationY);runOnJS(onDragMove)(e.translationX,e.translationY);}})
    .onEnd(e=>{runOnJS(onDrop)(e.absoluteX,e.absoluteY);})
    .onFinalize(()=>{dragging.value=false;dx.value=withTiming(0,{duration:180});dy.value=withTiming(0,{duration:180});});
  const gesture=Gesture.Race(drag,swipe);
@@ -964,45 +964,47 @@ const recordCardHeight=(id:string,height:number)=>{
  setLibraryCardHeights(p=>Math.abs((p[id]??0)-height)<2?p:{...p,[id]:height});
 };
 const [draggingMapId,setDraggingMapId]=useState<string|null>(null);
+const [dragOrigin,setDragOrigin]=useState<{id:string;top:number;left:number;chunk:number}|null>(null);
+const layoutColumnRef=useRef<Record<string,number>>({});
+const lastDragTarget=useRef<string|null>(null);
 const dragUpdateBusy=useRef(false);
-// Keep-like insertion: move only when the drag enters another card.
- // Do not rewrite state for repeated samples over an unchanged destination.
- const reorderCard=(draggedId:string,x:number,y:number)=>{
-  if(librarySort!=='custom'||dragUpdateBusy.current)return;
-  const candidates=shown.filter(n=>n.id!==draggedId)
-    .map(n=>({id:n.id,ref:libraryCardRefs.current[n.id]}))
-    .filter(n=>n.ref);
-  if(!candidates.length)return;
-  dragUpdateBusy.current=true;
-  let remaining=candidates.length;
-  let hoveredId:string|null=null;
-  let closest=Infinity;
+// Preserve the dragged card's origin until release; reorder only its neighbors.
+const reorderCard=(draggedId:string,dx:number,dy:number)=>{
+ if(librarySort!=='custom'||dragUpdateBusy.current)return;
+ const dragged=libraryCardRefs.current[draggedId];
+ const candidates=shown.filter(n=>n.id!==draggedId)
+  .map(n=>({id:n.id,ref:libraryCardRefs.current[n.id]})).filter(n=>n.ref);
+ if(!dragged||!candidates.length)return;
+ dragUpdateBusy.current=true;
+ dragged.measureInWindow((ox,oy,ow,oh)=>{
+  if(ow<=0||oh<=0){dragUpdateBusy.current=false;return;}
+  const left=ox+dx,top=oy+dy,right=left+ow,bottom=top+oh;
+  let pending=candidates.length,hovered:string|null=null,best=0;
   for(const candidate of candidates){
-    candidate.ref!.measureInWindow((cx,cy,w,h)=>{
-      // Only rearrange when the finger is actually over an adjacent map.
-      if(w>0&&h>0&&x>=cx-w*0.22&&x<=cx+w*1.22&&y>=cy-h*0.22&&y<=cy+h*1.22){
-        const distance=Math.pow(cx+w/2-x,2)+Math.pow(cy+h/2-y,2);
-        if(distance<closest){closest=distance;hoveredId=candidate.id;}
-      }
-      if(--remaining!==0)return;
-      dragUpdateBusy.current=false;
-      if(!hoveredId)return;
-      const targetId=hoveredId;
-      setMapPrefs(p=>{
-        const allRoots=notes.filter(n=>n.parentId==='root').map(n=>n.id);
-        const original=[...new Set([...(p.customOrder||[]),...shown.map(n=>n.id),...allRoots])]
-          .filter(id=>allRoots.includes(id));
-        const currentIndex=original.indexOf(draggedId);
-        const targetIndex=original.indexOf(targetId);
-        if(currentIndex<0||targetIndex<0||currentIndex===targetIndex)return p;
-        const next=original.slice();
-        next.splice(currentIndex,1);
-        next.splice(next.indexOf(targetId),0,draggedId);
-        if(next.every((id,i)=>id===original[i]))return p;
-        return {...p,customOrder:next};
-      });
+   candidate.ref!.measureInWindow((x,y,w,h)=>{
+    if(w>0&&h>0){
+     const overlapW=Math.max(0,Math.min(right,x+w)-Math.max(left,x));
+     const overlapH=Math.max(0,Math.min(bottom,y+h)-Math.max(top,y));
+     const fraction=overlapW*overlapH/Math.min(ow*oh,w*h);
+     if(fraction>=0.70&&fraction>best){hovered=candidate.id;best=fraction;}
+    }
+    if(--pending!==0)return;
+    dragUpdateBusy.current=false;
+    if(!hovered){lastDragTarget.current=null;return;}
+    const targetId=hovered;
+    if(lastDragTarget.current===targetId)return;
+    lastDragTarget.current=targetId;
+    setMapPrefs(p=>{
+     const allRoots=notes.filter(n=>n.parentId==='root').map(n=>n.id);
+     const current=[...new Set([...(p.customOrder||[]),...shown.map(n=>n.id),...allRoots])].filter(id=>allRoots.includes(id));
+     const from=current.indexOf(draggedId),to=current.indexOf(targetId);
+     if(from<0||to<0||from===to)return p;
+     const next=current.slice();next.splice(from,1);next.splice(next.indexOf(targetId),0,draggedId);
+     return next.every((id,i)=>id===current[i])?p:{...p,customOrder:next};
     });
+   });
   }
+ });
 };
 const moveSelection=(folderId:string|null)=>{
   if(!folderId)return;
@@ -1245,7 +1247,7 @@ if(locked){
                   <TextInput accessibilityLabel="Search all map contents" placeholder="Search Orbit Notes" placeholderTextColor={palette.muted} value={librarySearch} onFocus={()=>{setLibrarySearching(true);setSortMenu(false);}} onChangeText={setLibrarySearch} style={{flex:1,minWidth:20,fontSize:15,color:palette.text,paddingVertical:7}}/>
                   {librarySearching||librarySearch.length>0?<IconButton label="×" accessibilityLabel="Clear search" onPress={()=>{setLibrarySearch('');setLibrarySearching(false);Keyboard.dismiss();}}/>:<>
                     <IconButton label={mapPrefs.viewMode==='grid'?'listView':'gridView'} accessibilityLabel={mapPrefs.viewMode==='grid'?'Switch to list view':'Switch to card view'} onPress={()=>setMapPrefs(p=>({...p,viewMode:p.viewMode==='grid'?'list':'grid'}))}/>
-                    <Pressable accessibilityRole="button" accessibilityLabel="Sort maps" onPress={()=>setSortMenu(v=>!v)} style={{minWidth:48,minHeight:48,justifyContent:'center',alignItems:'center',borderRadius:24,backgroundColor:librarySort==='created'||librarySort==='modified'?palette.background:'transparent'}}>
+                    <Pressable accessibilityRole="button" accessibilityLabel="Sort maps" onPress={()=>setSortMenu(v=>!v)} style={{minWidth:48,minHeight:48,justifyContent:'center',alignItems:'center',borderRadius:24,marginRight:10,backgroundColor:librarySort==='created'||librarySort==='modified'?palette.background:'transparent'}}>
                       <Svg width={24} height={24} viewBox="0 0 24 24">
                         <Path d="M9.1 12V4m-3.2 3.1 3.2-3.1 3.2 3.1" stroke={palette.text} strokeWidth={1.9} strokeLinecap="round" strokeLinejoin="round" fill="none" opacity={librarySort==='custom'||sortDirection==='asc'?1:0.28}/>
                         <Path d="M14.9 12v8m-3.2-3.1 3.2 3.1 3.2-3.1" stroke={palette.text} strokeWidth={1.9} strokeLinecap="round" strokeLinejoin="round" fill="none" opacity={librarySort==='custom'||sortDirection==='desc'?1:0.28}/>
@@ -1666,6 +1668,7 @@ return (
         >
           <GestureHandlerRootView style={{flex:1}}><InsetSafeAreaView style={[styles.screen,{backgroundColor:palette.background}]} edges={['top']}>
             {(showTrash||showArchive)&&libraryToolbar}
+             {!showTrash&&!showArchive&&selected.length>0&&<View style={{position:'absolute',top:0,left:0,right:0,zIndex:12,elevation:8,backgroundColor:palette.background}}>{libraryToolbar}</View>}
 
             {(selectionMenu||moveFolderMenu||sidebar||sortMenu||trashMenu||cardMenuId)&&<Pressable accessibilityLabel="Close menu" onPress={()=>{setSelectionMenu(false);setMoveFolderMenu(false);setSidebar(false);setSortMenu(false);setTrashMenu(false);setCardMenuId(null);}} style={[StyleSheet.absoluteFill,{zIndex:20,elevation:10,backgroundColor:sidebar?'rgba(0,0,0,0.32)':'transparent'}]}/>}
             {cardMenuId&&<View style={{position:'absolute',top:cardMenuPosition.top,left:cardMenuPosition.left,zIndex:34,elevation:22,width:176,borderRadius:15,padding:6,backgroundColor:palette.surface,borderWidth:1,borderColor:palette.border}}>
@@ -1874,32 +1877,30 @@ return (
               ):(
                 <View style={{flex:1}}>
                   <FlatList style={{flex:1}} contentContainerStyle={{gap:10,paddingHorizontal:12,paddingTop:0,paddingBottom:64}}
-                    ListHeaderComponent={libraryToolbar}
+                    ListHeaderComponent={selected.length>0?<View style={{height:60}}/>:libraryToolbar}
                     data={libraryChunks} extraData={libraryCardHeights} keyExtractor={(_,index)=>'chunk-'+index}
                     initialNumToRender={2} maxToRenderPerBatch={2} windowSize={5} removeClippedSubviews={false}
-                    renderItem={({item:chunk})=>{
+                    renderItem={({item:chunk,index:chunkIndex})=>{
                      const grid=mapPrefs.viewMode==='grid';
                      const availableWidth=W-24;
                      const gutter=10;
                      const cellWidth=grid?(availableWidth-gutter)/2:availableWidth;
+                     const positions=balancedLibraryPositions(chunk,libraryCardHeights,grid,layoutColumnRef.current)
+                       .map(({item,column,top})=>({n:item,column,top}));
+                     positions.forEach(({n,column})=>{layoutColumnRef.current[n.id]=column;});
                      const columns=[0,0];
-                     const positions=chunk.map((n,index)=>{
-                       const column=grid?index%2:0;
-                       const top=columns[column];
-                       columns[column]+=(libraryCardHeights[n.id]??(grid?152:88))+gutter;
-                       return {n,column,top};
-                     });
+                     positions.forEach(({n,column,top})=>{columns[column]=Math.max(columns[column],top+(libraryCardHeights[n.id]??(grid?152:88))+gutter);});
                      const chunkHeight=Math.max(0,...columns)-gutter;
                      return <View style={{height:Math.max(0,chunkHeight),width:'100%',position:'relative'}}>
                       {positions.map(({n,column,top})=>(
                     <LibraryGestureCard key={n.id}
-                      position={{top,left:column*(cellWidth+gutter),width:cellWidth}}
+                      position={{top:dragOrigin?.id===n.id&&dragOrigin.chunk===chunkIndex?dragOrigin.top:top,left:dragOrigin?.id===n.id&&dragOrigin.chunk===chunkIndex?dragOrigin.left:column*(cellWidth+gutter),width:cellWidth}}
                       onMeasure={height=>recordCardHeight(n.id,height)} canSwipe={!showArchive&&selected.length===0} canDrag={librarySort==='custom'&&!showArchive&&(selected.length===0||(selected.length===1&&selected.includes(n.id)))}
                       registerRef={view=>{libraryCardRefs.current[n.id]=view;}}
                       onArchive={()=>archiveOne(n.id,true)}
-                      onDragStart={()=>{setDraggingMapId(n.id);setSelected(v=>v.includes(n.id)?v:[...v,n.id]);}}
-                      onDragMove={(x,y)=>reorderCard(n.id,x,y)}
-                      onDrop={(x,y)=>{reorderCard(n.id,x,y);setDraggingMapId(null);}}>
+                      onDragStart={()=>{lastDragTarget.current=null;setDragOrigin({id:n.id,top,left:column*(cellWidth+gutter),chunk:chunkIndex});setDraggingMapId(n.id);setSelected(v=>v.includes(n.id)?v:[...v,n.id]);}}
+                      onDragMove={(dx,dy)=>reorderCard(n.id,dx,dy)}
+                      onDrop={(_x,_y)=>{lastDragTarget.current=null;setDraggingMapId(null);setDragOrigin(null);}}>
                     <Pressable
                       accessibilityRole="button"
                       accessibilityLabel={`${n.title||'Untitled map'}${mapPrefs.pinned.includes(n.id)?', pinned':''}${selected.includes(n.id)?', selected':''}`}
