@@ -987,9 +987,12 @@ const [draggingMapId,setDraggingMapId]=useState<string|null>(null);
 const [dragOrigin,setDragOrigin]=useState<{id:string;top:number;left:number;chunk:number}|null>(null);
 const layoutColumnRef=useRef<Record<string,number>>({});
 const lastDragTarget=useRef<string|null>(null);
+const libraryListRef=useRef<FlatList<Note[]>>(null);
+const libraryScrollOffset=useRef(0);
 const dragUpdateBusy=useRef(false);
-// Preserve the dragged card's origin until release; reorder only its neighbors.
-const reorderCard=(draggedId:string,dx:number,dy:number)=>{
+// Use a 70% overlap threshold for direct placement. Gaps, adjacent-column
+// slots and the list tail also accept a dragged card.
+const reorderCard=(draggedId:string,dx:number,dy:number,release=false)=>{
  if(librarySort!=='custom'||dragUpdateBusy.current)return;
  const dragged=libraryCardRefs.current[draggedId];
  const candidates=shown.filter(n=>n.id!==draggedId)
@@ -999,28 +1002,50 @@ const reorderCard=(draggedId:string,dx:number,dy:number)=>{
  dragged.measureInWindow((ox,oy,ow,oh)=>{
   if(ow<=0||oh<=0){dragUpdateBusy.current=false;return;}
   const left=ox+dx,top=oy+dy,right=left+ow,bottom=top+oh;
-  let pending=candidates.length,hovered:string|null=null,best=0;
+  const midX=(left+right)/2,midY=(top+bottom)/2;
+  const rects:{id:string;x:number;y:number;w:number;h:number;overlap:number}[]=[];
+  let pending=candidates.length;
   for(const candidate of candidates){
    candidate.ref!.measureInWindow((x,y,w,h)=>{
     if(w>0&&h>0){
      const overlapW=Math.max(0,Math.min(right,x+w)-Math.max(left,x));
      const overlapH=Math.max(0,Math.min(bottom,y+h)-Math.max(top,y));
-     const fraction=overlapW*overlapH/Math.min(ow*oh,w*h);
-     if(fraction>=0.70&&fraction>best){hovered=candidate.id;best=fraction;}
+     rects.push({id:candidate.id,x,y,w,h,overlap:overlapW*overlapH/Math.min(ow*oh,w*h)});
     }
     if(--pending!==0)return;
     dragUpdateBusy.current=false;
-    if(!hovered)return;
-    const targetId=hovered;
-    if(lastDragTarget.current===targetId)return;
-    lastDragTarget.current=targetId;
+    if(!rects.length)return;
+    const leftCard=rects.find(q=>layoutColumnRef.current[q.id]===0);
+    const rightCard=rects.find(q=>layoutColumnRef.current[q.id]===1);
+    const col=mapPrefs.viewMode==='list'?0:!leftCard?1:!rightCard?0:
+      Math.abs(midX-(leftCard.x+leftCard.w/2))<=Math.abs(midX-(rightCard.x+rightCard.w/2))?0:1;
+    const inColumn=rects.filter(q=>mapPrefs.viewMode==='list'||layoutColumnRef.current[q.id]===col).sort((a,b)=>a.y-b.y);
+    const strongest=rects.reduce((best,q)=>q.overlap>best.overlap?q:best,rects[0]);
+    let target:string|null=null,atEnd=false;
+    if(strongest.overlap>=0.70)target=strongest.id;
+    else if(inColumn.length){
+      const next=inColumn.find(q=>midY<q.y+q.h*0.5);
+      if(next)target=next.id;
+      else {
+        const tail=inColumn[inColumn.length-1];
+        if(midY>tail.y+tail.h*0.55){target=tail.id;atEnd=shown[shown.length-1]?.id===tail.id||release;}
+      }
+    }
+    if(!target)return;
+    const targetKey=atEnd?'__end__':target;
+    if(!release&&lastDragTarget.current===targetKey)return;
+    lastDragTarget.current=targetKey;
     setMapPrefs(p=>{
-     const allRoots=notes.filter(n=>n.parentId==='root').map(n=>n.id);
-     const current=[...new Set([...(p.customOrder||[]),...shown.map(n=>n.id),...allRoots])].filter(id=>allRoots.includes(id));
-     const from=current.indexOf(draggedId),to=current.indexOf(targetId);
-     if(from<0||to<0||from===to)return p;
-     const next=current.slice();next.splice(from,1);next.splice(next.indexOf(targetId),0,draggedId);
-     return next.every((id,i)=>id===current[i])?p:{...p,customOrder:next};
+     const roots=notes.filter(n=>n.parentId==='root').map(n=>n.id);
+     const current=[...new Set([...(p.customOrder||[]),...shown.map(n=>n.id),...roots])].filter(id=>roots.includes(id));
+     const from=current.indexOf(draggedId),to=current.indexOf(target!);
+     if(from<0||to<0)return p;
+     const next=current.slice();next.splice(from,1);
+     if(atEnd)next.push(draggedId);
+     else next.splice(next.indexOf(target!),0,draggedId);
+     const cols={...(p.customColumns||{}),[draggedId]:col as 0|1};
+     if(next.every((id,i)=>id===current[i])&&p.customColumns?.[draggedId]===col)return p;
+     return {...p,customOrder:next,customColumns:cols};
     });
    });
   }
@@ -1905,7 +1930,7 @@ return (
                      const availableWidth=W-24;
                      const gutter=10;
                      const cellWidth=grid?(availableWidth-gutter)/2:availableWidth;
-                     const positions=balancedLibraryPositions(chunk,libraryCardHeights,grid,layoutColumnRef.current)
+                     const positions=balancedLibraryPositions(chunk,libraryCardHeights,grid,layoutColumnRef.current,mapPrefs.customColumns||{})
                        .map(({item,column,top})=>({n:item,column,top}));
                      positions.forEach(({n,column})=>{layoutColumnRef.current[n.id]=column;});
                      const columns=[0,0];
