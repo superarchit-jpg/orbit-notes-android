@@ -24,7 +24,7 @@ import appInfo from './app.json';
 import {consumedDeviceScreenOff} from './orbitDeviceLock';
 import {labelIds,addLabel,removeLabel,hasLabel,normalizeLabels} from './labels';
 import {matchesMapQuery} from './librarySearch';
-import {KEEP_LIGHT_PRESETS,displayKeepColor,swatchKeepColor,keepForeground,keepChipStyle} from './keepTheme';
+import {ORBIT_LIGHT_PRESETS,displayKeepColor,swatchKeepColor,keepForeground,keepChipStyle} from './keepTheme';
 
 const SafeAreaView=InsetSafeAreaView;
 const W=Dimensions.get('window').width,H=Dimensions.get('window').height;
@@ -33,7 +33,7 @@ const initial:Note[]=[{id:'root',parentId:null,title:'My Notes',body:'',updatedA
 type Folder={id:string;name:string};
 const id=()=>`${Date.now()}-${Math.random().toString(36).slice(2,8)}`;
 const PaletteContext=React.createContext(LIGHT);
-const CARD_PALETTE=[...KEEP_LIGHT_PRESETS];
+const CARD_PALETTE=[...ORBIT_LIGHT_PRESETS];
 // Exactly four columns on phone widths: 12 original swatches + two additional rows of four.
 const paletteSwatchSize=Math.min(60,(Math.min(W-48,380)-44-42)/4);
 
