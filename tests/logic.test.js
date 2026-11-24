@@ -433,7 +433,7 @@ check(richMarkup.includes("'<ol start="), 'Numbered-list storage should retain s
 check(!app.includes('<Button label="Close" onPress={()=>setGestureHelp(false)}/>'), 'Guide must not show Close');
 check(!app.includes('<Button label="Cancel" onPress={()=>setColorTarget(null)}/>'), 'Palettes must not show Cancel');
 const keepTheme=read('keepTheme.ts');
-check(themeTokens.includes("export const DARK={background:KEEP_DARK_BACKGROUND")&&keepTheme.includes("KEEP_DARK_SELECTED='#ADC3F9'"),'Dark mode must use the blue reference palette');
+check(themeTokens.includes("background:'#191F29'")&&themeTokens.includes("surface:'#222B36'")&&keepTheme.includes('ORBIT_DARK_PRESETS'),'Dark mode must use approved Option A slate and coordinated card presets');
 check(app.includes("selectedSidebarColor=darkSelection?'#AFC3F9'")&&app.includes('selectedSidebarText'),'Dark selected navigation must use a blue highlight with contrasting text');
 check(app.includes('displayKeepColor(mapPrefs.cardColors[n.id],effectiveTheme,palette.surface)')&&app.includes('keepChipStyle(displayKeepColor('),'Cards and label chips must adapt to Dark mode');
 check(app.includes('displayKeepColor(mapPrefs.colors[n.id],effectiveTheme')&&app.includes('noteDisplayColor'),'Node and note colors must adapt to Dark mode');
@@ -574,16 +574,35 @@ check(app.includes('minWidth:42,minHeight:42')&&app.includes('borderRadius:21'),
  'Sort circle must fit within the search pill');
 console.log('PASS: latest drag thresholds, Archive header, custom columns and navigation corrections');
 
-check(iconPaths.includes("'Fit':'M3 7V5")&&iconPaths.includes("'parentNote':'M5 3h14")&&iconPaths.includes("'centerFocus':'M12 2v4"),
+check(iconPaths.includes("'Fit':'M3 7V5")&&iconPaths.includes("'parentNote':'M5 3h14")&&iconPaths.includes("'centerFocus':'M12 3a9 9"),
  'Approved scan-line, preceding-level and crosshair paths must be registered');
-check(iconPaths.includes("'expandBranch':'M7 9l5-5")&&iconPaths.includes("'collapseBranch':'M7 10l5 5"),
+check(iconPaths.includes("'expandBranch':'M7 9l5-5")&&iconPaths.includes("'collapseBranch':'M7 7l5 5"),
  'Approved inward and outward chevrons must distinguish branch states');
 check(iconPaths.includes("'miniMapIcon':'M12 8v4")&&app.includes("if(name==='miniMapIcon')return <Svg"),
  'The mini-map icon must display the selected network graph');
-check(app.includes('Map-control symbol guide')&&app.includes("['Fit','Fit map'")&&app.includes("['miniMapIcon','Mini-map'")&&app.includes("['parentNote','Preceding level'"),
+check(app.includes('Icon Guide')&&app.includes("['Fit','Fit map'")&&app.includes("['miniMapIcon','Mini-map'")&&app.includes("['parentNote','Preceding level'"),
  'Map Help must describe the same icons used in the map controls');
 check(app.includes('accessibilityLabel="Fit map to screen" onPress={fitCurrentMap}')&&
  app.includes('accessibilityLabel="Go to parent note" onPress={()=>{if(parent)moveTo(parent.id);}}')&&
  app.includes('accessibilityLabel={showMiniMap?"Hide mini-map":"Show mini-map"}'),
  'Approved icon changes must not alter map-control actions');
 console.log('PASS: map-control icon approvals and Help symbol guide');
+
+check(themeTokens.includes("background:'#F8F6F0'")&&themeTokens.includes("surface:'#FFFCF7'")&&
+ themeTokens.includes("accent:'#536F86'")&&themeTokens.includes("background:'#191F29'"),
+ 'UI-01 approved warm Option A colors must drive both semantic themes');
+check(keepTheme.includes('ORBIT_LIGHT_PRESETS')&&keepTheme.includes('ORBIT_DARK_PRESETS')&&
+ app.includes('const CARD_PALETTE=[...ORBIT_LIGHT_PRESETS]')&&
+ keepTheme.includes('KEEP_LIGHT_PRESETS.findIndex'),
+ 'UI-01 updated color swatches must preserve compatibility with saved legacy colors');
+check(app.includes('const hold=Gesture.LongPress().enabled(canDrag).minDuration(480).maxDistance(8)')&&
+ app.includes('Gesture.Race(Gesture.Simultaneous(drag,hold),swipe)')&&
+ app.includes("librarySort!=='custom'&&setSelected(v=>")&&
+ !app.includes('setDraggingMapId(n.id);setSelected('),
+ 'CUSTOM-07 stationary long press selects separately from card drag; drag never opens selection header');
+check(app.includes('const iconSize=compact?21:23')&&
+ iconPaths.includes("'centerFocus':'M12 3a9 9")&&
+ iconPaths.includes("'collapseBranch':'M7 7l5 5")&&
+ app.includes("}>Icon Guide</Text>"),
+ 'Approved icon size and stroke corrections and renamed Help guide must be present');
+console.log('PASS: Option A global design, preserved saved colors, stationary selection and icon refinements');
