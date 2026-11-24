@@ -192,16 +192,16 @@ const {KEEP_LIGHT_PRESETS,KEEP_DARK_PRESETS,KEEP_DARK_BACKGROUND,ORBIT_LIGHT_PRE
 assert.equal(KEEP_LIGHT_PRESETS.length,20);
 assert.equal(KEEP_DARK_PRESETS.length,20);
 assert.equal(KEEP_DARK_BACKGROUND,'#11182A');
-assert.equal(swatchKeepColor(1,'light'),'#FAAFA9');
-assert.equal(swatchKeepColor(1,'dark'),'#740D32');
+assert.equal(swatchKeepColor(1,'light'),'#F6DAD7');
+assert.equal(swatchKeepColor(1,'dark'),'#563A45');
 assert.equal(displayKeepColor('#FAAFA9','dark','#11182A'),ORBIT_DARK_PRESETS[1],'legacy pink selection must use coordinated Option A dark tone');
-assert.equal(displayKeepColor('#FAAFA9','light','#ffffff'),'#FAAFA9');
+assert.equal(displayKeepColor('#FAAFA9','light','#ffffff'),'#F6DAD7');
 assert.equal(displayKeepColor('#123456','dark','#11182A'),'#123456','manual colors must survive theme changes');
 assert.equal(displayKeepColor(undefined,'dark','#0A0E1A'),'#0A0E1A');
-assert.equal(keepForeground('#740D32'),'#F4F5FF');
-assert.equal(keepForeground('#FAAFA9'),'#202A42');
+assert.equal(keepForeground('#740D32'),'#F5F1E9');
+assert.equal(keepForeground('#FAAFA9'),'#2E3036');
 assert.notEqual(keepChipStyle('#740D32').backgroundColor,keepChipStyle('#FAAFA9').backgroundColor);
-console.log('PASS: paired Keep palettes, readable dark cards and distinct label chips');
+console.log('PASS: coordinated Option A palettes, readable dark cards and distinct label chips');
 
 assert.equal(KEEP_LIGHT_PRESETS.slice(12).length,8,'two new dark-preset rows');
 assert.equal(KEEP_DARK_PRESETS.slice(12).length,8);
