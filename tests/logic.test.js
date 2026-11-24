@@ -504,7 +504,7 @@ check(!app.includes('label="Undo deletion"')&&!app.includes('accessibilityLabel=
 console.log('PASS: RC branch-only permanent deletion, deadline, matching Undo and map recovery');
 
 check(app.includes("const LibraryGestureCard=")&&app.includes('onArchive={()=>archiveOne(n.id,true)}')&&app.includes("Math.abs(e.translationX)>cardWidth.value*0.65"),'Library cards must support a deliberate swipe-to-archive threshold');
-check(app.includes("const reorderCard=")&&app.includes("measureInWindow")&&app.includes("customOrder:order"),'Custom drag reordering must persist in map preferences');
+check(app.includes("const reorderCard=")&&app.includes("measureInWindow")&&app.includes("customOrder:next"),'Custom drag reordering must persist in map preferences');
 check(app.includes("['custom','created','modified','title']")&&app.includes('toggleLibraryDirection')&&app.includes("sortDirection==='asc'"),'Keep sort sheet must support Custom and both directions');
 check(app.includes('const SwipeUndoNotice=')&&app.includes('runOnJS(onDismiss)()')&&app.includes('Math.abs(e.translationX)>90')&&app.includes('e.translationX>0?W+50:-W-50'),'Every Undo popup uses shared right-only swipe animation');
 check(app.includes("onDragMove={(x,y)=>reorderCard(n.id,x,y)}")&&app.includes("onDragStart={()=>{setDraggingMapId(n.id);setSelected("),'Custom reorder must update while dragging and allow selection');
@@ -529,3 +529,13 @@ console.log('PASS: independent deleted maps, grouped recovery compatibility, and
 
 
 
+
+check(!exp.includes('fill="#f8fafc"')&&!exp.includes('<rect x="${minX}"')&&exp.includes('${edges}${circles}'),
+ 'All PDF export pages must have a white page background without a blue diagram rectangle');
+check(app.includes('LinearTransition.duration(350)')&&app.includes('if(!hoveredId)return')&&app.includes('if(next.every((id,i)=>id===original[i]))return p'),
+ 'Custom cards should move only after entering a new card and animate neighboring moves slowly');
+check(app.includes('M10.5 12V4')&&app.includes('M13.5 12v8'),
+ 'Sorting glyph arrow shafts must stay compact');
+check(settingsUi.includes("centerSpark")&&settingsUi.includes("centerDot")&&settingsUi.includes('opacity={dark?0.30:0.19}'),
+ 'App Info motif must continue behind content in both light and dark modes');
+console.log('PASS: PDF background, Custom motion, sort icon, App Info regression checks');
