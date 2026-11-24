@@ -507,7 +507,7 @@ check(app.includes("const LibraryGestureCard=")&&app.includes('onArchive={()=>ar
 check(app.includes("const reorderCard=")&&app.includes("measureInWindow")&&app.includes("customOrder:next"),'Custom drag reordering must persist in map preferences');
 check(app.includes("['custom','created','modified','title']")&&app.includes('toggleLibraryDirection')&&app.includes("sortDirection==='asc'"),'Keep sort sheet must support Custom and both directions');
 check(app.includes('const SwipeUndoNotice=')&&app.includes('runOnJS(onDismiss)()')&&app.includes('Math.abs(e.translationX)>90')&&app.includes('e.translationX>0?W+50:-W-50'),'Every Undo popup uses shared right-only swipe animation');
-check(app.includes("onDragMove={(x,y)=>reorderCard(n.id,x,y)}")&&app.includes("onDragStart={()=>{setDraggingMapId(n.id);setSelected("),'Custom reorder must update while dragging and allow selection');
+check(app.includes("onDragMove={(dx,dy)=>reorderCard(n.id,dx,dy)}")&&app.includes("onDragStart={()=>{setDraggingMapId(n.id);setSelected("),'Custom reorder must update while dragging and allow selection');
 check(app.includes("backgroundColor:librarySort==='created'||librarySort==='modified'?palette.background:'transparent'"),'Sort icon uses shade in date sorting');
 console.log('PASS: Keep sort, drag, swipe archive and Undo gesture guards');
 
@@ -532,7 +532,7 @@ console.log('PASS: independent deleted maps, grouped recovery compatibility, and
 
 check(!exp.includes('fill="#f8fafc"')&&!exp.includes('<rect x="${minX}"')&&exp.includes('${edges}${circles}'),
  'All PDF export pages must have a white page background without a blue diagram rectangle');
-check(app.includes('LinearTransition.duration(480)')&&app.includes('if(!hoveredId)return')&&app.includes('if(next.every((id,i)=>id===original[i]))return p'),
+check(app.includes('LinearTransition.duration(480)')&&app.includes('if(!hovered)return')&&app.includes('if(next.every((id,i)=>id===original[i]))return p'),
  'Custom cards should move only after entering a new card and animate neighboring moves slowly');
 check(app.includes('M9.1 12V4')&&app.includes('M14.9 12v8'),
  'Sorting glyph arrow shafts must stay compact');
@@ -540,9 +540,9 @@ check(settingsUi.includes("centerSpark")&&settingsUi.includes("centerDot")&&sett
  'App Info motif must continue behind content in both light and dark modes');
 console.log('PASS: PDF background, Custom motion, sort icon, App Info regression checks');
 
-check(app.includes('const libraryToolbar=(')&&app.includes('ListHeaderComponent={libraryToolbar}')&&app.includes('extraData={libraryCardHeights}'),
+check(app.includes('const libraryToolbar=(')&&app.includes('ListHeaderComponent={selected.length>0?<View style={{height:60}}/>:libraryToolbar}')&&app.includes('extraData={libraryCardHeights}'),
  'Library search and sidebar controls should scroll with the card content, and measured masonry cards should update the list');
-check(app.includes("position:{top:number;left:number;width:number}")&&app.includes("position={{top,left:column*(cellWidth+gutter),width:cellWidth}}"),
+check(app.includes("position:{top:number;left:number;width:number}")&&app.includes("position={{top:dragOrigin?.id===n.id"),
  'Cards must keep their identity when transitioning between masonry columns');
 check(app.includes("navigationBarTranslucent")&&app.includes("edges={['top']}")&&app.includes("bottom:48,width:60,height:60"),
  'Library cards must extend behind the navigation footer while the Add button remains above it');
@@ -551,3 +551,13 @@ check(app.indexOf("accessibilityLabel={mapPrefs.viewMode==='grid'?'Switch to lis
 check(iconPaths.includes("'listView':'M4 6h16v5H4zM4 14h16v5H4z'")&&iconPaths.includes("'gridView':'M3 5h8v6H3z"),
  'List and grid icons must use smaller boxes');
 console.log('PASS: continuous masonry, scrolling Library header and navigation-footer regressions');
+
+check(app.includes('fraction>=0.70')&&app.includes('dragOrigin?.id===n.id')&&app.includes('setDragOrigin(null)'),
+ 'Custom drag must use 70-percent card coverage and freeze its origin until release');
+check(app.includes('balancedLibraryPositions(chunk,libraryCardHeights,grid,layoutColumnRef.current)'),
+ 'Variable-height cards must use balanced masonry with stable prior column placement');
+check(app.includes("selected.length>0&&<View style={{position:'absolute'")&&app.includes('ListHeaderComponent={selected.length>0?<View'),
+ 'Multi-selection toolbar must be fixed while regular Library toolbar scrolls');
+check(app.includes("customOrder:[...new Set([...(p.customOrder||[]),...shown.map(n=>n.id),newId])]"),
+ 'New maps must append to Custom order without reshuffling existing maps');
+console.log('PASS: responsive 70-percent drag, stable column balancing, selected toolbar and new map placement');
