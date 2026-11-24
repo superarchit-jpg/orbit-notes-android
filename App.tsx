@@ -1443,10 +1443,30 @@ return (
         <Modal visible={gestureHelp} transparent animationType="fade" onRequestClose={()=>setGestureHelp(false)}>
           <View style={{flex:1,justifyContent:'flex-end',backgroundColor:'rgba(0,0,0,0.35)'}}>
             <Pressable style={StyleSheet.absoluteFill} accessibilityLabel="Dismiss gesture help" onPress={()=>setGestureHelp(false)}/>
-            <View style={{backgroundColor:palette.surface,borderTopLeftRadius:24,borderTopRightRadius:24,padding:20,gap:12}}>
-              <Text style={[styles.section,{color:palette.text}]}>Map gestures</Text>
-              <Text style={{color:palette.text,fontSize:15,lineHeight:24}}>Tap to focus a node.{"\n"}Double-tap to read.{"\n"}Triple-tap to edit.{"\n"}Long-press for note actions.{"\n"}Drag around a branch to rotate children.{"\n"}Use two fingers to zoom or rotate the map.{"\n"}Fit shows the visible map.</Text>
-
+            <View style={{backgroundColor:palette.surface,borderTopLeftRadius:24,borderTopRightRadius:24,padding:20,maxHeight:'82%'}}>
+              <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{gap:12,paddingBottom:16}}>
+                <Text style={[styles.section,{color:palette.text}]}>Map gestures</Text>
+                <Text style={{color:palette.text,fontSize:15,lineHeight:24}}>Tap to focus a node.{"\n"}Double-tap to read.{"\n"}Triple-tap to edit.{"\n"}Long-press for note actions.{"\n"}Drag around a branch to rotate children.{"\n"}Use two fingers to zoom or rotate the map.</Text>
+                <Text style={[styles.section,{color:palette.text,marginTop:8}]}>Map-control symbol guide</Text>
+                {([
+                  ['Fit','Fit map','Scale the visible map to fit the screen.'],
+                  ['expandBranch','Expand branch','Reveal the children of the focused node.'],
+                  ['collapseBranch','Collapse branch','Hide the children of the focused node.'],
+                  ['parentNote','Preceding level','Focus the parent of the current node.'],
+                  ['centerFocus','Centre focus','Centre the focused node and reset map rotation.'],
+                  ['miniMapIcon','Mini-map','Show or hide the map overview.'],
+                  ['expandAll','Expand entire map','Reveal all hierarchy levels and fit the whole map.'],
+                  ['shrinkAll','Collapse entire map','Restore the default hierarchy display.']
+                ] as const).map(([symbol,title,description])=>(
+                  <View key={symbol} style={{flexDirection:'row',alignItems:'center',gap:12,minHeight:42}}>
+                    <View style={{width:30,alignItems:'center'}}><MaterialIcon name={symbol} color={palette.text}/></View>
+                    <View style={{flex:1,gap:2}}>
+                      <Text style={{color:palette.text,fontSize:15,fontWeight:'600'}}>{title}</Text>
+                      <Text style={{color:palette.muted,fontSize:13,lineHeight:19}}>{description}</Text>
+                    </View>
+                  </View>
+                ))}
+              </ScrollView>
             </View>
           </View>
         </Modal>
