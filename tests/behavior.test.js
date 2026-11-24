@@ -102,14 +102,14 @@ console.log('PASS: independent multi-map deletion, partial restore, legacy batch
 const {pdfNodeStyle}=require(path.join(temp,'pdfNodeStyle.js'));
 const lightStyle=pdfNodeStyle('map-a',1,false,{'map-a':'#FAAFA9'},'light');
 const darkStyle=pdfNodeStyle('map-a',1,false,{'map-a':'#FAAFA9'},'dark');
-assert.equal(lightStyle.fill,'#FAAFA9');
-assert.equal(darkStyle.fill,'#740D32');
-assert.equal(lightStyle.text,'#202A42');
-assert.equal(darkStyle.text,'#F4F5FF');
+assert.equal(lightStyle.fill,'#F6DAD7');
+assert.equal(darkStyle.fill,'#563A45');
+assert.equal(lightStyle.text,'#2E3036');
+assert.equal(darkStyle.text,'#F5F1E9');
 assert.equal(pdfNodeStyle('a-1',3,false,{'a-1':'#123456'},'light').fill,'#123456');
 assert.equal(pdfNodeStyle('a-1',3,false,{'a-1':'#123456'},'dark').fill,'#123456');
-assert.equal(pdfNodeStyle('uncoloured',2,false,{},'light').fill,'#F0F3FC');
-assert.equal(pdfNodeStyle('uncoloured',2,false,{},'dark').fill,'#1B293E');
+assert.equal(pdfNodeStyle('uncoloured',2,false,{},'light').fill,'#F3EBDF');
+assert.equal(pdfNodeStyle('uncoloured',2,false,{},'dark').fill,'#343B46');
 console.log('PASS: saved PDF node fill, readable text, and Light/Dark palette mapping');
 
 const {radialTree}=require(path.join(temp,'mapGeometry.js'));
