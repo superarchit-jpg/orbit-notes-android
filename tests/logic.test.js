@@ -540,7 +540,7 @@ check(settingsUi.includes("centerSpark")&&settingsUi.includes("centerDot")&&sett
  'App Info motif must continue behind content in both light and dark modes');
 console.log('PASS: PDF background, Custom motion, sort icon, App Info regression checks');
 
-check(app.includes('const libraryToolbar=(')&&app.includes('ListHeaderComponent={selected.length>0?null:libraryToolbar}')&&app.includes('extraData={libraryCardHeights}'),
+check(app.includes('const libraryToolbar=(')&&app.includes('ListHeaderComponent={<View style={{opacity:selected.length>0?0:1}}>{libraryToolbar}</View>}')&&app.includes('extraData={libraryCardHeights}'),
  'Library search and sidebar controls should scroll with the card content, and measured masonry cards should update the list');
 check(app.includes("position:{top:number;left:number;width:number}")&&app.includes("position={{top:dragOrigin?.id===n.id"),
  'Cards must keep their identity when transitioning between masonry columns');
@@ -554,9 +554,9 @@ console.log('PASS: continuous masonry, scrolling Library header and navigation-f
 
 check(app.includes('strongest.overlap>=0.70')&&app.includes('dragOrigin?.id===n.id')&&app.includes('setDragOrigin(null)'),
  'Custom drag must use 70-percent card coverage and freeze its origin until release');
-check(app.includes('balancedLibraryPositions(chunk,libraryCardHeights,grid,layoutColumnRef.current,mapPrefs.customColumns||{})'),
+check(app.includes('balancedLibraryPositions(chunk,libraryCardHeights,grid,activeColumns,showArchive?{}:(mapPrefs.customColumns||{}))'),
  'Variable-height cards must use balanced masonry with stable prior column placement');
-check(app.includes("!showTrash&&selected.length>0&&<View style={{backgroundColor:palette.background}}>{libraryToolbar}</View>")&&app.includes('ListHeaderComponent={selected.length>0?null:libraryToolbar}'),
+check(app.includes("!showTrash&&selected.length>0&&<View style={{position:'absolute',top:0,left:0,right:0,zIndex:12,backgroundColor:palette.background}}>{libraryToolbar}</View>")&&app.includes('ListHeaderComponent={<View style={{opacity:selected.length>0?0:1}}>{libraryToolbar}</View>}'),
  'Multi-selection toolbar must be fixed while regular Library toolbar scrolls');
 check(app.includes("customOrder:[...new Set([...(p.customOrder||[]),...shown.map(n=>n.id),newId])]"),
  'New maps must append to Custom order without reshuffling existing maps');
@@ -614,8 +614,8 @@ check(themeTokens.includes('export const LEGACY_LIGHT=')&&themeTokens.includes("
  'Every screen except About uses the original light and dark theme and swatches');
 check(app.includes('palette={optionAPalette}')&&settingsUi.includes("page==='about'?optionAPalette:"),
  'About alone must retain the approved Option A visual colors');
-check(app.includes("!showTrash&&selected.length>0&&<View style={{backgroundColor:palette.background}}>{libraryToolbar}</View>")&&
- app.includes('ListHeaderComponent={selected.length>0?null:libraryToolbar}')&&
+check(app.includes("!showTrash&&selected.length>0&&<View style={{position:'absolute',top:0,left:0,right:0,zIndex:12,backgroundColor:palette.background}}>{libraryToolbar}</View>")&&
+ app.includes('ListHeaderComponent={<View style={{opacity:selected.length>0?0:1}}>{libraryToolbar}</View>}')&&
  !app.includes('ListHeaderComponent={selected.length>0?<View'),
  'Selected toolbar must stay fixed in safe-area flow without a spacer or drop shadow');
 check(app.includes("(showArchive||librarySort!=='custom')&&setSelected(v=>")&&
@@ -626,3 +626,16 @@ check(iconPaths.includes("'archive':'M3 4h18v5")&&iconPaths.includes("'unarchive
  iconPaths.includes('M12 3v3.6M12 17.4V21'),
  'Approved Archive/Unarchive symbols and corrected map controls must remain present');
 console.log('PASS: global legacy palette with About exception, compact fixed selection and Archive icons');
+
+check(app.includes('if(showArchive){')&&app.includes('const ai=mapPrefs.archived.indexOf(a.id),bi=mapPrefs.archived.indexOf(b.id);')&&
+ app.includes('return bi-ai;')&&app.includes('const archiveColumnRef=useRef<Record<string,number>>({});')&&
+ app.includes('showArchive?{}:(mapPrefs.customColumns||{})'),
+ 'Archive displays newest archived maps first, with independent card placement');
+check(app.includes('ListHeaderComponent={<View style={{opacity:selected.length>0?0:1}}>{libraryToolbar}</View>}')&&
+ app.includes("!showTrash&&selected.length>0&&<View style={{position:'absolute',top:0,left:0,right:0,zIndex:12,backgroundColor:palette.background}}>{libraryToolbar}</View>")&&
+ !app.includes('ListHeaderComponent={selected.length>0?null:libraryToolbar}'),
+ 'Selection toolbar overlays a fixed-height list header without shifting cards');
+check(app.includes('<Svg width={116} height={116} viewBox="0 0 24 24" accessibilityLabel="Empty Archive illustration"><Path d={ICON_PATHS.archive}')&&
+ !app.includes('M58 56v23m-10-10 10 10 10-10'),
+ 'Empty Archive art reuses the approved archive box symbol');
+console.log('PASS: Archive chronological ordering, stable selection header and updated empty artwork');
