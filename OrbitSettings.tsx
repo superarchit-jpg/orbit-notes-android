@@ -4,6 +4,7 @@ import {Image,Keyboard,Modal,Pressable,ScrollView,Switch,Text,TextInput,View} fr
 import {SafeAreaView} from 'react-native-safe-area-context';
 import Svg,{Path,Circle,Rect,G} from 'react-native-svg';
 import type {CredentialKind} from './appLock';
+import {DARK,LEGACY_LIGHT,LEGACY_DARK} from './orbitThemeTokens';
 
 type Palette={background:string;surface:string;control:string;text:string;muted:string;border:string;accent:string};
 type Page='home'|'appLock'|'backup'|'about';
@@ -81,8 +82,11 @@ const AppInfoBackdrop=({dark}:{dark:boolean})=>{
    </G>
  </Svg>;
 };
-export default function OrbitSettings({palette,themeMode,onTheme,lockEnabled,configured,selectedKind,biometric,onToggleLock,onToggleBiometric,onVerify,onSaveCredential,onResetCredential,onVerifyBiometric,registerBack,appVersion,buildNumber,onBackup,onLockNow,onClose}:Props){
+export default function OrbitSettings({palette:optionAPalette,themeMode,onTheme,lockEnabled,configured,selectedKind,biometric,onToggleLock,onToggleBiometric,onVerify,onSaveCredential,onResetCredential,onVerifyBiometric,registerBack,appVersion,buildNumber,onBackup,onLockNow,onClose}:Props){
  const [page,setPage]=useState<Page>('home');
+ // Backup & Restore alone uses its pre-Option-A colors; the other
+ // Settings pages, App Lock and App Info retain the approved new palette.
+ const palette=page==='backup'?(optionAPalette.background===DARK.background?LEGACY_DARK:LEGACY_LIGHT):optionAPalette;
  const [credentialModal,setCredentialModal]=useState<CredentialKind|null>(null);
  const [stage,setStage]=useState<Stage>('new');
  const [oldValue,setOldValue]=useState('');
