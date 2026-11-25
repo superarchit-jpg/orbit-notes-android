@@ -1009,6 +1009,7 @@ const [draggingMapId,setDraggingMapId]=useState<string|null>(null);
 const [dragOrigin,setDragOrigin]=useState<{id:string;top:number;left:number;chunk:number}|null>(null);
 const layoutColumnRef=useRef<Record<string,number>>({});
  const archiveColumnRef=useRef<Record<string,number>>({});
+ const labelColumnRefs=useRef<Record<string,Record<string,number>>>({});
 const lastDragTarget=useRef<string|null>(null);
 const libraryListRef=useRef<FlatList<Note[]>>(null);
 const libraryScrollOffset=useRef(0);
@@ -1895,7 +1896,7 @@ return (
                 </View>
                 <ScrollView contentContainerStyle={{gap:4}}>
                   {creatingFolder?(
-                    <View style={{flexDirection:'row',alignItems:'center',gap:10,padding:8,minHeight:56,borderBottomWidth:1,borderBottomColor:palette.border,backgroundColor:palette.control}}>
+                    <View style={{flexDirection:'row',alignItems:'center',gap:10,padding:8,minHeight:56,borderBottomWidth:1,borderBottomColor:palette.border,backgroundColor:palette.background}}>
                       <IconButton label="×" accessibilityLabel="Cancel new label" onPress={()=>{setCreatingFolder(false);setFolderName('');}}/>
                       <TextInput accessibilityLabel="New label name" autoFocus value={folderName} onChangeText={setFolderName} placeholder="Label name" placeholderTextColor={palette.muted} style={{flex:1,borderBottomWidth:1,borderBottomColor:palette.accent,color:palette.text,fontSize:16}}/>
                       <IconButton label="✓" accessibilityLabel="Create label" onPress={()=>{
@@ -1976,8 +1977,11 @@ return (
                      const availableWidth=W-24;
                      const gutter=10;
                      const cellWidth=grid?(availableWidth-gutter)/2:availableWidth;
-                     const activeColumns=showArchive?archiveColumnRef.current:layoutColumnRef.current;
-                     const positions=balancedLibraryPositions(chunk,libraryCardHeights,grid,activeColumns,showArchive?{}:(mapPrefs.customColumns||{}))
+                     // Each label has its own masonry columns. Never reuse All Maps custom
+                     // column assignments for a filtered label.
+                     const labelColumns=folderFilter?(labelColumnRefs.current[folderFilter]??(labelColumnRefs.current[folderFilter]={})):null;
+                     const activeColumns=showArchive?archiveColumnRef.current:labelColumns||layoutColumnRef.current;
+                     const positions=balancedLibraryPositions(chunk,libraryCardHeights,grid,activeColumns,showArchive||folderFilter?{}:(mapPrefs.customColumns||{}))
                        .map(({item,column,top})=>({n:item,column,top}));
                      positions.forEach(({n,column})=>{activeColumns[n.id]=column;});
                      const columns=[0,0];
