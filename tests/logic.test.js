@@ -482,8 +482,8 @@ check(!app.includes('const enablePin=')&&!app.includes('const disablePin=')&&!ap
  'Obsolete PIN flow must remain removed; active OrbitSettings handles credential changes');
 check(app.includes('data={libraryChunks}')&&(app.match(/<FlatList\s+ref=/g)||[]).length===1,
  'Library must have exactly one virtualized scrolling list');
-check(app.includes('M58 56v23m-10-10 10 10 10-10')&&!app.includes('M58 11v40'),
- 'Empty Archive must keep only the approved internal arrow illustration');
+check(app.includes('accessibilityLabel="Empty Archive illustration"><Path d={ICON_PATHS.archive}')&&!app.includes('M58 56v23m-10-10 10 10 10-10'),
+ 'Empty Archive must use approved archive-box vector rather than prior arrow illustration');
 console.log('PASS: final cleanup, unified scrolling and approved Archive illustration guards');
 check(app.includes("const wholeMap=note.parentId==='root'") &&
  app.includes('setPendingBranch(result.batch)') &&
