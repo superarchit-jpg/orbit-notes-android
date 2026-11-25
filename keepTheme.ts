@@ -16,10 +16,10 @@ export function displayKeepColor(stored:string|undefined,theme:OrbitTheme,fallba
  const darkLegacy=KEEP_DARK_PRESETS.findIndex(x=>x.toLowerCase()===value);
  const darkRevised=ORBIT_DARK_PRESETS.findIndex(x=>x.toLowerCase()===value);
  const index=revised>=0?revised:legacy>=0?legacy:darkRevised>=0?darkRevised:darkLegacy;
- return index<0?stored:theme==='dark'?ORBIT_DARK_PRESETS[index]:ORBIT_LIGHT_PRESETS[index];
+ return index<0?stored:theme==='dark'?KEEP_DARK_PRESETS[index]:KEEP_LIGHT_PRESETS[index];
 }
 export function swatchKeepColor(index:number,theme:OrbitTheme):string{
- return theme==='dark'?ORBIT_DARK_PRESETS[index]:ORBIT_LIGHT_PRESETS[index];
+ return theme==='dark'?KEEP_DARK_PRESETS[index]:KEEP_LIGHT_PRESETS[index];
 }
 function relativeLuminance(hex:string):number{
  if(!/^#[0-9a-f]{6}$/i.test(hex))return 0;
@@ -27,9 +27,9 @@ function relativeLuminance(hex:string):number{
  return 0.2126*components[0]+0.7152*components[1]+0.0722*components[2];
 }
 export function keepForeground(background:string):string{
- return relativeLuminance(background)>0.28?'#2E3036':'#F5F1E9';
+ return relativeLuminance(background)>0.28?'#202A42':'#F4F5FF';
 }
 export function keepChipStyle(cardBackground:string):{backgroundColor:string;color:string;borderColor:string}{
  const darkCard=relativeLuminance(cardBackground)<0.28;
- return darkCard?{backgroundColor:'rgba(255,255,255,0.19)',color:'#F5F1E9',borderColor:'rgba(255,255,255,0.12)'}:{backgroundColor:'rgba(255,255,255,0.54)',color:'#32363B',borderColor:'rgba(48,61,85,0.08)'};
+ return darkCard?{backgroundColor:'rgba(255,255,255,0.19)',color:'#F3F4FF',borderColor:'rgba(255,255,255,0.12)'}:{backgroundColor:'rgba(255,255,255,0.54)',color:'#283551',borderColor:'rgba(48,61,85,0.08)'};
 }
