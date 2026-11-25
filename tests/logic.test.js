@@ -223,7 +223,7 @@ console.log('PASS: pinned map and child note persistence regression');
 // Approved recording follow-up requirements.
 for(const marker of [
   'thumbnailHeight=Math.min(332',
-  "balancedLibraryPositions(chunk,libraryCardHeights,grid,activeColumns,showArchive?{}:(mapPrefs.customColumns||{}))",
+  "balancedLibraryPositions(chunk,libraryCardHeights,grid,activeColumns,showArchive||folderFilter?{}:(mapPrefs.customColumns||{}))",
   "label={mapPrefs.viewMode==='grid'?'listView':'gridView'}",
   'accessibilityLabel="Sort maps"',
   'label="palette" accessibilityLabel="Node color"',
@@ -554,7 +554,7 @@ console.log('PASS: continuous masonry, scrolling Library header and navigation-f
 
 check(app.includes('strongest.overlap>=0.70')&&app.includes('dragOrigin?.id===n.id')&&app.includes('setDragOrigin(null)'),
  'Custom drag must use 70-percent card coverage and freeze its origin until release');
-check(app.includes('balancedLibraryPositions(chunk,libraryCardHeights,grid,activeColumns,showArchive?{}:(mapPrefs.customColumns||{}))'),
+check(app.includes('balancedLibraryPositions(chunk,libraryCardHeights,grid,activeColumns,showArchive||folderFilter?{}:(mapPrefs.customColumns||{}))'),
  'Variable-height cards must use balanced masonry with stable prior column placement');
 check(app.includes("!showTrash&&selected.length>0&&<View style={{position:'absolute',top:Math.max(StatusBar.currentHeight||24,24),left:0,right:0,zIndex:12,backgroundColor:palette.background}}>{libraryToolbar}</View>")&&app.includes('ListHeaderComponent={<View style={{opacity:selected.length>0?0:1}}>{libraryToolbar}</View>}'),
  'Multi-selection toolbar must be fixed while regular Library toolbar scrolls');
@@ -645,3 +645,12 @@ check(app.includes("!showTrash&&selected.length>0&&<View style={{position:'absol
  !app.includes("top:0,left:0,right:0,zIndex:12,backgroundColor:palette.background"),
  'Selection toolbar must clear status bar in All Maps, Labels and Archive without changing header height');
 console.log('PASS: selected header safe-area offset retained across library views');
+
+check(app.includes("const labelColumnRefs=useRef<Record<string,Record<string,number>>>({});")&&
+ app.includes('const labelColumns=folderFilter?(labelColumnRefs.current[folderFilter]??(labelColumnRefs.current[folderFilter]={})):null;')&&
+ app.includes('const activeColumns=showArchive?archiveColumnRef.current:labelColumns||layoutColumnRef.current;')&&
+ app.includes('showArchive||folderFilter?{}:(mapPrefs.customColumns||{})'),
+ 'Label masonry must use separate per-label columns and ignore All Maps manual column assignments');
+check(app.includes('borderBottomColor:palette.border,backgroundColor:palette.background}}>\n                      <IconButton label="×" accessibilityLabel="Cancel new label"'),
+ 'Creating a label must use the same background as Edit labels in both themes');
+console.log('PASS: independent label placement and consistent Edit labels creation background');
