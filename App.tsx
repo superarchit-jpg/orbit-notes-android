@@ -2,7 +2,7 @@ import React,{useEffect,useMemo,useState,useRef} from 'react';
 import {ICON_PATHS} from './orbitIcons';
 import {LIGHT,DARK,APP_INFO_LIGHT,APP_INFO_DARK,uiRoles} from './orbitThemeTokens';
 import {partitionLibraryColumns,balancedLibraryPositions} from './libraryColumns';
-import {AppState,BackHandler,Dimensions,KeyboardAvoidingView,useColorScheme,useWindowDimensions,Modal,Platform,Pressable,ScrollView,FlatList,Keyboard,StatusBar,StyleSheet,Text,TextInput,View} from 'react-native';
+import {AppState,BackHandler,Dimensions,KeyboardAvoidingView,useColorScheme,useWindowDimensions,Platform,Pressable,ScrollView,FlatList,Keyboard,StatusBar,StyleSheet,Text,TextInput,View} from 'react-native';
 import Svg,{Line,Circle,Rect,Path,Text as SvgText} from 'react-native-svg';
 import {SafeAreaProvider,SafeAreaView as InsetSafeAreaView} from 'react-native-safe-area-context';
 import {Gesture,GestureDetector,GestureHandlerRootView} from 'react-native-gesture-handler';
@@ -19,6 +19,8 @@ import {TrashBatch,deleteBranches,restoreBatch,pruneTrash,splitDeletedMaps} from
 import {formatSelection,parseRichLine} from './noteFormatting';
 import RichNoteEditor,{RichNoteEditorHandle,RichEditorState} from './RichNoteEditor';
 import OrbitSettings from './OrbitSettings';
+import OrbitModal from './OrbitModal';
+import type {ModalProps} from 'react-native';
 import appInfo from './app.json';
 import {consumedDeviceScreenOff} from './orbitDeviceLock';
 import {labelIds,addLabel,removeLabel,hasLabel,normalizeLabels} from './labels';
@@ -42,6 +44,10 @@ type DeletedPreview={
 };
 const id=()=>`${Date.now()}-${Math.random().toString(36).slice(2,8)}`;
 const PaletteContext=React.createContext(LIGHT);
+const Modal=(props:ModalProps)=>{
+  const palette=React.useContext(PaletteContext);
+  return <OrbitModal {...props} darkIcons={palette===LIGHT}/>;
+};
 const CARD_PALETTE=[...KEEP_LIGHT_PRESETS];
 // Exactly four columns on phone widths: 12 original swatches + two additional rows of four.
 const paletteSwatchSize=Math.min(60,(Math.min(W-48,380)-44-42)/4);
@@ -193,6 +199,7 @@ const zoomLabelWidth=Math.max(44,Math.ceil(36*fontScale));
 const mapControlWidth=Math.min(48,Math.floor((windowWidth-12-zoomLabelWidth)/6));
 const effectiveTheme=mapPrefs.themeMode==='system'?(deviceTheme==='dark'?'dark':'light'):mapPrefs.theme;
 const palette=effectiveTheme==='dark'?DARK:LIGHT;
+const statusBarStyle=effectiveTheme==='dark'?'light-content':'dark-content';
 const appInfoPalette=effectiveTheme==='dark'?APP_INFO_DARK:APP_INFO_LIGHT;
  const roles=uiRoles(palette);
 const selectedSidebarColor=palette.tertiarySoft;
@@ -239,6 +246,13 @@ const [readerTapAt,setReaderTapAt]=useState(0);
 const [textSelection,setTextSelection]=useState({start:0,end:0});
 const [librarySearch,setLibrarySearch]=useState('');
 const [librarySearching,setLibrarySearching]=useState(false);
+const librarySearchInput=useRef<TextInput>(null);
+const clearLibrarySearch=()=>setLibrarySearch('');
+const closeLibrarySearch=()=>{
+  clearLibrarySearch();
+  setLibrarySearching(false);
+  Keyboard.dismiss();
+};
 const [cardMenuId,setCardMenuId]=useState<string|null>(null);
 const [cardMenuPosition,setCardMenuPosition]=useState({top:70,left:12});
 const [formatToolbar,setFormatToolbar]=useState(false);
@@ -643,6 +657,7 @@ useEffect(()=>{
       if(selectionMenu||moveFolderMenu||sortMenu||trashMenu||cardMenuId){setSelectionMenu(false);setMoveFolderMenu(false);setSortMenu(false);setTrashMenu(false);setCardMenuId(null);return true;}
       if(selected.length){setSelected([]);return true;}
       if(selectedTrash.length){setSelectedTrash([]);return true;}
+      if(librarySearching){closeLibrarySearch();return true;}
       if(pinLockEnabled)setLocked(true);
       BackHandler.exitApp();return true;
     }
@@ -650,7 +665,7 @@ useEffect(()=>{
     closeMap();return true;
   });
   return()=>sub.remove();
-},[menu,reader,gestureHelp,settings,backupMode,exportKind,labelManager,creatingFolder,sidebar,selectionMenu,moveFolderMenu,sortMenu,trashMenu,cardMenuId,selected,selectedTrash,mapMenu,nodeActions,pinLockEnabled]);
+},[menu,reader,gestureHelp,settings,backupMode,exportKind,labelManager,creatingFolder,sidebar,selectionMenu,moveFolderMenu,sortMenu,trashMenu,cardMenuId,selected,selectedTrash,librarySearching,mapMenu,nodeActions,pinLockEnabled]);
 
 const acknowledgeTrashRetention=()=>{
   const expired=trash.filter(b=>Date.now()-b.deletedAt>=7*86400000).length;
@@ -1338,6 +1353,7 @@ if(storageError){
       styles.screen,
       {justifyContent:'center',padding:24,gap:12,backgroundColor:palette.background}
     ]}>
+      <StatusBar barStyle={statusBarStyle}/>
       <Text style={[styles.section,{color:palette.text}]}>Unable to open local notebook</Text>
       <Text style={[styles.muted,{color:palette.muted}]}>{storageError}</Text>
       <Text style={[styles.muted,{color:palette.muted}]}>
@@ -1351,6 +1367,7 @@ if(storageError){
 if(!loaded){
   return (
     <SafeAreaView style={[styles.screen,{backgroundColor:palette.background}]}>
+      <StatusBar barStyle={statusBarStyle}/>
       <Text style={[styles.logo,{color:palette.text}]}>Loading Orbit Notes…</Text>
     </SafeAreaView>
   );
@@ -1363,6 +1380,7 @@ if(locked){
       styles.screen,
       {justifyContent:'center',padding:28,gap:18,backgroundColor:palette.background}
     ]}>
+      <StatusBar barStyle={statusBarStyle}/>
       <View style={{alignItems:'center',gap:16}}>
         <MaterialIcon name="lockIcon" color={palette.muted}/>
         <Text style={[styles.logo,{color:palette.text}]}>Orbit Notes</Text>
@@ -1410,9 +1428,10 @@ if(locked){
     </PaletteContext.Provider>
   );
 }
+  const showLibrarySearch=!showTrash&&!showArchive&&selected.length===0;
   const libraryToolbar=(
 <View style={[styles.header,{gap:2}]}>
-              <IconButton label={selected.length||showTrash&&selectedTrash.length?'×':'☰'} accessibilityLabel={selected.length||showTrash&&selectedTrash.length?'Clear selection':'Open sidebar'} onPress={()=>{if(showTrash&&selectedTrash.length)setSelectedTrash([]);else if(selected.length)setSelected([]);else setSidebar(v=>!v);}}/>
+              {(!showLibrarySearch||!librarySearching)&&<IconButton label={selected.length||showTrash&&selectedTrash.length?'×':'☰'} accessibilityLabel={selected.length||showTrash&&selectedTrash.length?'Clear selection':'Open sidebar'} onPress={()=>{if(showTrash&&selectedTrash.length)setSelectedTrash([]);else if(selected.length)setSelected([]);else setSidebar(v=>!v);}}/>}
               {selected.length>0&&<Text accessibilityLabel={selected.length+' maps selected'} style={{fontSize:18,fontWeight:'600',color:palette.text,minWidth:24}}>{selected.length}</Text>}
               {showTrash?(
                 <View style={{flex:1,flexDirection:'row',alignItems:'center',justifyContent:'space-between'}}>
@@ -1424,13 +1443,15 @@ if(locked){
                 </View>
               ):selected.length===0&&showArchive?(
                 <Text style={{flex:1,color:palette.text,fontSize:21,fontWeight:'600'}}>Archive</Text>
-              ):selected.length===0?(
-                <View style={{flex:1,flexDirection:'row',alignItems:'center',paddingLeft:12,minHeight:48}}>
-                  <MaterialIcon name="search" color={palette.muted}/>
-                  <TextInput accessibilityLabel="Search all map contents" placeholder="Search Orbit Notes" placeholderTextColor={palette.muted} value={librarySearch} onFocus={()=>{setLibrarySearching(true);setSortMenu(false);}} onChangeText={setLibrarySearch} style={{flex:1,minWidth:20,fontSize:15,color:palette.text,paddingVertical:7}}/>
-                  {librarySearching||librarySearch.length>0?<IconButton label="×" accessibilityLabel="Clear search" onPress={()=>{setLibrarySearch('');setLibrarySearching(false);Keyboard.dismiss();}}/>:<>
+              ):showLibrarySearch?(
+                <View style={{flex:1,flexDirection:'row',alignItems:'center',backgroundColor:palette.control,borderRadius:26,minHeight:48}}>
+                  {librarySearching
+                    ? <IconButton label="←" accessibilityLabel="Exit search" onPress={closeLibrarySearch}/>
+                    : <IconButton label="search" accessibilityLabel="Search maps" color={palette.muted} onPress={()=>librarySearchInput.current?.focus()}/>}
+                  <TextInput ref={librarySearchInput} accessibilityLabel="Search all map contents" placeholder="Search Orbit Notes" placeholderTextColor={palette.muted} value={librarySearch} onFocus={()=>{setLibrarySearching(true);setSortMenu(false);}} onChangeText={setLibrarySearch} style={{flex:1,minWidth:20,fontSize:15,color:palette.text,paddingVertical:7}}/>
+                  {librarySearching?<IconButton label="×" accessibilityLabel="Clear search" onPress={clearLibrarySearch} disabled={librarySearch.length===0}/>:<>
                     <IconButton label={mapPrefs.viewMode==='grid'?'listView':'gridView'} accessibilityLabel={mapPrefs.viewMode==='grid'?'Switch to list view':'Switch to card view'} onPress={()=>setMapPrefs(p=>({...p,viewMode:p.viewMode==='grid'?'list':'grid'}))}/>
-                    <Pressable accessibilityRole="button" accessibilityLabel="Sort maps" onPress={()=>setSortMenu(v=>!v)} style={{minWidth:42,minHeight:42,justifyContent:'center',alignItems:'center',borderRadius:21,marginRight:10,marginVertical:3,backgroundColor:librarySort==='created'||librarySort==='modified'?palette.background:'transparent'}}>
+                    <Pressable accessibilityRole="button" accessibilityLabel="Sort maps" accessibilityState={{selected:librarySort!=='custom'}} hitSlop={3} onPress={()=>setSortMenu(v=>!v)} style={{minWidth:42,minHeight:42,justifyContent:'center',alignItems:'center',borderRadius:21,marginRight:10,marginVertical:3,backgroundColor:librarySort==='custom'?'transparent':palette.selection}}>
                       <Svg width={24} height={24} viewBox="0 0 24 24">
                         <Path d="M9.1 12V4m-3.2 3.1 3.2-3.1 3.2 3.1" stroke={palette.text} strokeWidth={1.9} strokeLinecap="round" strokeLinejoin="round" fill="none" opacity={librarySort==='custom'||sortDirection==='asc'?1:0.28}/>
                         <Path d="M14.9 12v8m-3.2-3.1 3.2 3.1 3.2-3.1" stroke={palette.text} strokeWidth={1.9} strokeLinecap="round" strokeLinejoin="round" fill="none" opacity={librarySort==='custom'||sortDirection==='desc'?1:0.28}/>
@@ -1456,7 +1477,7 @@ return (
   <SafeAreaProvider>
     <GestureHandlerRootView style={{flex:1}}>
       <SafeAreaView style={[styles.screen,{backgroundColor:palette.canvas}]}>
-        <StatusBar barStyle={effectiveTheme==='dark'?'light-content':'dark-content'}/>
+        <StatusBar barStyle={statusBarStyle}/>
 
         <View style={[
           styles.header,
@@ -1869,7 +1890,7 @@ return (
           animationType="slide"
           statusBarTranslucent
           navigationBarTranslucent
-          onRequestClose={()=>{if(sidebar)setSidebar(false);else if(selectionMenu||moveFolderMenu||sortMenu||trashMenu||cardMenuId){setSelectionMenu(false);setMoveFolderMenu(false);setSortMenu(false);setTrashMenu(false);setCardMenuId(null);}else if(selected.length)setSelected([]);else if(selectedTrash.length)setSelectedTrash([]);else BackHandler.exitApp();}}
+          onRequestClose={()=>{if(sidebar)setSidebar(false);else if(selectionMenu||moveFolderMenu||sortMenu||trashMenu||cardMenuId){setSelectionMenu(false);setMoveFolderMenu(false);setSortMenu(false);setTrashMenu(false);setCardMenuId(null);}else if(selected.length)setSelected([]);else if(selectedTrash.length)setSelectedTrash([]);else if(librarySearching)closeLibrarySearch();else BackHandler.exitApp();}}
         >
           <GestureHandlerRootView style={{flex:1}}><InsetSafeAreaView style={[styles.screen,{backgroundColor:palette.background}]} edges={['top']}>
             {showTrash&&libraryToolbar}
@@ -2085,6 +2106,7 @@ return (
               ):(
                 <View style={{flex:1}}>
                   <FlatList ref={libraryListRef} style={{flex:1}} contentContainerStyle={{gap:10,paddingHorizontal:12,paddingTop:0,paddingBottom:64}}
+                    keyboardShouldPersistTaps="handled"
                     scrollEventThrottle={32}
                     onScroll={e=>{libraryScrollOffset.current=e.nativeEvent.contentOffset.y;}}
                     ListHeaderComponent={<View style={{opacity:selected.length>0?0:1}}>{libraryToolbar}</View>}
@@ -2193,7 +2215,7 @@ return (
                       <MaterialIcon name="label" color={palette.muted}/>
                       <Text style={[styles.listTitle,{textAlign:'center',color:palette.text,fontWeight:'600'}]}>{librarySearch.trim()?'No matching maps':folderFilter?'No maps in this label':'Your library is ready'}</Text>
                       <Text style={[styles.muted,{color:palette.muted,textAlign:'center'}]}>{librarySearch.trim()?'No maps match this search. Try different words or clear the search.':folderFilter?'Create a map in this label, or move an existing map here from the library.':'Create your first map to start building your notes.'}</Text>
-                      {librarySearch.trim()?<Button label="Clear search" onPress={()=>setLibrarySearch('')}/>:<Button label="Create map" primary onPress={newMap}/>}
+                      {librarySearch.trim()?<Button label="Clear search" onPress={clearLibrarySearch}/>:<Button label="Create map" primary onPress={newMap}/>}
                     </View>
                   )}
                 </View>

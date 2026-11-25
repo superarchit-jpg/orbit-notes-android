@@ -418,7 +418,20 @@ console.log('PASS: PDF export module and large-map bounds');
 const librarySearch=read('librarySearch.ts');
 const richMarkup=read('richTextMarkup.ts');
 check(app.includes('matchesMapQuery(n,notes,librarySearch)')&&librarySearch.includes('while(pending.length)'), 'Search must traverse all descendant note titles and bodies');
-check(app.includes('librarySearching||librarySearch.length>0')&&app.includes('accessibilityLabel="Clear search"'), 'Search mode must hide sort and view controls');
+check(
+  app.includes('(!showLibrarySearch||!librarySearching)&&<IconButton') &&
+  app.includes('accessibilityLabel="Exit search" onPress={closeLibrarySearch}') &&
+  app.includes('librarySearching?<IconButton label="×" accessibilityLabel="Clear search" onPress={clearLibrarySearch}') &&
+  app.includes("const clearLibrarySearch=()=>setLibrarySearch('')") &&
+  app.includes('else if(librarySearching)closeLibrarySearch();else BackHandler.exitApp()') &&
+  app.includes('keyboardShouldPersistTaps="handled"'),
+  'Search mode must hide the normal controls, clear the query in place, and exit via the back arrow or Android Back'
+);
+check(
+  app.includes('backgroundColor:palette.control,borderRadius:26,minHeight:48') &&
+  app.includes("backgroundColor:librarySort==='custom'?'transparent':palette.selection"),
+  'The search pill and the non-custom sort circle must use distinct theme colors'
+);
 check(app.includes('if(selected.length){setSelected([]);return true;}')&&app.includes('else if(selected.length)setSelected([])'), 'Back must clear selected maps before exiting');
 check(app.includes("else openDeletedMap(batch)")&&app.includes('onLongPress={()=>setSelectedTrash'), 'Deleted maps require tap preview and long press selection');
 check(
@@ -531,7 +544,6 @@ check(app.includes("const reorderCard=")&&app.includes("measureInWindow")&&app.i
 check(app.includes("['custom','created','modified','title']")&&app.includes('toggleLibraryDirection')&&app.includes("sortDirection==='asc'"),'Keep sort sheet must support Custom and both directions');
 check(app.includes('const SwipeUndoNotice=')&&app.includes('runOnJS(onDismiss)()')&&app.includes('Math.abs(e.translationX)>90')&&app.includes('e.translationX>0?W+50:-W-50'),'Every Undo popup uses shared right-only swipe animation');
 check(app.includes("onDragMove={(dx,dy)=>{")&&app.includes("setDragOrigin({id:n.id,top,left:column*(cellWidth+gutter),chunk:chunkIndex})"),'Custom reorder must update while dragging and allow selection');
-check(app.includes("backgroundColor:librarySort==='created'||librarySort==='modified'?palette.background:'transparent'"),'Sort icon uses shade in date sorting');
 console.log('PASS: Keep sort, drag, swipe archive and Undo gesture guards');
 
 check(app.includes("const mapCount=ids.length")&&app.includes("Move ${mapCount} map${mapCount===1?'':'s'} to Deleted?"),

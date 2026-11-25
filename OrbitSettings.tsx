@@ -1,9 +1,10 @@
 /** Settings redesign: UI isolated from stored SQLite data and secure credential material. */
 import React,{useEffect,useRef,useState} from 'react';
-import {Image,Keyboard,Modal,Pressable,ScrollView,Switch,Text,TextInput,View} from 'react-native';
+import {Image,Keyboard,Pressable,ScrollView,Switch,Text,TextInput,View} from 'react-native';
 import {SafeAreaView} from 'react-native-safe-area-context';
 import Svg,{Path,Circle,Rect,G} from 'react-native-svg';
 import type {CredentialKind} from './appLock';
+import OrbitModal from './OrbitModal';
 import {APP_INFO_DARK} from './orbitThemeTokens';
 import type {APP_INFO_LIGHT,OrbitPalette} from './orbitThemeTokens';
 
@@ -227,7 +228,7 @@ export default function OrbitSettings({palette:appPalette,appInfoPalette,themeMo
      <Text style={{fontSize:15,color:palette.muted}}>Powered by AI</Text>
     </View>}
   </ScrollView>
-  <Modal visible={credentialModal!==null} transparent animationType="fade" onShow={showBiometricPrompt} onRequestClose={dismissCredential}>
+  <OrbitModal darkIcons={appInfoPalette!==APP_INFO_DARK} visible={credentialModal!==null} transparent animationType="fade" onShow={showBiometricPrompt} onRequestClose={dismissCredential}>
    <View style={{flex:1,justifyContent:'center',paddingHorizontal:24,backgroundColor:'rgba(0,0,0,0.62)'}}>
     <Pressable style={{position:'absolute',top:0,bottom:0,left:0,right:0}} accessibilityLabel="Dismiss credential setup" onPress={dismissCredential}/>
     <View style={{padding:22,gap:18,borderRadius:26,backgroundColor:palette.surface}}>
@@ -249,6 +250,6 @@ export default function OrbitSettings({palette:appPalette,appInfoPalette,themeMo
      </View>
     </View>
    </View>
-  </Modal>
+  </OrbitModal>
  </SafeAreaView>;
 }
