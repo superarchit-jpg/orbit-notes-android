@@ -556,7 +556,7 @@ check(app.includes('strongest.overlap>=0.70')&&app.includes('dragOrigin?.id===n.
  'Custom drag must use 70-percent card coverage and freeze its origin until release');
 check(app.includes('balancedLibraryPositions(chunk,libraryCardHeights,grid,activeColumns,showArchive?{}:(mapPrefs.customColumns||{}))'),
  'Variable-height cards must use balanced masonry with stable prior column placement');
-check(app.includes("!showTrash&&selected.length>0&&<View style={{position:'absolute',top:0,left:0,right:0,zIndex:12,backgroundColor:palette.background}}>{libraryToolbar}</View>")&&app.includes('ListHeaderComponent={<View style={{opacity:selected.length>0?0:1}}>{libraryToolbar}</View>}'),
+check(app.includes("!showTrash&&selected.length>0&&<View style={{position:'absolute',top:Math.max(StatusBar.currentHeight||24,24),left:0,right:0,zIndex:12,backgroundColor:palette.background}}>{libraryToolbar}</View>")&&app.includes('ListHeaderComponent={<View style={{opacity:selected.length>0?0:1}}>{libraryToolbar}</View>}'),
  'Multi-selection toolbar must be fixed while regular Library toolbar scrolls');
 check(app.includes("customOrder:[...new Set([...(p.customOrder||[]),...shown.map(n=>n.id),newId])]"),
  'New maps must append to Custom order without reshuffling existing maps');
@@ -614,7 +614,7 @@ check(themeTokens.includes('export const LEGACY_LIGHT=')&&themeTokens.includes("
  'Every screen except About uses the original light and dark theme and swatches');
 check(app.includes('palette={optionAPalette}')&&settingsUi.includes("page==='about'?optionAPalette:"),
  'About alone must retain the approved Option A visual colors');
-check(app.includes("!showTrash&&selected.length>0&&<View style={{position:'absolute',top:0,left:0,right:0,zIndex:12,backgroundColor:palette.background}}>{libraryToolbar}</View>")&&
+check(app.includes("!showTrash&&selected.length>0&&<View style={{position:'absolute',top:Math.max(StatusBar.currentHeight||24,24),left:0,right:0,zIndex:12,backgroundColor:palette.background}}>{libraryToolbar}</View>")&&
  app.includes('ListHeaderComponent={<View style={{opacity:selected.length>0?0:1}}>{libraryToolbar}</View>}')&&
  !app.includes('ListHeaderComponent={selected.length>0?<View'),
  'Selected toolbar must stay fixed in safe-area flow without a spacer or drop shadow');
@@ -632,10 +632,16 @@ check(app.includes('if(showArchive){')&&app.includes('const ai=mapPrefs.archived
  app.includes('showArchive?{}:(mapPrefs.customColumns||{})'),
  'Archive displays newest archived maps first, with independent card placement');
 check(app.includes('ListHeaderComponent={<View style={{opacity:selected.length>0?0:1}}>{libraryToolbar}</View>}')&&
- app.includes("!showTrash&&selected.length>0&&<View style={{position:'absolute',top:0,left:0,right:0,zIndex:12,backgroundColor:palette.background}}>{libraryToolbar}</View>")&&
+ app.includes("!showTrash&&selected.length>0&&<View style={{position:'absolute',top:Math.max(StatusBar.currentHeight||24,24),left:0,right:0,zIndex:12,backgroundColor:palette.background}}>{libraryToolbar}</View>")&&
  !app.includes('ListHeaderComponent={selected.length>0?null:libraryToolbar}'),
  'Selection toolbar overlays a fixed-height list header without shifting cards');
 check(app.includes('<Svg width={116} height={116} viewBox="0 0 24 24" accessibilityLabel="Empty Archive illustration"><Path d={ICON_PATHS.archive}')&&
  !app.includes('M58 56v23m-10-10 10 10 10-10'),
  'Empty Archive art reuses the approved archive box symbol');
 console.log('PASS: Archive chronological ordering, stable selection header and updated empty artwork');
+
+check(app.includes("!showTrash&&selected.length>0&&<View style={{position:'absolute',top:Math.max(StatusBar.currentHeight||24,24),left:0,right:0,zIndex:12,backgroundColor:palette.background}}>{libraryToolbar}</View>")&&
+ app.includes("ListHeaderComponent={<View style={{opacity:selected.length>0?0:1}}>{libraryToolbar}</View>}")&&
+ !app.includes("top:0,left:0,right:0,zIndex:12,backgroundColor:palette.background"),
+ 'Selection toolbar must clear status bar in All Maps, Labels and Archive without changing header height');
+console.log('PASS: selected header safe-area offset retained across library views');
