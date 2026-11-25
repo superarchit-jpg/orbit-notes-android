@@ -1514,7 +1514,7 @@ return (
                 <Button label={`${exportSeparate?'✓ ':''}Separate PDFs`} onPress={()=>setExportSeparate(true)}/>
               </View>}
               {!exportSeparate&&<TextInput
-                style={styles.input}
+                style={[styles.input,{backgroundColor:palette.surface,borderColor:palette.border,color:palette.text}]}
                 value={exportName}
                 onChangeText={setExportName}
                 editable={!exportBusy}
@@ -1622,7 +1622,7 @@ return (
                 value={backupPassword}
                 onChangeText={setBackupPassword}
                 placeholder="Backup password (12+ characters)"
-                style={styles.input}
+                style={[styles.input,{backgroundColor:palette.surface,borderColor:palette.border,color:palette.text}]}
                 editable={!backupBusy}
               />}
               <View style={styles.wrap}>
@@ -1798,7 +1798,7 @@ return (
               ))}
             </View>}
             <Modal visible={moveFolderMenu} animationType="slide" onRequestClose={()=>{setMoveFolderMenu(false);setLabelQuery('');}}>
-              <InsetSafeAreaView edges={['top','bottom']} style={[styles.screen,{backgroundColor:effectiveTheme==='dark'?palette.background:'#FFFCF7'}]}>
+              <InsetSafeAreaView edges={['top','bottom']} style={[styles.screen,{backgroundColor:palette.background}]}>
                 <View style={{minHeight:74,flexDirection:'row',alignItems:'center',paddingHorizontal:10,gap:4}}>
                   <IconButton label="←" accessibilityLabel="Back to selected maps" onPress={()=>{setMoveFolderMenu(false);setLabelQuery('');Keyboard.dismiss();}}/>
                   <TextInput accessibilityLabel="Search or create labels" value={labelQuery} onChangeText={setLabelQuery} placeholder="Enter label name" placeholderTextColor={palette.muted} autoCapitalize="sentences"
