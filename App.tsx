@@ -1757,7 +1757,7 @@ return (
         >
           <GestureHandlerRootView style={{flex:1}}><InsetSafeAreaView style={[styles.screen,{backgroundColor:palette.background}]} edges={['top']}>
             {showTrash&&libraryToolbar}
-             {!showTrash&&selected.length>0&&<View style={{backgroundColor:palette.background}}>{libraryToolbar}</View>}
+             {!showTrash&&selected.length>0&&<View style={{position:'absolute',top:0,left:0,right:0,zIndex:12,backgroundColor:palette.background}}>{libraryToolbar}</View>}
 
             {(selectionMenu||moveFolderMenu||sidebar||sortMenu||trashMenu||cardMenuId)&&<Pressable accessibilityLabel="Close menu" onPress={()=>{setSelectionMenu(false);setMoveFolderMenu(false);setSidebar(false);setSortMenu(false);setTrashMenu(false);setCardMenuId(null);}} style={[StyleSheet.absoluteFill,{zIndex:20,elevation:10,backgroundColor:sidebar?'rgba(0,0,0,0.32)':'transparent'}]}/>}
             {cardMenuId&&<View style={{position:'absolute',top:cardMenuPosition.top,left:cardMenuPosition.left,zIndex:34,elevation:22,width:176,borderRadius:15,padding:6,backgroundColor:palette.surface,borderWidth:1,borderColor:palette.border}}>
@@ -1968,7 +1968,7 @@ return (
                   <FlatList ref={libraryListRef} style={{flex:1}} contentContainerStyle={{gap:10,paddingHorizontal:12,paddingTop:0,paddingBottom:64}}
                     scrollEventThrottle={32}
                     onScroll={e=>{libraryScrollOffset.current=e.nativeEvent.contentOffset.y;}}
-                    ListHeaderComponent={selected.length>0?null:libraryToolbar}
+                    ListHeaderComponent={<View style={{opacity:selected.length>0?0:1}}>{libraryToolbar}</View>}
                     data={libraryChunks} extraData={libraryCardHeights} keyExtractor={(_,index)=>'chunk-'+index}
                     initialNumToRender={2} maxToRenderPerBatch={2} windowSize={5} removeClippedSubviews={false}
                     renderItem={({item:chunk,index:chunkIndex})=>{
@@ -2076,7 +2076,7 @@ return (
               )}
             </View>
             {showArchive&&shown.length===0&&!showTrash&&<View pointerEvents="box-none" style={{position:'absolute',left:0,right:0,top:96,bottom:0,alignItems:'center',justifyContent:'center',paddingHorizontal:24}}>
-              <Svg width={116} height={116} viewBox="0 0 116 116" accessibilityLabel="Empty Archive illustration"><Path d="M23 49h70v48H23z" stroke={palette.muted} fill="none" strokeWidth={3} strokeLinejoin="round"/><Path d="M17 36h82v13H17z" stroke={palette.muted} fill={palette.background} strokeWidth={3} strokeLinejoin="round"/><Path d="M58 56v23m-10-10 10 10 10-10" stroke={palette.muted} fill="none" strokeWidth={3} strokeLinecap="round" strokeLinejoin="round"/><Path d="M44 88h28" stroke={palette.muted} strokeWidth={3.5} strokeLinecap="round"/></Svg>
+              <Svg width={116} height={116} viewBox="0 0 24 24" accessibilityLabel="Empty Archive illustration"><Path d={ICON_PATHS.archive} stroke={palette.muted} fill="none" strokeWidth={0.85} strokeLinecap="round" strokeLinejoin="round"/></Svg>
               <Text style={{color:palette.muted,fontSize:16,fontWeight:'500',textAlign:'center',marginTop:14}}>{librarySearch.trim()?'No matching maps':'Your archived maps appear here'}</Text>
             </View>}
             {!showTrash&&!showArchive&&selected.length===0&&<Pressable accessibilityRole="button" accessibilityLabel="Create new map" onPress={newMap} style={{position:'absolute',right:22,bottom:48,width:60,height:60,borderRadius:20,backgroundColor:palette.accent,alignItems:'center',justifyContent:'center',elevation:5,zIndex:10}}>
