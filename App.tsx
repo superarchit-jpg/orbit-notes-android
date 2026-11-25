@@ -955,6 +955,12 @@ const shown=useMemo(()=>{
  const order=mapPrefs.customOrder||[];
  const direction=sortDirection==='asc'?1:-1;
  return listNotes.filter(n=>(!folderFilter||hasLabel(n,folderFilter))&&matchesMapQuery(n,notes,librarySearch)).sort((a,b)=>{
+   // Archive order is independent of All Maps custom placement and sort settings.
+   // archived[] appends IDs when archived; newest archived maps appear first.
+   if(showArchive){
+     const ai=mapPrefs.archived.indexOf(a.id),bi=mapPrefs.archived.indexOf(b.id);
+     return bi-ai;
+   }
    if(librarySort==='custom'){
      const ai=order.indexOf(a.id),bi=order.indexOf(b.id);
      return (ai<0?Number.MAX_SAFE_INTEGER:ai)-(bi<0?Number.MAX_SAFE_INTEGER:bi) || (ai<0&&bi<0?b.updatedAt-a.updatedAt:0);
@@ -1002,6 +1008,7 @@ const recordCardHeight=(id:string,height:number)=>{
 const [draggingMapId,setDraggingMapId]=useState<string|null>(null);
 const [dragOrigin,setDragOrigin]=useState<{id:string;top:number;left:number;chunk:number}|null>(null);
 const layoutColumnRef=useRef<Record<string,number>>({});
+ const archiveColumnRef=useRef<Record<string,number>>({});
 const lastDragTarget=useRef<string|null>(null);
 const libraryListRef=useRef<FlatList<Note[]>>(null);
 const libraryScrollOffset=useRef(0);
@@ -1969,9 +1976,10 @@ return (
                      const availableWidth=W-24;
                      const gutter=10;
                      const cellWidth=grid?(availableWidth-gutter)/2:availableWidth;
-                     const positions=balancedLibraryPositions(chunk,libraryCardHeights,grid,layoutColumnRef.current,mapPrefs.customColumns||{})
+                     const activeColumns=showArchive?archiveColumnRef.current:layoutColumnRef.current;
+                     const positions=balancedLibraryPositions(chunk,libraryCardHeights,grid,activeColumns,showArchive?{}:(mapPrefs.customColumns||{}))
                        .map(({item,column,top})=>({n:item,column,top}));
-                     positions.forEach(({n,column})=>{layoutColumnRef.current[n.id]=column;});
+                     positions.forEach(({n,column})=>{activeColumns[n.id]=column;});
                      const columns=[0,0];
                      positions.forEach(({n,column,top})=>{columns[column]=Math.max(columns[column],top+(libraryCardHeights[n.id]??(grid?152:88))+gutter);});
                      const chunkHeight=Math.max(0,...columns)-gutter;
