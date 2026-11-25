@@ -300,7 +300,7 @@ for(const token of [
   "previewNotes:Note[]=notes",
   "key={batch.id}",
   "label={showArchive?'Unarchive':'Archive'}",
-  'borderBottomColor:palette.border,backgroundColor:editingFolderId'
+  "backgroundColor:editingFolderId===item.id?palette.control:'transparent'"
 ]) check(app.includes(token),'Missing visible REF recovery/label UI: '+token);
 console.log('PASS: REF Deleted recovery previews, action affordances and label edit states');
 console.log('PASS: REF parity actions, labels, selected colors and scope exclusions');
@@ -433,10 +433,10 @@ check(richMarkup.includes("'<ol start="), 'Numbered-list storage should retain s
 check(!app.includes('<Button label="Close" onPress={()=>setGestureHelp(false)}/>'), 'Guide must not show Close');
 check(!app.includes('<Button label="Cancel" onPress={()=>setColorTarget(null)}/>'), 'Palettes must not show Cancel');
 const keepTheme=read('keepTheme.ts');
-check(themeTokens.includes("background:'#191F29'")&&themeTokens.includes("surface:'#222B36'")&&keepTheme.includes('ORBIT_DARK_PRESETS'),'Dark mode must use approved Option A slate and coordinated card presets');
-check(app.includes("selectedSidebarColor=darkSelection?'#AFC3F9':'#FEF3C7'")&&app.includes('selectedSidebarText'),'Dark selected navigation must use a blue highlight with contrasting text');
-check(app.includes('displayKeepColor(mapPrefs.cardColors[n.id],effectiveTheme,palette.surface)')&&app.includes('keepChipStyle(displayKeepColor('),'Cards and label chips must adapt to Dark mode');
-check(app.includes('displayKeepColor(mapPrefs.colors[n.id],effectiveTheme')&&app.includes('noteDisplayColor'),'Node and note colors must adapt to Dark mode');
+check(themeTokens.includes("accent:'#BBAAFF'")&&themeTokens.includes("canvas:'#000000'")&&keepTheme.includes('ORBIT_DARK_PRESETS'),'Midnight must provide the dark canvas and preserve existing colour presets');
+check(app.includes('selectedSidebarColor=palette.tertiarySoft')&&app.includes('selectedSidebarText=palette.tertiaryInk'),'Selected navigation uses the soft third colour with its matching foreground');
+check(app.includes('displayKeepColor(storedColor,effectiveTheme,palette.card)')&&app.includes('keepChipStyle(backgroundColor)'),'Cards and label chips must adapt to Dark mode and retain saved colours');
+check(app.includes('const storedColor=mapPrefs.colors[n.id];')&&app.includes('displayKeepColor(storedColor,effectiveTheme,isFocused?palette.accent')&&app.includes('noteDisplayColor'),'Node and note colors must adapt to Dark mode');
 check(app.includes('visible={moveFolderMenu} animationType="slide"')&&app.includes('accessibilityRole="checkbox"')&&app.includes('Search or create labels'),'Label assignment must use searchable checkbox modal');
 check(app.includes("selected.includes(note.id)?{...addLabel(note,newId)"),'Label creation must assign new label to the selected maps');
 check(app.includes('if(name===\'restoreIcon\')return <Svg')&&app.includes('fill={color}'),'Restore must use a filled history-clock icon');
@@ -588,9 +588,10 @@ check(app.includes('accessibilityLabel="Fit map to screen" onPress={fitCurrentMa
  'Approved icon changes must not alter map-control actions');
 console.log('PASS: map-control icon approvals and Help symbol guide');
 
-check(themeTokens.includes("background:'#F8F6F0'")&&themeTokens.includes("surface:'#FFFCF7'")&&
+check(themeTokens.includes('export const APP_INFO_LIGHT=')&&themeTokens.includes('export const APP_INFO_DARK=')&&
+ themeTokens.includes("background:'#F8F6F0'")&&themeTokens.includes("surface:'#FFFCF7'")&&
  themeTokens.includes("accent:'#536F86'")&&themeTokens.includes("background:'#191F29'"),
- 'UI-01 approved warm Option A colors must drive both semantic themes');
+ 'App Info must keep the approved warm Option A palettes');
 check(keepTheme.includes('ORBIT_LIGHT_PRESETS')&&keepTheme.includes('ORBIT_DARK_PRESETS')&&
  app.includes('const CARD_PALETTE=[...KEEP_LIGHT_PRESETS]')&&
  keepTheme.includes('KEEP_LIGHT_PRESETS.findIndex'),
@@ -605,15 +606,15 @@ check(app.includes('const iconSize=compact?21:23')&&
  iconPaths.includes("'collapseBranch':'M7 5l5 5")&&
  app.includes("}>Icon Guide</Text>"),
  'Approved icon size and stroke corrections and renamed Help guide must be present');
-console.log('PASS: Option A global design, preserved saved colors, stationary selection and icon refinements');
+console.log('PASS: App Info palette, preserved saved colors, stationary selection and icon refinements');
 
 
 check(themeTokens.includes('export const LEGACY_LIGHT=')&&themeTokens.includes("background:'#ECEEFF'")&&
  themeTokens.includes('export const LEGACY_DARK=')&&themeTokens.includes("background:'#11182A'")&&
- app.includes('const palette=oldPalette;')&&app.includes('const CARD_PALETTE=[...KEEP_LIGHT_PRESETS]'),
- 'Every screen except About uses the original light and dark theme and swatches');
-check(app.includes('palette={optionAPalette}')&&settingsUi.includes("page==='about'?optionAPalette:"),
- 'About alone must retain the approved Option A visual colors');
+ app.includes("const palette=effectiveTheme==='dark'?DARK:LIGHT;")&&app.includes('const CARD_PALETTE=[...KEEP_LIGHT_PRESETS]'),
+ 'Use the new app palettes while keeping the existing swatches and PDF export palettes');
+check(app.includes('appInfoPalette={appInfoPalette}')&&settingsUi.includes("const palette=page==='about'?appInfoPalette:appPalette;"),
+ 'App Info alone must retain the approved Option A visual colors');
 check(app.includes("!showTrash&&selected.length>0&&<View style={{position:'absolute',top:Math.max(StatusBar.currentHeight||24,24),left:0,right:0,zIndex:12,backgroundColor:palette.background}}>{libraryToolbar}</View>")&&
  app.includes('ListHeaderComponent={<View style={{opacity:selected.length>0?0:1}}>{libraryToolbar}</View>}')&&
  !app.includes('ListHeaderComponent={selected.length>0?<View'),
@@ -625,7 +626,7 @@ check(iconPaths.includes("'archive':'M3 4h18v5")&&iconPaths.includes("'unarchive
  iconPaths.includes("'collapseBranch':'M7 5l5 5")&&
  iconPaths.includes('M12 3v3.6M12 17.4V21'),
  'Approved Archive/Unarchive symbols and corrected map controls must remain present');
-console.log('PASS: global legacy palette with About exception, compact fixed selection and Archive icons');
+console.log('PASS: isolated App Info palette, compact fixed selection and Archive icons');
 
 check(app.includes('if(showArchive){')&&app.includes('const ai=mapPrefs.archived.indexOf(a.id),bi=mapPrefs.archived.indexOf(b.id);')&&
  app.includes('return bi-ai;')&&app.includes('const archiveColumnRef=useRef<Record<string,number>>({});')&&
@@ -651,6 +652,7 @@ check(app.includes("const labelColumnRefs=useRef<Record<string,Record<string,num
  app.includes('const activeColumns=showArchive?archiveColumnRef.current:labelColumns||layoutColumnRef.current;')&&
  app.includes('showArchive||folderFilter?{}:(mapPrefs.customColumns||{})'),
  'Label masonry must use separate per-label columns and ignore All Maps manual column assignments');
-check(app.includes('borderBottomColor:palette.border,backgroundColor:palette.background}}>\n                      <IconButton label="×" accessibilityLabel="Cancel new label"'),
- 'Creating a label must use the same background as Edit labels in both themes');
-console.log('PASS: independent label placement and consistent Edit labels creation background');
+check(app.includes('minHeight:56,borderRadius:28,backgroundColor:palette.tertiarySoft}}>\n                      <IconButton label="×" accessibilityLabel="Cancel new label"')&&
+ !app.includes('borderBottomColor:palette.border,backgroundColor:editingFolderId'),
+ 'The label creation pill must enclose its controls and existing labels must have no divider');
+console.log('PASS: independent label placement and separator-free label management');

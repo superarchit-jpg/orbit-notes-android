@@ -18,6 +18,14 @@ const {LIGHT,DARK,uiRoles}=require(path.join(temp,'orbitThemeTokens.js'));
 assert.equal(uiRoles(LIGHT).textPrimary,LIGHT.text);
 assert.equal(uiRoles(DARK).surface,DARK.surface);
 assert.equal(uiRoles(LIGHT).selectedBackground,LIGHT.accent);
+for(const [palette,neutral,editor,accent,onAccent,tertiary,onTertiary,tertiarySoft,tertiaryInk] of [
+ [LIGHT,'#FFFFFF','#FFFFFF','#4353BA','#FFFFFF','#EBBF78','#3B2508','#F8E2BB','#794609'],
+ [DARK,'#000000','#15182B','#BBAAFF','#211741','#7FDECA','#132C28','#214642','#7FDECA'],
+]){
+ assert.deepEqual([palette.card,palette.canvas,palette.editor],[neutral,neutral,editor]);
+ assert.deepEqual([palette.accent,uiRoles(palette).selectedForeground],[accent,onAccent]);
+ assert.deepEqual([palette.tertiary,palette.onTertiary,palette.tertiarySoft,palette.tertiaryInk],[tertiary,onTertiary,tertiarySoft,tertiaryInk]);
+}
 const sample=[{id:'one'},{id:'two'},{id:'three'},{id:'four'}];
 const sizes={one:300,two:95,three:100,four:120};
 const balanced=balancedLibraryPositions(sample,sizes,true);
