@@ -540,7 +540,7 @@ check(settingsUi.includes("centerSpark")&&settingsUi.includes("centerDot")&&sett
  'App Info motif must continue behind content in both light and dark modes');
 console.log('PASS: PDF background, Custom motion, sort icon, App Info regression checks');
 
-check(app.includes('const libraryToolbar=(')&&app.includes('ListHeaderComponent={selected.length>0?<View style={{height:60}}/>:libraryToolbar}')&&app.includes('extraData={libraryCardHeights}'),
+check(app.includes('const libraryToolbar=(')&&app.includes('ListHeaderComponent={selected.length>0?<View style={{height:Math.max(StatusBar.currentHeight||24,24)+68}}/>:libraryToolbar}')&&app.includes('extraData={libraryCardHeights}'),
  'Library search and sidebar controls should scroll with the card content, and measured masonry cards should update the list');
 check(app.includes("position:{top:number;left:number;width:number}")&&app.includes("position={{top:dragOrigin?.id===n.id"),
  'Cards must keep their identity when transitioning between masonry columns');
