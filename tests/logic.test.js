@@ -434,7 +434,7 @@ check(!app.includes('<Button label="Close" onPress={()=>setGestureHelp(false)}/>
 check(!app.includes('<Button label="Cancel" onPress={()=>setColorTarget(null)}/>'), 'Palettes must not show Cancel');
 const keepTheme=read('keepTheme.ts');
 check(themeTokens.includes("background:'#191F29'")&&themeTokens.includes("surface:'#222B36'")&&keepTheme.includes('ORBIT_DARK_PRESETS'),'Dark mode must use approved Option A slate and coordinated card presets');
-check(app.includes("useLegacyScreen?'#AFC3F9':'#3C5367'")&&app.includes('selectedSidebarText'),'Dark selected navigation must use a blue highlight with contrasting text');
+check(app.includes("selectedSidebarColor=darkSelection?'#AFC3F9':'#FEF3C7'")&&app.includes('selectedSidebarText'),'Dark selected navigation must use a blue highlight with contrasting text');
 check(app.includes('displayKeepColor(mapPrefs.cardColors[n.id],effectiveTheme,palette.surface)')&&app.includes('keepChipStyle(displayKeepColor('),'Cards and label chips must adapt to Dark mode');
 check(app.includes('displayKeepColor(mapPrefs.colors[n.id],effectiveTheme')&&app.includes('noteDisplayColor'),'Node and note colors must adapt to Dark mode');
 check(app.includes('visible={moveFolderMenu} animationType="slide"')&&app.includes('accessibilityRole="checkbox"')&&app.includes('Search or create labels'),'Label assignment must use searchable checkbox modal');
@@ -540,7 +540,7 @@ check(settingsUi.includes("centerSpark")&&settingsUi.includes("centerDot")&&sett
  'App Info motif must continue behind content in both light and dark modes');
 console.log('PASS: PDF background, Custom motion, sort icon, App Info regression checks');
 
-check(app.includes('const libraryToolbar=(')&&app.includes('ListHeaderComponent={selected.length>0?<View style={{height:Math.max(StatusBar.currentHeight||24,24)+68}}/>:libraryToolbar}')&&app.includes('extraData={libraryCardHeights}'),
+check(app.includes('const libraryToolbar=(')&&app.includes('ListHeaderComponent={selected.length>0?null:libraryToolbar}')&&app.includes('extraData={libraryCardHeights}'),
  'Library search and sidebar controls should scroll with the card content, and measured masonry cards should update the list');
 check(app.includes("position:{top:number;left:number;width:number}")&&app.includes("position={{top:dragOrigin?.id===n.id"),
  'Cards must keep their identity when transitioning between masonry columns');
@@ -556,7 +556,7 @@ check(app.includes('strongest.overlap>=0.70')&&app.includes('dragOrigin?.id===n.
  'Custom drag must use 70-percent card coverage and freeze its origin until release');
 check(app.includes('balancedLibraryPositions(chunk,libraryCardHeights,grid,layoutColumnRef.current,mapPrefs.customColumns||{})'),
  'Variable-height cards must use balanced masonry with stable prior column placement');
-check(app.includes("selected.length>0&&<View style={{position:'absolute'")&&app.includes('ListHeaderComponent={selected.length>0?<View'),
+check(app.includes("!showTrash&&selected.length>0&&<View style={{backgroundColor:palette.background}}>{libraryToolbar}</View>")&&app.includes('ListHeaderComponent={selected.length>0?null:libraryToolbar}'),
  'Multi-selection toolbar must be fixed while regular Library toolbar scrolls');
 check(app.includes("customOrder:[...new Set([...(p.customOrder||[]),...shown.map(n=>n.id),newId])]"),
  'New maps must append to Custom order without reshuffling existing maps');
@@ -592,12 +592,12 @@ check(themeTokens.includes("background:'#F8F6F0'")&&themeTokens.includes("surfac
  themeTokens.includes("accent:'#536F86'")&&themeTokens.includes("background:'#191F29'"),
  'UI-01 approved warm Option A colors must drive both semantic themes');
 check(keepTheme.includes('ORBIT_LIGHT_PRESETS')&&keepTheme.includes('ORBIT_DARK_PRESETS')&&
- app.includes('const CARD_PALETTE=[...ORBIT_LIGHT_PRESETS]')&&
+ app.includes('const CARD_PALETTE=[...KEEP_LIGHT_PRESETS]')&&
  keepTheme.includes('KEEP_LIGHT_PRESETS.findIndex'),
  'UI-01 updated color swatches must preserve compatibility with saved legacy colors');
 check(app.includes('const hold=Gesture.LongPress().enabled(canDrag).minDuration(480).maxDistance(8)')&&
  app.includes('Gesture.Race(Gesture.Simultaneous(drag,hold),swipe)')&&
- app.includes("librarySort!=='custom'&&setSelected(v=>")&&
+ app.includes("(showArchive||librarySort!=='custom')&&setSelected(v=>")&&
  !app.includes('setDraggingMapId(n.id);setSelected('),
  'CUSTOM-07 stationary long press selects separately from card drag; drag never opens selection header');
 check(app.includes('const iconSize=compact?21:23')&&
@@ -607,18 +607,22 @@ check(app.includes('const iconSize=compact?21:23')&&
  'Approved icon size and stroke corrections and renamed Help guide must be present');
 console.log('PASS: Option A global design, preserved saved colors, stationary selection and icon refinements');
 
+
 check(themeTokens.includes('export const LEGACY_LIGHT=')&&themeTokens.includes("background:'#ECEEFF'")&&
  themeTokens.includes('export const LEGACY_DARK=')&&themeTokens.includes("background:'#11182A'")&&
- app.includes('const useLegacyScreen=(menu&&!showTrash)||(!!reader&&!editing)')&&
- app.includes('const palette=useLegacyScreen?oldPalette:optionAPalette'),
- 'Selective palette reversion must affect Library, Archive and reading, not Deleted or Editor');
-check(app.includes('palette={optionAPalette}')&&settingsUi.includes("page==='backup'?(optionAPalette.background===DARK.background?LEGACY_DARK:LEGACY_LIGHT):optionAPalette"),
- 'Settings and App Lock stay Option A, while Backup/Restore uses the previous colors');
-check(app.includes("top:Math.max(StatusBar.currentHeight||24,24)+4")&&
- app.includes('ListHeaderComponent={selected.length>0?<View style={{height:Math.max(StatusBar.currentHeight||24,24)+68}}/>:libraryToolbar}'),
- 'Sticky multi-selection toolbar must clear the Android system status bar');
+ app.includes('const palette=oldPalette;')&&app.includes('const CARD_PALETTE=[...KEEP_LIGHT_PRESETS]'),
+ 'Every screen except About uses the original light and dark theme and swatches');
+check(app.includes('palette={optionAPalette}')&&settingsUi.includes("page==='about'?optionAPalette:"),
+ 'About alone must retain the approved Option A visual colors');
+check(app.includes("!showTrash&&selected.length>0&&<View style={{backgroundColor:palette.background}}>{libraryToolbar}</View>")&&
+ app.includes('ListHeaderComponent={selected.length>0?null:libraryToolbar}')&&
+ !app.includes('ListHeaderComponent={selected.length>0?<View'),
+ 'Selected toolbar must stay fixed in safe-area flow without a spacer or drop shadow');
+check(app.includes("(showArchive||librarySort!=='custom')&&setSelected(v=>")&&
+ app.includes("icon={showArchive?'unarchive':'archive'}"),
+ 'Archive long press must support multi-selection and the unarchive action');
 check(iconPaths.includes("'archive':'M3 4h18v5")&&iconPaths.includes("'unarchive':'M3 4h18v5")&&
  iconPaths.includes("'collapseBranch':'M7 5l5 5")&&
- iconPaths.includes("M12 3v3.6M12 17.4V21"),
- 'Archive/Unarchive icon pair and smaller crosshair with separated chevrons must be present');
-console.log('PASS: selective palette reversion, Android status bar clearance, and approved icon revisions');
+ iconPaths.includes('M12 3v3.6M12 17.4V21'),
+ 'Approved Archive/Unarchive symbols and corrected map controls must remain present');
+console.log('PASS: global legacy palette with About exception, compact fixed selection and Archive icons');
