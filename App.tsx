@@ -24,7 +24,7 @@ import appInfo from './app.json';
 import {consumedDeviceScreenOff} from './orbitDeviceLock';
 import {labelIds,addLabel,removeLabel,hasLabel,normalizeLabels} from './labels';
 import {matchesMapQuery} from './librarySearch';
-import {ORBIT_LIGHT_PRESETS,displayKeepColor,swatchKeepColor,keepForeground,keepChipStyle} from './keepTheme';
+import {KEEP_LIGHT_PRESETS,displayKeepColor,swatchKeepColor,keepForeground,keepChipStyle} from './keepTheme';
 
 const SafeAreaView=InsetSafeAreaView;
 const W=Dimensions.get('window').width,H=Dimensions.get('window').height;
@@ -33,7 +33,7 @@ const initial:Note[]=[{id:'root',parentId:null,title:'My Notes',body:'',updatedA
 type Folder={id:string;name:string};
 const id=()=>`${Date.now()}-${Math.random().toString(36).slice(2,8)}`;
 const PaletteContext=React.createContext(LIGHT);
-const CARD_PALETTE=[...ORBIT_LIGHT_PRESETS];
+const CARD_PALETTE=[...KEEP_LIGHT_PRESETS];
 // Exactly four columns on phone widths: 12 original swatches + two additional rows of four.
 const paletteSwatchSize=Math.min(60,(Math.min(W-48,380)-44-42)/4);
 
@@ -155,14 +155,13 @@ const deviceTheme=useColorScheme();
 const effectiveTheme=mapPrefs.themeMode==='system'?(deviceTheme==='dark'?'dark':'light'):mapPrefs.theme;
 const optionAPalette=effectiveTheme==='dark'?DARK:LIGHT;
 const oldPalette=effectiveTheme==='dark'?LEGACY_DARK:LEGACY_LIGHT;
-// Only Library, Archive and note reading return to the pre-Option-A colors.
-// Deleted, map, editor, settings, color swatches and Help retain Option A.
-const useLegacyScreen=(menu&&!showTrash)||(!!reader&&!editing);
-const palette=useLegacyScreen?oldPalette:optionAPalette;
+// All application screens use the original colors. Only App Info retains
+// the approved warm illustration and Option A color treatment.
+const palette=oldPalette;
  const roles=uiRoles(palette);
 const darkSelection=effectiveTheme==='dark';
-const selectedSidebarColor=darkSelection?(useLegacyScreen?'#AFC3F9':'#3C5367'):(useLegacyScreen?'#FEF3C7':'#F0E8DB');
-const selectedSidebarText=darkSelection?(useLegacyScreen?'#172441':'#F1ECE5'):palette.text;
+const selectedSidebarColor=darkSelection?'#AFC3F9':'#FEF3C7';
+const selectedSidebarText=darkSelection?'#172441':palette.text;
 const noteDisplayColor=displayKeepColor(mapPrefs.noteColors[reader||''],effectiveTheme,palette.background);
 const noteDisplayText=keepForeground(noteDisplayColor);
 const [showMiniMap,setShowMiniMap]=useState(false);
@@ -1751,7 +1750,7 @@ return (
         >
           <GestureHandlerRootView style={{flex:1}}><InsetSafeAreaView style={[styles.screen,{backgroundColor:palette.background}]} edges={['top']}>
             {showTrash&&libraryToolbar}
-             {!showTrash&&!showArchive&&selected.length>0&&<View style={{position:'absolute',top:Math.max(StatusBar.currentHeight||24,24)+4,left:0,right:0,zIndex:12,elevation:8,backgroundColor:palette.background}}>{libraryToolbar}</View>}
+             {!showTrash&&selected.length>0&&<View style={{backgroundColor:palette.background}}>{libraryToolbar}</View>}
 
             {(selectionMenu||moveFolderMenu||sidebar||sortMenu||trashMenu||cardMenuId)&&<Pressable accessibilityLabel="Close menu" onPress={()=>{setSelectionMenu(false);setMoveFolderMenu(false);setSidebar(false);setSortMenu(false);setTrashMenu(false);setCardMenuId(null);}} style={[StyleSheet.absoluteFill,{zIndex:20,elevation:10,backgroundColor:sidebar?'rgba(0,0,0,0.32)':'transparent'}]}/>}
             {cardMenuId&&<View style={{position:'absolute',top:cardMenuPosition.top,left:cardMenuPosition.left,zIndex:34,elevation:22,width:176,borderRadius:15,padding:6,backgroundColor:palette.surface,borderWidth:1,borderColor:palette.border}}>
@@ -1772,7 +1771,7 @@ return (
               ]);}}/>
             </View>}
             {selectionMenu&&selected.length>0&&(
-              <View style={[styles.popup,{top:Math.max(StatusBar.currentHeight||24,24)+64,right:12,left:undefined,bottom:undefined,width:225,backgroundColor:palette.surface,borderColor:palette.border,zIndex:32}]}>
+              <View style={[styles.popup,{top:64,right:12,left:undefined,bottom:undefined,width:225,backgroundColor:palette.surface,borderColor:palette.border,zIndex:32}]}>
                 <ActionRow icon={showArchive?'unarchive':'archive'} label={showArchive?'Unarchive':'Archive'} onPress={()=>archiveSelection(!showArchive)}/>
                 <ActionRow label="Export" icon="exportIcon" onPress={()=>{setSelectionMenu(false);exportSelected();}}/>
                 <View style={{height:1,backgroundColor:palette.border,marginVertical:4}}/>
@@ -1962,7 +1961,7 @@ return (
                   <FlatList ref={libraryListRef} style={{flex:1}} contentContainerStyle={{gap:10,paddingHorizontal:12,paddingTop:0,paddingBottom:64}}
                     scrollEventThrottle={32}
                     onScroll={e=>{libraryScrollOffset.current=e.nativeEvent.contentOffset.y;}}
-                    ListHeaderComponent={selected.length>0?<View style={{height:Math.max(StatusBar.currentHeight||24,24)+68}}/>:libraryToolbar}
+                    ListHeaderComponent={selected.length>0?null:libraryToolbar}
                     data={libraryChunks} extraData={libraryCardHeights} keyExtractor={(_,index)=>'chunk-'+index}
                     initialNumToRender={2} maxToRenderPerBatch={2} windowSize={5} removeClippedSubviews={false}
                     renderItem={({item:chunk,index:chunkIndex})=>{
@@ -2019,7 +2018,7 @@ return (
                         }
                       }}
                       onLongPress={()=>
-                        librarySort!=='custom'&&setSelected(v=>
+                        (showArchive||librarySort!=='custom')&&setSelected(v=>
                           v.includes(n.id)
                             ?v
                             :[...v,n.id]
