@@ -434,7 +434,7 @@ check(!app.includes('<Button label="Close" onPress={()=>setGestureHelp(false)}/>
 check(!app.includes('<Button label="Cancel" onPress={()=>setColorTarget(null)}/>'), 'Palettes must not show Cancel');
 const keepTheme=read('keepTheme.ts');
 check(themeTokens.includes("background:'#191F29'")&&themeTokens.includes("surface:'#222B36'")&&keepTheme.includes('ORBIT_DARK_PRESETS'),'Dark mode must use approved Option A slate and coordinated card presets');
-check(app.includes("selectedSidebarColor=darkSelection?'#3C5367'")&&app.includes('selectedSidebarText'),'Dark selected navigation must use a blue highlight with contrasting text');
+check(app.includes("useLegacyScreen?'#AFC3F9':'#3C5367'")&&app.includes('selectedSidebarText'),'Dark selected navigation must use a blue highlight with contrasting text');
 check(app.includes('displayKeepColor(mapPrefs.cardColors[n.id],effectiveTheme,palette.surface)')&&app.includes('keepChipStyle(displayKeepColor('),'Cards and label chips must adapt to Dark mode');
 check(app.includes('displayKeepColor(mapPrefs.colors[n.id],effectiveTheme')&&app.includes('noteDisplayColor'),'Node and note colors must adapt to Dark mode');
 check(app.includes('visible={moveFolderMenu} animationType="slide"')&&app.includes('accessibilityRole="checkbox"')&&app.includes('Search or create labels'),'Label assignment must use searchable checkbox modal');
@@ -576,7 +576,7 @@ console.log('PASS: latest drag thresholds, Archive header, custom columns and na
 
 check(iconPaths.includes("'Fit':'M3 7V5")&&iconPaths.includes("'parentNote':'M5 3h14")&&iconPaths.includes("'centerFocus':'M12 3a9 9"),
  'Approved scan-line, preceding-level and crosshair paths must be registered');
-check(iconPaths.includes("'expandBranch':'M7 9l5-5")&&iconPaths.includes("'collapseBranch':'M7 7l5 5"),
+check(iconPaths.includes("'expandBranch':'M7 9l5-5")&&iconPaths.includes("'collapseBranch':'M7 5l5 5"),
  'Approved inward and outward chevrons must distinguish branch states');
 check(iconPaths.includes("'miniMapIcon':'M12 8v4")&&app.includes("if(name==='miniMapIcon')return <Svg"),
  'The mini-map icon must display the selected network graph');
@@ -602,7 +602,23 @@ check(app.includes('const hold=Gesture.LongPress().enabled(canDrag).minDuration(
  'CUSTOM-07 stationary long press selects separately from card drag; drag never opens selection header');
 check(app.includes('const iconSize=compact?21:23')&&
  iconPaths.includes("'centerFocus':'M12 3a9 9")&&
- iconPaths.includes("'collapseBranch':'M7 7l5 5")&&
+ iconPaths.includes("'collapseBranch':'M7 5l5 5")&&
  app.includes("}>Icon Guide</Text>"),
  'Approved icon size and stroke corrections and renamed Help guide must be present');
 console.log('PASS: Option A global design, preserved saved colors, stationary selection and icon refinements');
+
+check(themeTokens.includes('export const LEGACY_LIGHT=')&&themeTokens.includes("background:'#ECEEFF'")&&
+ themeTokens.includes('export const LEGACY_DARK=')&&themeTokens.includes("background:'#11182A'")&&
+ app.includes('const useLegacyScreen=(menu&&!showTrash)||(!!reader&&!editing)')&&
+ app.includes('const palette=useLegacyScreen?oldPalette:optionAPalette'),
+ 'Selective palette reversion must affect Library, Archive and reading, not Deleted or Editor');
+check(app.includes('palette={optionAPalette}')&&settingsUi.includes("page==='backup'?(optionAPalette.background===DARK.background?LEGACY_DARK:LEGACY_LIGHT):optionAPalette"),
+ 'Settings and App Lock stay Option A, while Backup/Restore uses the previous colors');
+check(app.includes("top:Math.max(StatusBar.currentHeight||24,24)+4")&&
+ app.includes('ListHeaderComponent={selected.length>0?<View style={{height:Math.max(StatusBar.currentHeight||24,24)+68}}/>:libraryToolbar}'),
+ 'Sticky multi-selection toolbar must clear the Android system status bar');
+check(iconPaths.includes("'archive':'M3 4h18v5")&&iconPaths.includes("'unarchive':'M3 4h18v5")&&
+ iconPaths.includes("'collapseBranch':'M7 5l5 5")&&
+ iconPaths.includes("M12 3v3.6M12 17.4V21"),
+ 'Archive/Unarchive icon pair and smaller crosshair with separated chevrons must be present');
+console.log('PASS: selective palette reversion, Android status bar clearance, and approved icon revisions');
