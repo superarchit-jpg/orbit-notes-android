@@ -2133,17 +2133,17 @@ const styles=StyleSheet.create({
     right:12,
     zIndex:32,
     elevation:18,
-    backgroundColor:'#FFFCF7',
+    backgroundColor:'#fffdfb',
     padding:14,
     borderRadius:22,
     gap:10,
     maxHeight:'75%',
     borderWidth:1,
-    borderColor:'#D8D0C5'
+    borderColor:'#e7cfc7'
   },
   screen:{
     flex:1,
-    backgroundColor:'#F8F6F0'
+    backgroundColor:'#fff8f5'
   },
   header:{
     minHeight:60,
@@ -2155,18 +2155,18 @@ const styles=StyleSheet.create({
   logo:{
     fontSize:21,
     fontWeight:'800',
-    color:'#2E3036'
+    color:'#362722'
   },
   button:{
     borderRadius:12,
-    backgroundColor:'#F0E8DB',
+    backgroundColor:'#e2e8f0',
     paddingVertical:12,
     paddingHorizontal:14,
     minHeight:48,
     justifyContent:'center'
   },
   primary:{
-    backgroundColor:'#536F86'
+    backgroundColor:'#b65e4d'
   },
   danger:{
     backgroundColor:'#dc2626'
@@ -2174,7 +2174,7 @@ const styles=StyleSheet.create({
   buttonText:{
     fontSize:14,
     fontWeight:'700',
-    color:'#2E3036'
+    color:'#563f38'
   },
   toolbar:{
     flexDirection:'row',
@@ -2188,7 +2188,7 @@ const styles=StyleSheet.create({
   canvas:{
     flex:1,
     overflow:'hidden',
-    backgroundColor:'#FBF7F0'
+    backgroundColor:'#fff9f6'
   },
   world:{
     position:'absolute',
@@ -2223,7 +2223,7 @@ const styles=StyleSheet.create({
     minWidth:152,
     maxWidth:208,
     borderWidth:1,
-    borderColor:'#D8D0C5'
+    borderColor:'#cbd5e1'
   },
   sidebar:{
     position:'absolute',
@@ -2231,15 +2231,15 @@ const styles=StyleSheet.create({
     bottom:0,
     left:0,
     width:'82%',
-    backgroundColor:'#FFFCF7',
+    backgroundColor:'#fffdfb',
     zIndex:40,
     elevation:20,
     borderRightWidth:1,
-    borderRightColor:'#D8D0C5'
+    borderRightColor:'#cbd5e1'
   },
   muted:{
     fontSize:12,
-    color:'#686B70'
+    color:'#755d55'
   },
   editor:{
     paddingHorizontal:20,
@@ -2253,13 +2253,13 @@ const styles=StyleSheet.create({
   editorLabel:{
     fontSize:14,
     fontWeight:'700',
-    color:'#686B70'
+    color:'#334155'
   },
   input:{
     borderWidth:1,
-    borderColor:'#D8D0C5',
+    borderColor:'#e7cfc7',
     borderRadius:14,
-    backgroundColor:'#FFFCF7',
+    backgroundColor:'#fffdfb',
     padding:14,
     fontSize:16
   },
@@ -2267,19 +2267,19 @@ const styles=StyleSheet.create({
     fontSize:28,
     fontFamily:'Roboto',
     fontWeight:'600',
-    color:'#2E3036'
+    color:'#0f172a'
   },
   readBody:{
     fontSize:17,
     lineHeight:27,
-    color:'#686B70',
+    color:'#334155',
     marginVertical:15
   },
   section:{
     fontSize:17,
     fontFamily:'Roboto',
     fontWeight:'600',
-    color:'#2E3036'
+    color:'#0f172a'
   },
   wrap:{
     flexDirection:'row',
@@ -2295,21 +2295,21 @@ const styles=StyleSheet.create({
     padding:14,
     borderRadius:14,
     borderWidth:1,
-    borderColor:'#F0E8DB'
+    borderColor:'#e2e8f0'
   },
   listIndex:{
     fontSize:17,
     fontWeight:'800',
-    color:'#536F86'
+    color:'#315fd6'
   },
   listTitle:{
     fontSize:16,
     fontFamily:'Roboto',
     fontWeight:'600',
-    color:'#2E3036'
+    color:'#0f172a'
   },
   checkbox:{
     fontSize:25,
-    color:'#536F86'
+    color:'#315fd6'
   }
 });
