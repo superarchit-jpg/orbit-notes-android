@@ -223,7 +223,7 @@ console.log('PASS: pinned map and child note persistence regression');
 // Approved recording follow-up requirements.
 for(const marker of [
   'thumbnailHeight=Math.min(332',
-  "balancedLibraryPositions(chunk,libraryCardHeights,grid,layoutColumnRef.current,mapPrefs.customColumns||{})",
+  "balancedLibraryPositions(chunk,libraryCardHeights,grid,activeColumns,showArchive?{}:(mapPrefs.customColumns||{}))",
   "label={mapPrefs.viewMode==='grid'?'listView':'gridView'}",
   'accessibilityLabel="Sort maps"',
   'label="palette" accessibilityLabel="Node color"',
