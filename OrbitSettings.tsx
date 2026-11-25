@@ -84,9 +84,10 @@ const AppInfoBackdrop=({dark}:{dark:boolean})=>{
 };
 export default function OrbitSettings({palette:optionAPalette,themeMode,onTheme,lockEnabled,configured,selectedKind,biometric,onToggleLock,onToggleBiometric,onVerify,onSaveCredential,onResetCredential,onVerifyBiometric,registerBack,appVersion,buildNumber,onBackup,onLockNow,onClose}:Props){
  const [page,setPage]=useState<Page>('home');
- // Backup & Restore alone uses its pre-Option-A colors; the other
- // Settings pages, App Lock and App Info retain the approved new palette.
- const palette=page==='backup'?(optionAPalette.background===DARK.background?LEGACY_DARK:LEGACY_LIGHT):optionAPalette;
+ // All Settings pages use the original palette; App Info alone retains
+ // the approved warm background motif and its matching Option A colors.
+ const palette=page==='about'?optionAPalette:
+   (optionAPalette.background===DARK.background?LEGACY_DARK:LEGACY_LIGHT);
  const [credentialModal,setCredentialModal]=useState<CredentialKind|null>(null);
  const [stage,setStage]=useState<Stage>('new');
  const [oldValue,setOldValue]=useState('');
