@@ -629,7 +629,7 @@ console.log('PASS: global legacy palette with About exception, compact fixed sel
 
 check(app.includes('if(showArchive){')&&app.includes('const ai=mapPrefs.archived.indexOf(a.id),bi=mapPrefs.archived.indexOf(b.id);')&&
  app.includes('return bi-ai;')&&app.includes('const archiveColumnRef=useRef<Record<string,number>>({});')&&
- app.includes('showArchive?{}:(mapPrefs.customColumns||{})'),
+ app.includes('showArchive||folderFilter?{}:(mapPrefs.customColumns||{})'),
  'Archive displays newest archived maps first, with independent card placement');
 check(app.includes('ListHeaderComponent={<View style={{opacity:selected.length>0?0:1}}>{libraryToolbar}</View>}')&&
  app.includes("!showTrash&&selected.length>0&&<View style={{position:'absolute',top:Math.max(StatusBar.currentHeight||24,24),left:0,right:0,zIndex:12,backgroundColor:palette.background}}>{libraryToolbar}</View>")&&
