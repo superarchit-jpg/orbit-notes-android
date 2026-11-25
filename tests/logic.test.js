@@ -20,7 +20,6 @@ const themeTokens=read('orbitThemeTokens.ts');
 const iconPaths=read('orbitIcons.ts');
 const libraryColumns=read('libraryColumns.ts');
 const settingsUi=read('OrbitSettings.tsx');
-const deletedViewer=read('DeletedMapReader.tsx');
 const security=read('appLock.ts');
 const store=read('storage.ts');
 const exp = read('export.ts');
@@ -140,7 +139,7 @@ console.log('PASS: continuous transition wiring');
 
 // Stage 3 accepted UX: map controls, accessible labels, reliable touch targets and help.
 for (const marker of [
-  'accessibilityLabel="Back to library"',
+  'accessibilityLabel={readOnly?"Back to Deleted":"Back to library"}',
   'accessibilityLabel="Fit map to screen"',
   'accessibilityLabel="More map actions"',
   'Open sidebar',
@@ -227,7 +226,7 @@ for(const marker of [
   "label={mapPrefs.viewMode==='grid'?'listView':'gridView'}",
   'accessibilityLabel="Sort maps"',
   'label="palette" accessibilityLabel="Node color"',
-  "label={mapPrefs.collapsed[focused]?'expandBranch':'collapseBranch'}",
+  "label={mapCollapsed[mapFocus]?'expandBranch':'collapseBranch'}",
   'visible={gestureHelp}',
   'height:150,marginHorizontal:12',
   'accessibilityLabel="Settings"',
@@ -421,8 +420,26 @@ const richMarkup=read('richTextMarkup.ts');
 check(app.includes('matchesMapQuery(n,notes,librarySearch)')&&librarySearch.includes('while(pending.length)'), 'Search must traverse all descendant note titles and bodies');
 check(app.includes('librarySearching||librarySearch.length>0')&&app.includes('accessibilityLabel="Clear search"'), 'Search mode must hide sort and view controls');
 check(app.includes('if(selected.length){setSelected([]);return true;}')&&app.includes('else if(selected.length)setSelected([])'), 'Back must clear selected maps before exiting');
-check(app.includes("setDeletedPreview(batch)")&&app.includes('onLongPress={()=>setSelectedTrash'), 'Deleted maps require tap preview and long press selection');
-check(app.includes('visible={deletedPreview!==null}')&&app.includes('<DeletedMapReader')&&deletedViewer.includes('Read only'), 'Deleted preview must open nonmutating gesture-enabled reader');
+check(app.includes("else openDeletedMap(batch)")&&app.includes('onLongPress={()=>setSelectedTrash'), 'Deleted maps require tap preview and long press selection');
+check(
+  app.includes('deletedPreview?.batch.notes??notes') &&
+  app.includes('readOnly?deletedCamera:editableCamera') &&
+  app.includes('if(readOnly)updateDeletedPreview(view=>({...view,focused:target}))') &&
+  app.includes('if(readOnly)updateDeletedPreview(view=>({...view,offsets:next(view.offsets)}))') &&
+  app.includes('if(readOnly)updateDeletedPreview(view=>({...view,collapsed:update(view.collapsed)}))'),
+  'Deleted preview must use the main map with isolated camera, focus, branch rotation and collapse'
+);
+check(
+  app.includes('readOnly?Gesture.Exclusive(long,double,single):Gesture.Exclusive(long,triple,double,single)') &&
+  app.includes('activeReader=mapNotes.find') &&
+  app.includes('readOnly?undefined:()=>{const now=Date.now()') &&
+  app.includes('{!menu&&!readOnly&&<Pressable accessibilityRole="button" accessibilityLabel="Add child note"') &&
+  app.includes('{!readOnly&&!editing&&<IconButton label="✎"') &&
+  app.includes('{!readOnly&&<IconButton label="palette" accessibilityLabel="Node color"') &&
+  app.includes('{!readOnly&&<ActionRow label="Export"') &&
+  app.includes("{!readOnly&&current.parentId==='root'"),
+  'Deleted preview must retain navigation and reading while hiding edit gestures and actions'
+);
 check(app.includes('accessibilityLabel="New label name"')&&app.includes("setLabelManager(true)"), 'Label creation must share inline editing');
 check(app.includes("colorTarget==='node'")&&!app.includes('Custom hex color')&&app.includes('accessibilityLabel="Dismiss color palette"'), 'Palettes use presets only and dismiss outside');
 check(app.includes("accessibilityLabel={'More actions for '")&&app.includes("setCardMenuPosition({top:")&&app.includes("cardMenuId&&<View"), 'Library and Archive cards require anchored overflow menus');
@@ -451,7 +468,13 @@ check(securitySource.includes('/^\\d{4,}$/')&&securitySource.includes('Array.fro
 check(settingsUi.includes("row('Backup & Restore'")&&settingsUi.includes("row('Create Backup'")&&settingsUi.includes("row('Restore Backup'"),'Manual encrypted backup and restore must remain available');
 check(!settingsUi.includes('App information and version')&&!settingsUi.includes('Encrypted local backup')&&!settingsUi.includes('Use device biometrics first'),'Removed settings help subtitles must not reappear');
 check(app.includes('setCredentialFallback(false)')&&app.includes('Use PIN instead')&&app.includes('Use Password instead'),'Lock screen must have biometric-first and credential fallback options');
-check(deletedViewer.includes('Gesture.Simultaneous(pan,pinch,rotate)')&&deletedViewer.includes('setReading')&&deletedViewer.includes('setCollapsed'),'Deleted viewer must support gestures and read-only hierarchy navigation');
+check(
+  app.includes('Gesture.Simultaneous(pan,pinch,rotate,rotateChildren)') &&
+  app.includes('onPress={fitCurrentMap} capsule="square"') &&
+  app.includes('onPress={closeMap}') &&
+  app.includes("readOnly?'':'\\nTriple-tap to edit.'"),
+  'Shared map must retain Fit and navigation gestures and omit editing from read-only help'
+);
 check(!app.includes('Deleted {stamp(batch.deletedAt)}')&&!app.includes("accessibilityLabel={'Restore '+"),'Deleted cards must not show timestamp or restore controls');
 check(app.includes("width:mapPrefs.viewMode==='grid'?'48.2%':'100%'"),'Deleted list/grid layout must follow library preference');
 check(app.includes('miniRotationStyle')&&app.includes('<Animated.View style={miniRotationStyle}>'),'Mini-map must rotate with the main map');
