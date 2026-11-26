@@ -49,16 +49,24 @@ export async function checkPin(pin:string){
   return (await hash(pin,stored.salt,pepper))===stored.digest;
 }
 let verificationQueue:Promise<unknown>=Promise.resolve();
+function enqueueVerification<T>(verify:()=>Promise<T>):Promise<T>{
+  const attempt=verificationQueue.then(verify);
+  verificationQueue=attempt.catch(()=>{});
+  return attempt;
+}
+
+async function attemptsBlocked():Promise<boolean>{
+  return Date.now()<(await lockStatus()).blockedUntil;
+}
+
 /** Read, verify and record one attempt at a time across all credential prompts. */
 export function verifyCredential(value:string){
-  const attempt=verificationQueue.then(async()=>{
+  return enqueueVerification(async()=>{
     const status=await lockStatus();
     if(Date.now()<status.blockedUntil)return {ok:false,alreadyBlocked:true,...status};
     const ok=await checkPin(value);
     return {ok,alreadyBlocked:false,...await recordPinAttempt(ok)};
   });
-  verificationQueue=attempt.catch(()=>{});
-  return attempt;
 }
 export async function removePin(){await SecureStore.deleteItemAsync(ENABLED);await SecureStore.deleteItemAsync(KEY);await SecureStore.deleteItemAsync(BIO);await SecureStore.deleteItemAsync(LIMIT);await SecureStore.deleteItemAsync(PEPPER);}
 export async function biometricEnabled(){return (await SecureStore.getItemAsync(BIO))==='yes';}
@@ -68,6 +76,8 @@ export async function setBiometricEnabled(enabled:boolean){
 }
 export async function biometricAvailable(){return await LocalAuthentication.hasHardwareAsync() && await LocalAuthentication.isEnrolledAsync();}
 export async function authenticateBiometric(){
+  if(await enqueueVerification(attemptsBlocked))return false;
   const result=await LocalAuthentication.authenticateAsync({promptMessage:'Unlock Orbit Notes',disableDeviceFallback:true});
-  return result.success;
+  // A credential attempt may start the timeout while Android's prompt is open.
+  return result.success&&!(await enqueueVerification(attemptsBlocked));
 }

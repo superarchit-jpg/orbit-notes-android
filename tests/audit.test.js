@@ -53,7 +53,9 @@ native['expo-secure-store']={
  setItemAsync:async(key,value)=>secure.set(key,value),
  deleteItemAsync:async key=>secure.delete(key),
 };
-native['expo-local-authentication']={};
+let prompts=0;
+let biometricResponse=async()=>({success:true});
+native['expo-local-authentication']={authenticateAsync:async()=>{prompts++;return biometricResponse();}};
 const pages=[];
 native['expo-print']={printToFileAsync:async({html})=>{pages.push(html);return {uri:'fixture.pdf'};}};
 const removed=[];
@@ -94,6 +96,24 @@ async function main(){
  assert.equal(attempts.filter(x=>x.alreadyBlocked).length,2);
  assert.deepEqual(attempts.slice(0,4).map(x=>x.attempts),[1,2,3,4]);
  assert.ok(attempts[4].blockedUntil>Date.now());
+
+ assert.equal(await lock.authenticateBiometric(),false);
+ assert.equal(prompts,0,'A blocked user should never see the Android prompt');
+ const lockTime=Date.now;
+ Date.now=()=>attempts[4].blockedUntil;
+ try{
+  assert.equal(await lock.authenticateBiometric(),true);
+  assert.equal(prompts,1);
+  let completePrompt;
+  let notifyPrompt;
+  const opened=new Promise(resolve=>{notifyPrompt=resolve;});
+  biometricResponse=()=>new Promise(resolve=>{completePrompt=resolve;notifyPrompt();});
+  const biometric=lock.authenticateBiometric();
+  await opened;
+  for(let i=0;i<5;i++)await lock.verifyCredential('invalid');
+  completePrompt({success:true});
+  assert.equal(await biometric,false,'A prompt already open must respect a newly started timeout');
+ }finally{Date.now=lockTime;}
 
  const backup=load('./backup');
  const encrypted=backup.encryptSnapshot({...snapshot,mapPreferences:prefs},'example password');

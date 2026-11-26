@@ -1008,20 +1008,7 @@ const node=(n:Note,x:number,y:number,level:number)=>{
           })
       ):taps}
     >
-      <View collapsable={false} accessible accessibilityRole="button"
-        accessibilityLabel={n.title||'Untitled note'} accessibilityState={{selected:isFocused}}
-        accessibilityActions={[
-          {name:'activate',label:'Focus note'},{name:'read',label:'Read note'},
-          ...(!readOnly?[{name:'edit',label:'Edit note'}]:[]),
-          {name:'longpress',label:'Note actions'},
-        ]}
-        onAccessibilityAction={({nativeEvent:{actionName}})=>{
-          if(actionName==='activate')nodePress(n);
-          else if(actionName==='read')openReader(n.id);
-          else if(actionName==='edit'&&!readOnly)beginEdit(n.id);
-          else if(actionName==='longpress')showNodeActions(n.id);
-        }}
-        style={{
+      <View collapsable={false} style={{
         position:'absolute',left:x-size/2-touchMargin,top:y-size/2-touchMargin,
         width:size+touchMargin*2,height:size+touchMargin*2,alignItems:'center',justifyContent:'center'
       }}>
@@ -1987,7 +1974,7 @@ return (
               <ActionRow label="Labels" icon="label" onPress={()=>{setSelected([cardMenuId!]);setCardMenuId(null);setLabelQuery('');setMoveFolderMenu(true);}}/>
               <ActionRow label="Color" icon="palette" onPress={()=>{setSelected([cardMenuId!]);setCardMenuId(null);setColorTarget('cards');}}/>
               <ActionRow label={showArchive?'Unarchive':'Archive'} icon={showArchive?'unarchive':'archive'} onPress={()=>{archiveOne(cardMenuId!,!showArchive);setCardMenuId(null);}}/>
-              <ActionRow label="Export PDF" icon="exportIcon" onPress={()=>{exportOne('pdf',cardMenuId!);setCardMenuId(null);}}/>
+              <ActionRow label="Export" icon="exportIcon" onPress={()=>{exportOne('pdf',cardMenuId!);setCardMenuId(null);}}/>
               <View style={{height:1,backgroundColor:palette.border,marginVertical:3}}/>
               <ActionRow label="Delete" icon="🗑" danger onPress={()=>{removeBranch(cardMenuId!);setCardMenuId(null);}}/>
             </View>}
@@ -2165,7 +2152,7 @@ return (
                       <Svg width={112} height={112} viewBox="0 0 112 112"><Path d="M28 30h56M42 20h28M34 30l4 63h36l4-63M48 44v36M64 44v36" stroke={palette.tertiaryInk} strokeWidth={3.5} fill="none" strokeLinecap="round" strokeLinejoin="round"/></Svg>
                       <Text style={{color:palette.muted,fontSize:16,textAlign:'center'}}>No notes in Deleted</Text>
                     </View>
-                  ):<View style={{flexDirection:mapPrefs.viewMode==='grid'?'row':'column',flexWrap:mapPrefs.viewMode==='grid'?'wrap':'nowrap',gap:10,justifyContent:'space-between'}}>{trash.map(batch=>{
+                  ):<View style={{flexDirection:mapPrefs.viewMode==='grid'?'row':'column',flexWrap:mapPrefs.viewMode==='grid'?'wrap':'nowrap',gap:10,justifyContent:trash.length===1?'flex-start':'space-between'}}>{trash.map(batch=>{
                     const card=cardAppearance(batch.notes[0]?.id);
                     return (
                     <Pressable key={batch.id} accessibilityRole="button" accessibilityLabel={'Open deleted map '+(batch.notes[0]?.title||'Untitled')} accessibilityHint="Tap for read-only preview; long press to select"
@@ -2198,9 +2185,10 @@ return (
                      // column assignments for a filtered label.
                      const labelColumns=folderFilter?(labelColumnRefs.current[folderFilter]??(labelColumnRefs.current[folderFilter]={})):null;
                      const activeColumns=showArchive?archiveColumnRef.current:labelColumns||layoutColumnRef.current;
-                     const positions=balancedLibraryPositions(chunk,libraryCardHeights,grid,activeColumns,showArchive||folderFilter?{}:(mapPrefs.customColumns||{}))
+                     // Only the full result set determines single-card alignment.
+                     const positions=balancedLibraryPositions(chunk,libraryCardHeights,grid,activeColumns,showArchive||folderFilter?{}:(mapPrefs.customColumns||{}),shown.length===1)
                        .map(({item,column,top})=>({n:item,column,top}));
-                     positions.forEach(({n,column})=>{activeColumns[n.id]=column;});
+                     if(shown.length>1)positions.forEach(({n,column})=>{activeColumns[n.id]=column;});
                      const columns=[0,0];
                      positions.forEach(({n,column,top})=>{columns[column]=Math.max(columns[column],top+(libraryCardHeights[n.id]??(grid?152:88))+gutter);});
                      const chunkHeight=Math.max(0,...columns)-gutter;
