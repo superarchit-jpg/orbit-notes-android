@@ -1,5 +1,6 @@
 import React,{useEffect,useMemo,useState,useRef} from 'react';
 import {ICON_PATHS} from './orbitIcons';
+import {ANDROID_FINGERPRINT_PATH} from './androidFingerprint';
 import {LIGHT,DARK,APP_INFO_LIGHT,APP_INFO_DARK,uiRoles} from './orbitThemeTokens';
 import {partitionLibraryColumns,balancedLibraryPositions} from './libraryColumns';
 import {AppState,BackHandler,Dimensions,KeyboardAvoidingView,useColorScheme,useWindowDimensions,Platform,Pressable,ScrollView,FlatList,Keyboard,StatusBar,StyleSheet,Text,TextInput,View} from 'react-native';
@@ -1387,7 +1388,9 @@ if(locked){
       </View>
       {biometrics&&!credentialFallback?(
         <View style={{alignItems:'center',gap:20}}>
-          <Svg width={62} height={62} viewBox="0 0 24 24"><Path d="M12 3c-5 0-8 3-8 8m16 0c0-5-3-8-8-8M4 15c1 4 3 6 8 6m8-6c-1 4-3 6-8 6M8 15c.5 3 1.5 4 4 4s3.5-1 4-4M8 11c0-3 1.5-5 4-5s4 2 4 5m-4-2v7m-8-4v2m16-2v2" stroke={effectiveTheme==='dark'?'#B8B8B8':'#303030'} strokeWidth={1.8} strokeLinecap="round" fill="none"/></Svg>
+          <Svg width={48} height={48} viewBox="0 0 24 24" accessible={false}>
+            <Path d={ANDROID_FINGERPRINT_PATH} fill={effectiveTheme==='dark'?'#B8B8B8':'#303030'}/>
+          </Svg>
           <Text style={{color:palette.text,fontSize:19,fontWeight:'600'}}>Unlock with biometrics</Text>
           <Button label="Use biometrics" tertiary onPress={async()=>{
             if(bioPromptInProgress.current)return;

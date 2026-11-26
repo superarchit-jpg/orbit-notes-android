@@ -171,7 +171,7 @@ export default function OrbitSettings({palette:appPalette,appInfoPalette,themeMo
  const modeButton=(mode:'light'|'dark'|'system',title:string)=><Pressable key={mode} accessibilityRole="button" accessibilityLabel={title+' theme'} accessibilityState={{selected:themeMode===mode}} onPress={()=>onTheme(mode)} style={{flex:1,borderRadius:22,minHeight:43,justifyContent:'center',alignItems:'center',borderWidth:1,borderColor:themeMode===mode?appPalette.tertiary:palette.border,backgroundColor:themeMode===mode?appPalette.tertiary:palette.control}}>
    <Text style={{fontSize:14,fontWeight:'600',color:themeMode===mode?appPalette.onTertiary:palette.text}}>{title}</Text>
  </Pressable>;
- const accentContinue=credentialModal==='pin'&&stage!=='confirm';
+ const useTertiaryCredentialAction=stage==='confirm'||credentialModal==='pin';
  return <SafeAreaView style={{flex:1,backgroundColor:palette.background}}>
    {page==='about'&&<AppInfoBackdrop dark={appInfoPalette===APP_INFO_DARK}/>}
   <View style={{minHeight:62,paddingHorizontal:16,flexDirection:'row',alignItems:'center',gap:14}}>
@@ -246,7 +246,7 @@ export default function OrbitSettings({palette:appPalette,appInfoPalette,themeMo
      <View style={{flexDirection:'row',justifyContent:'flex-end',alignItems:'center',gap:8}}>
       {stage==='verify'&&biometric&&<Pressable accessibilityRole="button" accessibilityLabel="Verify with biometrics" onPress={verifyWithBiometrics} disabled={busy} style={{padding:12}}><Text style={{color:palette.text}}>Biometrics</Text></Pressable>}
       <Pressable accessibilityRole="button" accessibilityLabel="Cancel credential change" onPress={dismissCredential} style={{padding:12}}><Text style={{color:palette.text}}>Cancel</Text></Pressable>
-      <Pressable accessibilityRole="button" accessibilityLabel={stage==='confirm'?'Save credential':'Continue credential setup'} onPress={submit} disabled={busy} style={{padding:12,borderRadius:14,backgroundColor:accentContinue?appPalette.tertiary:palette.accent,opacity:busy?0.5:1}}><Text style={{color:accentContinue?appPalette.onTertiary:appPalette.onAccent,fontWeight:'600'}}>{stage==='confirm'?'Save':'Continue'}</Text></Pressable>
+      <Pressable accessibilityRole="button" accessibilityLabel={stage==='confirm'?'Save credential':'Continue credential setup'} onPress={submit} disabled={busy} style={{padding:12,borderRadius:14,backgroundColor:useTertiaryCredentialAction?appPalette.tertiary:palette.accent,opacity:busy?0.5:1}}><Text style={{color:useTertiaryCredentialAction?appPalette.onTertiary:appPalette.onAccent,fontWeight:'600'}}>{stage==='confirm'?'Save':'Continue'}</Text></Pressable>
      </View>
     </View>
    </View>
