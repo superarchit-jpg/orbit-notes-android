@@ -1432,6 +1432,7 @@ if(locked){
   );
 }
   const showLibrarySearch=!showTrash&&!showArchive&&selected.length===0;
+  const showEmptyLabel=!!folderFilter&&!showTrash&&!showArchive&&shown.length===0&&!librarySearch.trim();
   const libraryToolbar=(
 <View style={[styles.header,{gap:2}]}>
               {(!showLibrarySearch||!librarySearching)&&<IconButton label={selected.length||showTrash&&selectedTrash.length?'×':'☰'} accessibilityLabel={selected.length||showTrash&&selectedTrash.length?'Clear selection':'Open sidebar'} onPress={()=>{if(showTrash&&selectedTrash.length)setSelectedTrash([]);else if(selected.length)setSelected([]);else setSidebar(v=>!v);}}/>}
@@ -2213,20 +2214,26 @@ return (
                      </View>;
                     }}/>
 
-                  {shown.length===0&&!showArchive&&(
+                  {shown.length===0&&!showArchive&&!showEmptyLabel&&(
                     <View style={{position:'absolute',left:0,right:0,top:44,alignItems:'center',paddingVertical:48,paddingHorizontal:20,gap:12}}>
                       <MaterialIcon name="label" color={palette.muted}/>
-                      <Text style={[styles.listTitle,{textAlign:'center',color:palette.text,fontWeight:'600'}]}>{librarySearch.trim()?'No matching maps':folderFilter?'No maps in this label':'Your library is ready'}</Text>
-                      <Text style={[styles.muted,{color:palette.muted,textAlign:'center'}]}>{librarySearch.trim()?'No maps match this search. Try different words or clear the search.':folderFilter?'Create a map in this label, or move an existing map here from the library.':'Create your first map to start building your notes.'}</Text>
+                      <Text style={[styles.listTitle,{textAlign:'center',color:palette.text,fontWeight:'600'}]}>{librarySearch.trim()?'No matching maps':'Your library is ready'}</Text>
+                      <Text style={[styles.muted,{color:palette.muted,textAlign:'center'}]}>{librarySearch.trim()?'No maps match this search. Try different words or clear the search.':'Create your first map to start building your notes.'}</Text>
                       {librarySearch.trim()?<Button label="Clear search" onPress={clearLibrarySearch}/>:<Button label="Create map" primary onPress={newMap}/>}
                     </View>
                   )}
                 </View>
               )}
             </View>
-            {showArchive&&shown.length===0&&!showTrash&&<View pointerEvents="box-none" style={{position:'absolute',left:0,right:0,top:96,bottom:0,alignItems:'center',justifyContent:'center',paddingHorizontal:24}}>
-              <Svg width={116} height={116} viewBox="0 0 24 24" accessibilityLabel="Empty Archive illustration"><Path d={ICON_PATHS.archive} stroke={palette.tertiaryInk} fill="none" strokeWidth={0.85} strokeLinecap="round" strokeLinejoin="round"/></Svg>
-              <Text style={{color:palette.muted,fontSize:16,fontWeight:'500',textAlign:'center',marginTop:14}}>{librarySearch.trim()?'No matching maps':'Your archived maps appear here'}</Text>
+            {(showEmptyLabel||showArchive&&shown.length===0&&!showTrash)&&<View pointerEvents="box-none" style={{position:'absolute',left:0,right:0,top:96,bottom:showEmptyLabel?60:0,alignItems:'center',justifyContent:'center',paddingHorizontal:24}}>
+              {showEmptyLabel?(
+                <Svg width={116} height={92} viewBox="0 0 24 24" preserveAspectRatio="none" accessible={false}>
+                  <Path d={ICON_PATHS.label} stroke={palette.tertiaryInk} fill="none" strokeWidth={0.85} strokeLinecap="round" strokeLinejoin="round"/>
+                </Svg>
+              ):(
+                <Svg width={116} height={116} viewBox="0 0 24 24" accessibilityLabel="Empty Archive illustration"><Path d={ICON_PATHS.archive} stroke={palette.tertiaryInk} fill="none" strokeWidth={0.85} strokeLinecap="round" strokeLinejoin="round"/></Svg>
+              )}
+              <Text style={{color:palette.muted,fontSize:16,fontWeight:'500',textAlign:'center',marginTop:14}}>{showEmptyLabel?'No maps in this label':librarySearch.trim()?'No matching maps':'Your archived maps appear here'}</Text>
             </View>}
             {!showTrash&&!showArchive&&selected.length===0&&<Pressable accessibilityRole="button" accessibilityLabel="Create new map" onPress={newMap} style={{position:'absolute',right:22,bottom:48,width:60,height:60,borderRadius:20,backgroundColor:sidebar?palette.accent:palette.tertiary,alignItems:'center',justifyContent:'center',elevation:5,zIndex:10}}>
               <Text style={{fontSize:32,color:sidebar?palette.onAccent:palette.onTertiary}}>+</Text>
