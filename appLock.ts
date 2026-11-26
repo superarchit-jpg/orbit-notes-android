@@ -48,6 +48,18 @@ export async function checkPin(pin:string){
   if(!pepper||typeof stored.salt!=='string'||typeof stored.digest!=='string')return false;
   return (await hash(pin,stored.salt,pepper))===stored.digest;
 }
+let verificationQueue:Promise<unknown>=Promise.resolve();
+/** Read, verify and record one attempt at a time across all credential prompts. */
+export function verifyCredential(value:string){
+  const attempt=verificationQueue.then(async()=>{
+    const status=await lockStatus();
+    if(Date.now()<status.blockedUntil)return {ok:false,alreadyBlocked:true,...status};
+    const ok=await checkPin(value);
+    return {ok,alreadyBlocked:false,...await recordPinAttempt(ok)};
+  });
+  verificationQueue=attempt.catch(()=>{});
+  return attempt;
+}
 export async function removePin(){await SecureStore.deleteItemAsync(ENABLED);await SecureStore.deleteItemAsync(KEY);await SecureStore.deleteItemAsync(BIO);await SecureStore.deleteItemAsync(LIMIT);await SecureStore.deleteItemAsync(PEPPER);}
 export async function biometricEnabled(){return (await SecureStore.getItemAsync(BIO))==='yes';}
 export async function setBiometricEnabled(enabled:boolean){

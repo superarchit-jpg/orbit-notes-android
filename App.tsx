@@ -2,22 +2,22 @@ import React,{useEffect,useMemo,useState,useRef} from 'react';
 import {ICON_PATHS} from './orbitIcons';
 import {ANDROID_FINGERPRINT_PATH} from './androidFingerprint';
 import {LIGHT,DARK,APP_INFO_LIGHT,APP_INFO_DARK,uiRoles} from './orbitThemeTokens';
-import {partitionLibraryColumns,balancedLibraryPositions} from './libraryColumns';
+import {balancedLibraryPositions} from './libraryColumns';
 import {AppState,BackHandler,Dimensions,KeyboardAvoidingView,useColorScheme,useWindowDimensions,Platform,Pressable,ScrollView,FlatList,Keyboard,StatusBar,StyleSheet,Text,TextInput,View} from 'react-native';
 import Svg,{Line,Circle,Rect,Path,Text as SvgText} from 'react-native-svg';
 import {SafeAreaProvider,SafeAreaView as InsetSafeAreaView} from 'react-native-safe-area-context';
 import {Gesture,GestureDetector,GestureHandlerRootView} from 'react-native-gesture-handler';
 import Animated,{FadeInLeft,FadeOutLeft,LinearTransition,runOnJS,useAnimatedReaction,useAnimatedStyle,useSharedValue,withTiming} from 'react-native-reanimated';
 import type {SharedValue} from 'react-native-reanimated';
-import {loadSnapshot,saveSnapshot,loadMapPreferences,saveMapPreferences,emptyMapPreferences} from './storage';
-import {radialTree,fitMap} from './mapGeometry';
-import {hasPin,isPinLockEnabled,setPinLockEnabled,setPin,checkPin,credentialKind,removePin,biometricEnabled,setBiometricEnabled,authenticateBiometric,lockStatus,recordPinAttempt} from './appLock';
+import {loadSnapshot,saveSnapshot,loadMapPreferences,saveMapPreferences,saveFocusedNote,emptyMapPreferences,normalizeMapPreferences} from './storage';
+import {radialTree,fitMap,indexChildren,nodeRadius,pointBounds} from './mapGeometry';
+import {hasPin,isPinLockEnabled,setPinLockEnabled,setPin,verifyCredential,credentialKind,removePin,biometricEnabled,setBiometricEnabled,authenticateBiometric} from './appLock';
 import {exportPDF,exportMultipleMapsPDF,Note} from './export';
 import {safeExportName,saveExportToAndroid,saveMultiplePDFsToAndroid,ExportFormat} from './localSave';
 import * as FileSystem from 'expo-file-system/legacy';
-import {saveEncryptedBackup,selectBackupFile,decryptSelectedBackup} from './backup';
-import {TrashBatch,deleteBranches,restoreBatch,pruneTrash,splitDeletedMaps} from './trash';
-import {formatSelection,parseRichLine} from './noteFormatting';
+import {saveEncryptedBackup,selectBackupFile,decryptSelectedBackup,discardBackupFile} from './backup';
+import {TrashBatch,deleteBranches,restoreBatch,restoreArchiveOrder,pruneTrash,splitDeletedMaps} from './trash';
+import {parseRichLine} from './noteFormatting';
 import RichNoteEditor,{RichNoteEditorHandle,RichEditorState} from './RichNoteEditor';
 import OrbitSettings from './OrbitSettings';
 import OrbitModal from './OrbitModal';
@@ -53,11 +53,11 @@ const CARD_PALETTE=[...KEEP_LIGHT_PRESETS];
 // Exactly four columns on phone widths: 12 original swatches + two additional rows of four.
 const paletteSwatchSize=Math.min(60,(Math.min(W-48,380)-44-42)/4);
 
-const Button=({label,onPress,primary=false,tertiary=false,danger=false,active=false}:{label:string;onPress:()=>void;primary?:boolean;tertiary?:boolean;danger?:boolean;active?:boolean})=>{
+const Button=({label,onPress,primary=false,tertiary=false,danger=false,active=false,disabled=false}:{label:string;onPress:()=>void;primary?:boolean;tertiary?:boolean;danger?:boolean;active?:boolean;disabled?:boolean})=>{
   const palette=React.useContext(PaletteContext);
   const backgroundColor=tertiary?palette.tertiary:primary?palette.accent:active?palette.control:'transparent';
   const color=tertiary?palette.onTertiary:primary?palette.onAccent:danger?palette.error:active?palette.accent:palette.text;
-  return <Pressable accessibilityRole="button" accessibilityLabel={label} onPress={onPress} style={[styles.button,{backgroundColor}]}><Text style={[styles.buttonText,{color}]}>{label==='🗑'?<Svg width={23} height={23} viewBox="0 0 24 24"><Line x1={4} y1={7} x2={20} y2={7} stroke="#dc2626" strokeWidth={1.8}/><Line x1={9} y1={4} x2={15} y2={4} stroke="#dc2626" strokeWidth={1.8}/><Rect x={6} y={7} width={12} height={14} rx={2} stroke="#dc2626" strokeWidth={1.8} fill="none"/><Line x1={10} y1={11} x2={10} y2={17} stroke="#dc2626" strokeWidth={1.5}/><Line x1={14} y1={11} x2={14} y2={17} stroke="#dc2626" strokeWidth={1.5}/></Svg>:label}</Text></Pressable>;
+  return <Pressable accessibilityRole="button" accessibilityLabel={label} disabled={disabled} onPress={onPress} style={[styles.button,{backgroundColor,opacity:disabled?0.5:1}]}><Text style={[styles.buttonText,{color}]}>{label==='🗑'?<Svg width={23} height={23} viewBox="0 0 24 24"><Line x1={4} y1={7} x2={20} y2={7} stroke="#dc2626" strokeWidth={1.8}/><Line x1={9} y1={4} x2={15} y2={4} stroke="#dc2626" strokeWidth={1.8}/><Rect x={6} y={7} width={12} height={14} rx={2} stroke="#dc2626" strokeWidth={1.8} fill="none"/><Line x1={10} y1={11} x2={10} y2={17} stroke="#dc2626" strokeWidth={1.5}/><Line x1={14} y1={11} x2={14} y2={17} stroke="#dc2626" strokeWidth={1.5}/></Svg>:label}</Text></Pressable>;
 };
 
 const MaterialIcon=({name,color,fillLabel=false}:{name:string;color:string;fillLabel?:boolean})=>{
@@ -82,7 +82,7 @@ const MaterialIcon=({name,color,fillLabel=false}:{name:string;color:string;fillL
   return data?<Svg width={iconSize} height={iconSize} viewBox="0 0 24 24"><Path d={data} fill="none" stroke={color} strokeWidth={1.7} strokeLinecap="round" strokeLinejoin="round"/></Svg>:<Text style={{fontSize:22,color,fontWeight:'700'}}>{name}</Text>;
 };
 
-const LibraryGestureCard=({children,position,onMeasure,canSwipe,onArchive,canDrag,onSelect,onDragStart,onDragMove,onDrop,registerRef}:{children:React.ReactNode;position:{top:number;left:number;width:number};onMeasure:(height:number)=>void;canSwipe:boolean;onArchive:()=>void;canDrag:boolean;onSelect:()=>void;onDragStart:()=>void;onDragMove:(x:number,y:number)=>void;onDrop:(x:number,y:number)=>void;registerRef:(view:View|null)=>void})=>{
+const LibraryGestureCard=({children,position,onMeasure,canSwipe,onArchive,canDrag,onSelect,onDragStart,onDragMove,onDrop,onDragCancel,registerRef}:{children:React.ReactNode;position:{top:number;left:number;width:number};onMeasure:(height:number)=>void;canSwipe:boolean;onArchive:()=>void;canDrag:boolean;onSelect:()=>void;onDragStart:()=>void;onDragMove:(x:number,y:number)=>void;onDrop:(dx:number,dy:number)=>void;onDragCancel:()=>void;registerRef:(view:View|null)=>void})=>{
  const dx=useSharedValue(0),dy=useSharedValue(0),dragging=useSharedValue(false);
  const cardWidth=useSharedValue(W);
  const lastDragX=useSharedValue(0),lastDragY=useSharedValue(0);
@@ -109,8 +109,9 @@ const LibraryGestureCard=({children,position,onMeasure,canSwipe,onArchive,canDra
        runOnJS(onDragMove)(e.translationX,e.translationY);
      }
    })
-   .onEnd(e=>{if(dragActivated.value)runOnJS(onDrop)(e.absoluteX,e.absoluteY);})
-   .onFinalize(()=>{
+   .onEnd((e,success)=>{if(success&&dragActivated.value)runOnJS(onDrop)(e.translationX,e.translationY);})
+   .onFinalize((_e,success)=>{
+     if(!success&&dragActivated.value)runOnJS(onDragCancel)();
      dragActivated.value=false;dragging.value=false;
      dx.value=withTiming(0,{duration:180});dy.value=withTiming(0,{duration:180});
    });
@@ -176,23 +177,28 @@ const useMapCamera=()=>{
   return {tx,ty,scale,rotation,startX,startY,startScale,startRotation};
 };
 
+const emptyEditorFormats:RichEditorState={bold:false,italic:false,underline:false,bullets:false,numbers:false,canUndo:false,canRedo:false};
+
 export default function App(){
-const [notes,setNotes]=useState<Note[]>(initial),[folders,setFolders]=useState<Folder[]>([]),[focused,setFocused]=useState('root'),[overview,setOverview]=useState(false),[menu,setMenu]=useState(true),[reader,setReader]=useState<string|null>(null),[editing,setEditing]=useState(false),[title,setTitle]=useState(''),[body,setBody]=useState(''),[folderName,setFolderName]=useState(''),[creatingFolder,setCreatingFolder]=useState(false),[selected,setSelected]=useState<string[]>([]),[folderFilter,setFolderFilter]=useState<string|null>(null),[loaded,setLoaded]=useState(false),[storageError,setStorageError]=useState<string|null>(null),[trash,setTrash]=useState<TrashBatch[]>([]),[showTrash,setShowTrash]=useState(false),[undoBatch,setUndoBatch]=useState<string|null>(null);
+const [notes,setNotes]=useState<Note[]>(initial),[folders,setFolders]=useState<Folder[]>([]),[focused,setFocused]=useState('root'),[menu,setMenu]=useState(true),[reader,setReader]=useState<string|null>(null),[editing,setEditing]=useState(false),[title,setTitle]=useState(''),[body,setBody]=useState(''),[folderName,setFolderName]=useState(''),[creatingFolder,setCreatingFolder]=useState(false),[selected,setSelected]=useState<string[]>([]),[folderFilter,setFolderFilter]=useState<string|null>(null),[loaded,setLoaded]=useState(false),[storageError,setStorageError]=useState<string|null>(null),[trash,setTrash]=useState<TrashBatch[]>([]),[showTrash,setShowTrash]=useState(false);
 
 const [mapPrefs,setMapPrefs]=useState(emptyMapPreferences);
 const [archiveUndoIds,setArchiveUndoIds]=useState<string[]>([]);
-const [pendingBranch,setPendingBranch]=useState<TrashBatch|null>(null);
- // Branch undo exists only in memory; never in the recoverable seven-day Deleted store.
- const branchUndoDeadline=useRef<number|null>(null);
-const [undoOpen,setUndoOpen]=useState(false);
- const [undoMapIds,setUndoMapIds]=useState<string[]>([]);
+const [deletionUndo,setDeletionUndo]=useState<
+ {kind:'branch';batch:TrashBatch;expiresAt:number}|
+ {kind:'maps';ids:string[];archiveOrder:string[];expiresAt:number}|null>(null);
 const [trashMenu,setTrashMenu]=useState(false);
-const [themeMenu,setThemeMenu]=useState(false);
 const [labelManager,setLabelManager]=useState(false);
 const [labelQuery,setLabelQuery]=useState('');
 const bioPromptInProgress=useRef(false),bioPrompted=useRef(false);
 const richEditorRef=useRef<RichNoteEditorHandle|null>(null);
-const [editorFormats,setEditorFormats]=useState<RichEditorState>({bold:false,italic:false,underline:false,bullets:false,numbers:false,canUndo:false,canRedo:false});
+const [editorFormats,setEditorFormats]=useState<RichEditorState>(emptyEditorFormats);
+const [editorReady,setEditorReady]=useState(false);
+const resetEditor=()=>{
+  setEditorReady(false);
+  setEditorFormats(emptyEditorFormats);
+  setFormatToolbar(false);
+};
 const [colorTarget,setColorTarget]=useState<'cards'|'note'|'node'|null>(null);
 const deviceTheme=useColorScheme();
 const {width:windowWidth,fontScale}=useWindowDimensions();
@@ -233,6 +239,9 @@ const readOnly=deletedPreview!==null;
 // Deleted previews share the live map controls with an independent camera and view state.
 const mapNotes=deletedPreview?.batch.notes??notes;
 const mapFocus=deletedPreview?.focused??focused;
+const notebookChildren=useMemo(()=>indexChildren(notes),[notes]);
+const mapChildren=useMemo(()=>mapNotes===notes?notebookChildren:indexChildren(mapNotes),[mapNotes,notes,notebookChildren]);
+const mapNotesById=useMemo(()=>new Map(mapNotes.map(note=>[note.id,note])),[mapNotes]);
 const mapOffsets=deletedPreview?.offsets??mapPrefs.offsets;
 const mapCollapsed=deletedPreview?.collapsed??mapPrefs.collapsed;
 const showMiniMap=deletedPreview?.showMiniMap??editableMiniMap;
@@ -244,7 +253,6 @@ const [gestureHelp,setGestureHelp]=useState(false);
 const [nodeActions,setNodeActions]=useState<string|null>(null);
 const [draftChildId,setDraftChildId]=useState<string|null>(null);
 const [readerTapAt,setReaderTapAt]=useState(0);
-const [textSelection,setTextSelection]=useState({start:0,end:0});
 const [librarySearch,setLibrarySearch]=useState('');
 const [librarySearching,setLibrarySearching]=useState(false);
 const librarySearchInput=useRef<TextInput>(null);
@@ -257,7 +265,6 @@ const closeLibrarySearch=()=>{
 const [cardMenuId,setCardMenuId]=useState<string|null>(null);
 const [cardMenuPosition,setCardMenuPosition]=useState({top:70,left:12});
 const [formatToolbar,setFormatToolbar]=useState(false);
-const [manualColor,setManualColor]=useState('');
 const [zoomPercent,setZoomPercent]=useState(100);
 const librarySort=mapPrefs.librarySort||'custom';
 const sortDirection=mapPrefs.sortDirection||'desc';
@@ -284,19 +291,33 @@ const renderAppDialog=()=>(
 );
 const [sortMenu,setSortMenu]=useState(false);
 const [showArchive,setShowArchive]=useState(false),[selectedTrash,setSelectedTrash]=useState<string[]>([]),[retentionNotice,setRetentionNotice]=useState(false);
-const [foldersExpanded,setFoldersExpanded]=useState(true);
 const [editingFolderId,setEditingFolderId]=useState<string|null>(null);
 const [mapMenu,setMapMenu]=useState(false),[selectionMenu,setSelectionMenu]=useState(false),[sidebar,setSidebar]=useState(false),[moveFolderMenu,setMoveFolderMenu]=useState(false),[exportTarget,setExportTarget]=useState<string|null>(null);
 
 const [backupMode,setBackupMode]=useState<'save'|'restore'|null>(null),[backupPassword,setBackupPassword]=useState(''),[backupBusy,setBackupBusy]=useState(false),[backupFile,setBackupFile]=useState<{uri:string;name:string}|null>(null);
+const backupPickerRequest=useRef(0);
+const closeBackup=()=>{
+  backupPickerRequest.current++;
+  setBackupMode(null);
+  setBackupFile(null);
+  setBackupPassword('');
+};
+const backupUri=backupFile?.uri;
+useEffect(()=>{
+  if(!backupUri)return;
+  return()=>{void discardBackupFile(backupUri);};
+},[backupUri]);
+
 const [exportKind,setExportKind]=useState<ExportFormat|null>(null),[exportName,setExportName]=useState(''),[exportBusy,setExportBusy]=useState(false),[exportSeparate,setExportSeparate]=useState(false);
 
 const editableCamera=useMapCamera(),deletedCamera=useMapCamera();
 const {tx,ty,scale,rotation,startRotation,startX,startY,startScale}=readOnly?deletedCamera:editableCamera;
 
 const [credentialFallback,setCredentialFallback]=useState(false);
+const [unlockBusy,setUnlockBusy]=useState(false);
+const unlocking=useRef(false);
 const settingsBack=useRef<()=>void>(()=>setSettings(false));
-const [storedCredentialType,setStoredCredentialType]=useState<'pin'|'password'>('pin'),[appActive,setAppActive]=useState(AppState.currentState==='active'),[locked,setLocked]=useState(true),[pinConfigured,setPinConfigured]=useState(false),[pinLockEnabled,setPinLockEnabledState]=useState(false),[pinInput,setPinInput]=useState(''),[pinAttempts,setPinAttempts]=useState(0),[blockedUntil,setBlockedUntil]=useState(0),[settings,setSettings]=useState(false),[biometrics,setBiometrics]=useState(false);
+const [storedCredentialType,setStoredCredentialType]=useState<'pin'|'password'>('pin'),[appActive,setAppActive]=useState(AppState.currentState==='active'),[locked,setLocked]=useState(true),[pinConfigured,setPinConfigured]=useState(false),[pinLockEnabled,setPinLockEnabledState]=useState(false),[pinInput,setPinInput]=useState(''),[settings,setSettings]=useState(false),[biometrics,setBiometrics]=useState(false);
 
 useEffect(()=>{
   let alive=true;
@@ -336,9 +357,6 @@ useEffect(()=>{
         setPinLockEnabledState(enabled);
         setBiometrics(bio);
         setLocked(enabled);
-        const lock=await lockStatus();
-        setPinAttempts(lock.attempts);
-        setBlockedUntil(lock.blockedUntil);
       }
     }catch(e){
       if(alive)setStorageError(String(e));
@@ -352,18 +370,33 @@ useEffect(()=>{
 useEffect(()=>{
   if(!loaded||storageError)return;
   saveSnapshot({notes,folders,focused:notes.some(n=>n.id===focused)?focused:'root',trash}).catch(e=>showDialog('Save failed',String(e)));
-},[notes,folders,focused,trash,loaded,storageError]);
+},[notes,folders,trash,loaded,storageError]);
 
 useEffect(()=>{
   if(!loaded||storageError)return;
-  saveMapPreferences(mapPrefs).catch(e=>showDialog('Map preferences save failed',String(e)));
+  saveFocusedNote(focused).catch(e=>showDialog('Save failed',String(e)));
+},[focused,loaded,storageError]);
+
+const pendingPreferences=useRef<{value:typeof mapPrefs;timer:ReturnType<typeof setTimeout>}|null>(null);
+const flushPreferencesWrite=()=>{
+  const pending=pendingPreferences.current;
+  if(!pending)return;
+  pendingPreferences.current=null;
+  clearTimeout(pending.timer);
+  saveMapPreferences(pending.value).catch(e=>showDialog('Map preferences save failed',String(e)));
+};
+useEffect(()=>{
+  if(!loaded||storageError)return;
+  const previous=pendingPreferences.current;
+  if(previous)clearTimeout(previous.timer);
+  pendingPreferences.current={value:mapPrefs,timer:setTimeout(flushPreferencesWrite,180)};
 },[mapPrefs,loaded,storageError]);
+useEffect(()=>()=>flushPreferencesWrite(),[]);
 
 useEffect(()=>{
   const sub=AppState.addEventListener('change',state=>{
-    if(state==='active'&&branchUndoDeadline.current!==null&&Date.now()>=branchUndoDeadline.current){
-      branchUndoDeadline.current=null;setPendingBranch(null);setUndoOpen(false);
-    }
+    if(state!=='active')flushPreferencesWrite();
+    if(state==='active')setDeletionUndo(undo=>undo&&Date.now()>=undo.expiresAt?null:undo);
     // Android biometric prompts can temporarily deactivate the app; do not relock or cancel that prompt.
     if(bioPromptInProgress.current)return;
     setAppActive(state==='active');
@@ -387,21 +420,24 @@ useEffect(()=>{
  return()=>{cancelled=true;};
 },[loaded,locked,pinLockEnabled,biometrics,appActive]);
 const unlock=async()=>{
+  if(unlocking.current)return;
+  unlocking.current=true;
+  setUnlockBusy(true);
+  const credential=storedCredentialType==='pin'?'PIN':'password';
   try{
-    const status=await lockStatus();
-    if(Date.now()<status.blockedUntil){
-      showDialog('Try again later','Too many incorrect PIN attempts.');
+    const result=await verifyCredential(pinInput);
+    if(result.alreadyBlocked){
+      showDialog('Try again later','Too many incorrect '+credential+' attempts.');
       return;
     }
-    const valid=await checkPin(pinInput);
-    const next=await recordPinAttempt(valid);
-    setPinAttempts(next.attempts);
-    setBlockedUntil(next.blockedUntil);
     setPinInput('');
-    if(valid){setLocked(false);setCredentialFallback(false);}
-    else showDialog('Incorrect PIN',next.blockedUntil>Date.now()?'Try again in one minute.':'Please try again.');
+    if(result.ok){setLocked(false);setCredentialFallback(false);}
+    else showDialog('Incorrect '+credential,result.blockedUntil>Date.now()?'Try again in one minute.':'Please try again.');
   }catch(e){
     showDialog('Unlock error',String(e));
+  }finally{
+    unlocking.current=false;
+    setUnlockBusy(false);
   }
 };
 
@@ -428,7 +464,7 @@ const closeMap=()=>{
 };
 
 const current=notes.find(n=>n.id===focused)||notes[0];
-const mapCurrent=mapNotes.find(n=>n.id===mapFocus)??current;
+const mapCurrent=mapNotesById.get(mapFocus)??current;
 const parent=mapNotes.find(n=>n.id===mapCurrent.parentId);
 const ancestors=useMemo(()=>{
   const a:Note[]=[];
@@ -437,13 +473,13 @@ const ancestors=useMemo(()=>{
   while(n&&!seen.has(n.id)){
     seen.add(n.id);
     a.unshift(n);
-    n=mapNotes.find(x=>x.id===n?.parentId);
+    n=mapNotesById.get(n.parentId??'');
   }
   return a;
-},[mapCurrent,mapNotes]);
+},[mapCurrent,mapNotesById]);
 
 const moveTo=(target:string)=>{
-  const point=completeMap.find(x=>x.note.id===target);
+  const point=completeById.get(target);
   if(!point)return;
   if(readOnly)updateDeletedPreview(view=>({...view,focused:target}));
   else setFocused(target);
@@ -462,7 +498,7 @@ const beginEdit=(target:string)=>{
   if(readOnly)return;
   const n=notes.find(x=>x.id===target);
   if(!n)return;
-  setFormatToolbar(false);
+  resetEditor();
   setReader(target);
   setTitle(n.title);
   setBody(n.body);
@@ -510,34 +546,33 @@ const addChild=(parentId:string)=>{
 };
 
 const beginNew=(newId:string)=>{
+  resetEditor();
   setReader(newId);
   setTitle('');
   setBody('');
   setEditing(true);
 };
 
-const clearUndoNotification=()=>{
-  branchUndoDeadline.current=null;
-  setUndoOpen(false);setUndoBatch(null);setPendingBranch(null);setUndoMapIds([]);
- };
- const undoDeletion=()=>{
-  if(pendingBranch){
-    if(branchUndoDeadline.current!==null&&Date.now()>=branchUndoDeadline.current){clearUndoNotification();return;}
-    setNotes(existing=>restoreBatch(existing,pendingBranch));
-  }else if(undoMapIds.length){
-    const batches=trash.filter(batch=>undoMapIds.includes(batch.id));
-    try{
+const clearUndoNotification=()=>setDeletionUndo(null);
+const undoDeletion=()=>{
+  if(!deletionUndo)return;
+  if(Date.now()>=deletionUndo.expiresAt){clearUndoNotification();return;}
+  try{
+    if(deletionUndo.kind==='branch'){
+      setNotes(restoreBatch(notes,deletionUndo.batch));
+    }else{
+      const ids=new Set(deletionUndo.ids);
       let updated=notes;
+      const batches=trash.filter(batch=>ids.has(batch.id));
       for(const batch of batches)updated=restoreBatch(updated,batch);
+      const restoredIds=new Set(batches.flatMap(batch=>batch.notes.map(note=>note.id)));
       setNotes(updated);
-      setTrash(existing=>existing.filter(batch=>!undoMapIds.includes(batch.id)));
-    }catch(e){showDialog('Cannot undo map deletion',String(e));}
-  }else if(undoBatch){
-    const batch=trash.find(t=>t.id===undoBatch);
-    if(batch)restore(batch);
-  }
+      setTrash(existing=>existing.filter(batch=>!ids.has(batch.id)));
+      setMapPrefs(p=>({...p,archived:restoreArchiveOrder(p.archived,deletionUndo.archiveOrder,restoredIds)}));
+    }
+  }catch(e){showDialog('Cannot undo deletion',String(e));}
   clearUndoNotification();
- };
+};
  const deleteSelected=()=>{
   const ids=selected.filter(x=>notes.some(n=>n.id===x&&n.parentId==='root'));
   if(!ids.length)return;
@@ -551,10 +586,7 @@ const clearUndoNotification=()=>{
       setNotes(result.remaining);
       setMapPrefs(p=>({...p,archived:p.archived.filter(item=>!result.batch.notes.some(n=>n.id===item))}));
       setTrash(existing=>mapPrefs.trashRetentionAcknowledged?pruneTrash([...deletedMaps,...existing]):[...deletedMaps,...existing]);
-      branchUndoDeadline.current=null;
-      setUndoBatch(deletedMaps[0].id);
-      setUndoMapIds(deletedMaps.map(batch=>batch.id));
-      setPendingBranch(null);setUndoOpen(true);
+      setDeletionUndo({kind:'maps',ids:deletedMaps.map(batch=>batch.id),archiveOrder:mapPrefs.archived,expiresAt:Date.now()+5000});
       if(result.batch.notes.some(n=>n.id===focused))setFocused('root');
       setSelected([]);setReader(null);
     }}
@@ -562,13 +594,10 @@ const clearUndoNotification=()=>{
 };
 
 useEffect(()=>{
-  if(!undoOpen)return;
-  const remaining=branchUndoDeadline.current===null?5000:Math.max(0,branchUndoDeadline.current-Date.now());
-  const timer=setTimeout(()=>{
-    branchUndoDeadline.current=null;setUndoOpen(false);setUndoBatch(null);setPendingBranch(null);setUndoMapIds([]);
-  },remaining);
+  if(!deletionUndo)return;
+  const timer=setTimeout(clearUndoNotification,Math.max(0,deletionUndo.expiresAt-Date.now()));
   return()=>clearTimeout(timer);
-},[undoOpen,undoBatch,pendingBranch]);
+},[deletionUndo]);
 const removeBranch=(target:string)=>{
   if(target==='root')return;
   const note=notes.find(n=>n.id===target);
@@ -580,19 +609,15 @@ const removeBranch=(target:string)=>{
     wholeMap?'This map and its descendants can be restored from Deleted for seven days.':'This branch and its descendants will be permanently deleted after five seconds or when Undo is dismissed. They will not appear in Deleted.',[
     {text:'Cancel',style:'cancel'},
     {text:wholeMap?'Move':'Delete',style:'destructive',onPress:()=>{
-      branchUndoDeadline.current=null;
       setNotes(result.remaining);
       setMapPrefs(p=>({...p,archived:p.archived.filter(item=>!result.batch.notes.some(n=>n.id===item))}));
       if(wholeMap){
         setTrash(existing=>mapPrefs.trashRetentionAcknowledged?pruneTrash([result.batch,...existing]):[result.batch,...existing]);
-        setPendingBranch(null);setUndoBatch(result.batch.id);setUndoMapIds([result.batch.id]);
+        setDeletionUndo({kind:'maps',ids:[result.batch.id],archiveOrder:mapPrefs.archived,expiresAt:Date.now()+5000});
       }else{
         // Exclude branch deletion from the permanent seven-day Deleted store.
-        setUndoBatch(null);setUndoMapIds([]);
-        branchUndoDeadline.current=Date.now()+5000;
-        setPendingBranch(result.batch);
+        setDeletionUndo({kind:'branch',batch:result.batch,expiresAt:Date.now()+5000});
       }
-      setUndoOpen(true);
       if(result.batch.notes.some(n=>n.id===focused))setFocused(note.parentId||'root');
       if(reader&&result.batch.notes.some(n=>n.id===reader))setReader(null);
     }}
@@ -650,18 +675,23 @@ const newMap=()=>{
   beginNew(newId);
 };
 
+const handleLibraryBack=(lockBeforeExit=false)=>{
+  if(sidebar){setSidebar(false);return;}
+  if(selectionMenu||moveFolderMenu||sortMenu||trashMenu||cardMenuId){
+    setSelectionMenu(false);setMoveFolderMenu(false);setSortMenu(false);setTrashMenu(false);setCardMenuId(null);
+    return;
+  }
+  if(selected.length){setSelected([]);return;}
+  if(selectedTrash.length){setSelectedTrash([]);return;}
+  if(librarySearching){closeLibrarySearch();return;}
+  if(lockBeforeExit&&pinLockEnabled)setLocked(true);
+  BackHandler.exitApp();
+};
+
 useEffect(()=>{
   const sub=BackHandler.addEventListener('hardwareBackPress',()=>{
     if(reader||gestureHelp||settings||backupMode||exportKind||labelManager||creatingFolder)return false;
-    if(menu){
-      if(sidebar){setSidebar(false);return true;}
-      if(selectionMenu||moveFolderMenu||sortMenu||trashMenu||cardMenuId){setSelectionMenu(false);setMoveFolderMenu(false);setSortMenu(false);setTrashMenu(false);setCardMenuId(null);return true;}
-      if(selected.length){setSelected([]);return true;}
-      if(selectedTrash.length){setSelectedTrash([]);return true;}
-      if(librarySearching){closeLibrarySearch();return true;}
-      if(pinLockEnabled)setLocked(true);
-      BackHandler.exitApp();return true;
-    }
+    if(menu){handleLibraryBack(true);return true;}
     if(mapMenu||nodeActions){setMapMenu(false);setNodeActions(null);return true;}
     closeMap();return true;
   });
@@ -696,17 +726,6 @@ const removeSelectedTrash=()=>showDialog('Delete selected permanently?', 'This c
  {text:'Cancel',style:'cancel'},
  {text:'Delete forever',style:'destructive',onPress:()=>{setTrash(t=>t.filter(b=>!selectedTrash.includes(b.id)));setSelectedTrash([]);}}
 ]);
-const restore=(batch:TrashBatch)=>{
-  try{
-    const restored=restoreBatch(notes,batch);
-    setNotes(restored);
-    setTrash(t=>t.filter(b=>b.id!==batch.id));
-    setUndoBatch(null);
-  }catch(e){
-    showDialog('Restore unavailable',String(e));
-  }
-};
-
 const updateMapOffset=(parentId:string,update:(angle:number)=>number)=>{
   const next=(offsets:Record<string,number>)=>({...offsets,[parentId]:update(offsets[parentId]||0)});
   if(readOnly)updateDeletedPreview(view=>({...view,offsets:next(view.offsets)}));
@@ -751,23 +770,10 @@ const updateChildRotation=(parentId:string,delta:number)=>updateMapOffset(parent
     ty.value=startY.value+e.translationY;
   });
 
-const rotateChildren=Gesture.Pan().minPointers(1).maxPointers(1).minDistance(12).enabled(false);
 
  const rotate=Gesture.Rotation()
   .onStart(()=>{startRotation.value=rotation.value;})
   .onUpdate(e=>{rotation.value=startRotation.value+e.rotation;});
-
-const pinch=Gesture.Pinch()
-  .onStart(()=>{
-    startScale.value=Number.isFinite(scale.value)&&scale.value>0?scale.value:1;
-  })
-  .onUpdate(e=>{
-    const baseline=Number.isFinite(preferredFit)&&preferredFit>0?preferredFit:1;
-    const factor=Number.isFinite(e.scale)&&e.scale>0?e.scale:1;
-    const next=startScale.value*factor;
-    if(Number.isFinite(next)&&next>0)
-      scale.value=Math.min(baseline*2,Math.max(baseline*0.1,next));
-  });
 
 const animated=useAnimatedStyle(()=>({
   transform:[
@@ -787,16 +793,17 @@ const mapRoot=useMemo(()=>{
   const seen=new Set<string>();
   while(n.parentId&&n.parentId!=='root'&&!seen.has(n.id)){
     seen.add(n.id);
-    const p=mapNotes.find(x=>x.id===n.parentId);
+    const p=mapNotesById.get(n.parentId);
     if(!p)break;
     n=p;
   }
   return n;
-},[mapCurrent,mapNotes]);
-const completeMap=useMemo(()=>radialTree(mapRoot,mapNotes,mapOffsets,{},mapFocus),
-  [mapRoot,mapNotes,mapOffsets,mapFocus]);
-const fullMap=useMemo(()=>showEntireMap?completeMap:radialTree(mapRoot,mapNotes,mapOffsets,mapCollapsed,mapFocus),
-  [showEntireMap,completeMap,mapRoot,mapNotes,mapOffsets,mapCollapsed,mapFocus]);
+},[mapCurrent,mapNotesById]);
+const completeMap=useMemo(()=>radialTree(mapRoot,mapNotes,mapOffsets,{},mapChildren),
+  [mapRoot,mapNotes,mapOffsets,mapChildren]);
+const fullMap=useMemo(()=>showEntireMap?completeMap:radialTree(mapRoot,mapNotes,mapOffsets,mapCollapsed,mapChildren),
+  [showEntireMap,completeMap,mapRoot,mapNotes,mapOffsets,mapCollapsed,mapChildren]);
+const completeById=useMemo(()=>new Map(completeMap.map(point=>[point.note.id,point])),[completeMap]);
 const visible=useMemo(()=>{
   const focus=fullMap.find(n=>n.note.id===mapFocus);
   const depth=focus?.level||0;
@@ -804,11 +811,11 @@ const visible=useMemo(()=>{
   let id=mapFocus;
   while(id&&!ancestors.has(id)){
     ancestors.add(id);
-    id=mapNotes.find(n=>n.id===id)?.parentId||'';
+    id=mapNotesById.get(id)?.parentId||'';
   }
   return fullMap.filter(n=>showEntireMap||n.level<=1||ancestors.has(n.note.id)||
     (ancestors.has(n.note.parentId||'')&&n.level<=depth+1));
-},[fullMap,mapFocus,mapNotes,showEntireMap]);
+},[fullMap,mapFocus,mapNotesById,showEntireMap]);
 
 const [canvasW,setCanvasW]=useState(W);
 const [canvasH,setCanvasH]=useState(H-180);
@@ -817,9 +824,25 @@ const [canvasH,setCanvasH]=useState(H-180);
 // Retain the former sparse-map reference for the initial view.
 const preferredFit=useMemo(()=>{const fit=fitMap([{x:-313.5,y:0},{x:313.5,y:0}],Math.max(1,canvasW),Math.max(1,canvasH)).scale;return Number.isFinite(fit)&&fit>0?fit*(1.75/1.2)*1.1:1;},[canvasW,canvasH]);
 // Only reset zoom when entering a map, not after a node change.
-useEffect(()=>{if(!menu)scale.value=withTiming(preferredFit*1.1,{duration:300});},[menu]);
+const zoomBaseline=preferredFit*1.1;
+const pinch=Gesture.Pinch()
+  .onStart(()=>{
+    startScale.value=Number.isFinite(scale.value)&&scale.value>0?scale.value:1;
+  })
+  .onUpdate(e=>{
+    const baseline=zoomBaseline;
+    const factor=Number.isFinite(e.scale)&&e.scale>0?e.scale:1;
+    const next=startScale.value*factor;
+    if(Number.isFinite(next)&&next>0)
+      scale.value=Math.min(baseline*2,Math.max(baseline*0.1,next));
+  });
+const adjustZoom=(step:number)=>{
+  const next=(Math.round(scale.value/zoomBaseline*10)+step)/10;
+  scale.value=withTiming(zoomBaseline*Math.max(0.1,Math.min(2,next)));
+};
+useEffect(()=>{if(!menu)scale.value=withTiming(zoomBaseline,{duration:300});},[menu]);
 useAnimatedReaction(
-  ()=>Number.isFinite(scale.value)&&Number.isFinite(preferredFit)&&preferredFit>0?Math.round(Math.max(10,Math.min(200,scale.value/(preferredFit*1.1)*100))):100,
+  ()=>Number.isFinite(scale.value)&&Number.isFinite(preferredFit)&&preferredFit>0?Math.round(Math.max(10,Math.min(200,scale.value/zoomBaseline*100))):100,
   (value,previous)=>{if(value!==previous)runOnJS(setZoomPercent)(value);}
 );
 
@@ -829,14 +852,13 @@ useAnimatedReaction(
 const miniBounds=useMemo(()=>{
   const width=1000,height=540,pad=16;
   if(!completeMap.length)return {width,height,scale:1,dx:width/2,dy:height/2};
-  const xs=completeMap.map(v=>v.x),ys=completeMap.map(v=>v.y);
-  const minX=Math.min(...xs),maxX=Math.max(...xs),minY=Math.min(...ys),maxY=Math.max(...ys);
+  const {minX,maxX,minY,maxY}=pointBounds(completeMap);
   const spanX=Math.max(1,maxX-minX),spanY=Math.max(1,maxY-minY);
   const scale=Math.min((width-2*pad)/spanX,(height-2*pad)/spanY);
   const dx=width/2-(minX+maxX)*scale/2;
   const dy=height/2-(minY+maxY)*scale/2;
   return {width,height,scale,dx,dy};
-},[visible]);
+},[completeMap]);
 const focusPoint=visible.find(x=>x.note.id===mapFocus)||visible[0];
 const toggleEntireMap=()=>{
    if(!showEntireMap){
@@ -874,33 +896,29 @@ useEffect(()=>{
   scale.value=withTiming(fit.scale);
   rotation.value=withTiming(0);
 },[menu,showEntireMap,completeMap,canvasW,canvasH]);
-const parentPoint:{x:number;y:number}={x:0,y:0};
 
-const miniLines=completeMap.filter(n=>n.note.parentId&&n.note.parentId!=='root').flatMap(n=>{
-  const p=completeMap.find(x=>x.note.id===n.note.parentId);
-  return p?[{id:n.note.id,x1:p.x,y1:p.y,x2:n.x,y2:n.y}]:[];
-});
-// Use the uncollapsed hierarchy so manually collapsed children retain
-// their small indicators around the visible parent.
-const hiddenIndicators=completeMap.filter(n=>!visible.some(v=>v.note.id===n.note.id)&&
-  visible.some(v=>v.note.id===n.note.parentId)).map(n=>{
-  const p=completeMap.find(v=>v.note.id===n.note.parentId)!;
-  const radius=[60,55,45,40,37.5,35][Math.min(p.level,5)];
+const visibleById=useMemo(()=>new Map(visible.map(point=>[point.note.id,point])),[visible]);
+const miniLines=useMemo(()=>completeMap.flatMap(n=>{
+  const p=completeById.get(n.note.parentId??'');
+  return p&&p.note.id!=='root'?[{id:n.note.id,x1:p.x,y1:p.y,x2:n.x,y2:n.y}]:[];
+}),[completeMap,completeById]);
+// Hidden children retain indicators around their visible parent.
+const hiddenIndicators=useMemo(()=>completeMap.flatMap(n=>{
+  const p=visibleById.get(n.note.parentId??'');
+  if(!p||visibleById.has(n.note.id))return [];
+  const radius=nodeRadius(p.level);
   const angle=Math.atan2(n.y-p.y,n.x-p.x);
-  return {note:n.note,x:p.x+radius*Math.cos(angle),y:p.y+radius*Math.sin(angle)};
-});
-const lines=visible
+  return [{note:n.note,x:p.x+radius*Math.cos(angle),y:p.y+radius*Math.sin(angle)}];
+}),[completeMap,visibleById]);
+const lines=useMemo(()=>visible
   .filter(x=>x.note.parentId&&x.note.parentId!=='root')
   .map(x=>{
-    const p=visible.find(y=>y.note.id===x.note.parentId);
-    return {
-      x1:p?.x||0,y1:p?.y||0,
-      x2:x.x,y2:x.y,id:x.note.id
-    };
-  });
+    const p=visibleById.get(x.note.parentId??'');
+    return {x1:p?.x||0,y1:p?.y||0,x2:x.x,y2:x.y,id:x.note.id};
+  }),[visible,visibleById]);
 
 const navigateIndicator=(targetId:string)=>{
-  const target=mapNotes.find(n=>n.id===targetId);
+  const target=mapNotesById.get(targetId);
   if(!target)return;
   const ancestors:string[]=[];
   let parentId=target.parentId;
@@ -908,7 +926,7 @@ const navigateIndicator=(targetId:string)=>{
   while(parentId&&parentId!=='root'&&!seen.has(parentId)){
     seen.add(parentId);
     ancestors.push(parentId);
-    parentId=mapNotes.find(n=>n.id===parentId)?.parentId||null;
+    parentId=mapNotesById.get(parentId)?.parentId||null;
   }
   updateMapCollapsed(previous=>{
     const collapsed={...previous};
@@ -927,11 +945,11 @@ const node=(n:Note,x:number,y:number,level:number)=>{
   const storedColor=mapPrefs.colors[n.id];
   const nodeBackground=displayKeepColor(storedColor,effectiveTheme,isFocused?palette.accent:level<=1?palette.node:palette.subnode);
   const nodeText=storedColor?keepForeground(nodeBackground):isFocused?palette.onAccent:palette.text;
-  const size=[120,110,90,80,75,70][Math.min(level,5)];
+  const size=nodeRadius(level)*2;
   const touchMargin=level>=2?42:30;
   // Calculate stable branch geometry outside the UI-thread gesture worklet.
   // Looking up React arrays inside onChange can fail intermittently.
-  const branchParent=visible.find(v=>v.note.id===n.parentId);
+  const branchParent=visibleById.get(n.parentId??'');
   const branchX=branchParent?x-branchParent.x:0;
   const branchY=branchParent?y-branchParent.y:0;
   const branchId=n.parentId||'';
@@ -990,7 +1008,20 @@ const node=(n:Note,x:number,y:number,level:number)=>{
           })
       ):taps}
     >
-      <View collapsable={false} style={{
+      <View collapsable={false} accessible accessibilityRole="button"
+        accessibilityLabel={n.title||'Untitled note'} accessibilityState={{selected:isFocused}}
+        accessibilityActions={[
+          {name:'activate',label:'Focus note'},{name:'read',label:'Read note'},
+          ...(!readOnly?[{name:'edit',label:'Edit note'}]:[]),
+          {name:'longpress',label:'Note actions'},
+        ]}
+        onAccessibilityAction={({nativeEvent:{actionName}})=>{
+          if(actionName==='activate')nodePress(n);
+          else if(actionName==='read')openReader(n.id);
+          else if(actionName==='edit'&&!readOnly)beginEdit(n.id);
+          else if(actionName==='longpress')showNodeActions(n.id);
+        }}
+        style={{
         position:'absolute',left:x-size/2-touchMargin,top:y-size/2-touchMargin,
         width:size+touchMargin*2,height:size+touchMargin*2,alignItems:'center',justifyContent:'center'
       }}>
@@ -1034,32 +1065,38 @@ const node=(n:Note,x:number,y:number,level:number)=>{
 
 const centerX=canvasW/2,centerY=canvasH/2;
 
-const activeReader=mapNotes.find(n=>n.id===reader)||initial[0];
+const activeReader=mapNotesById.get(reader??'')||initial[0];
+const previewCache=useMemo(()=>new WeakMap<Note[],Map<string,React.ReactElement>>(),[palette,effectiveTheme,mapPrefs.offsets,mapPrefs.colors]);
 const mapPreview=(root:Note,previewNotes:Note[]=notes)=>{
-  const points=radialTree(root,previewNotes,mapPrefs.offsets);
-  const visiblePoints=points;
+  let previews=previewCache.get(previewNotes);
+  if(!previews){previews=new Map();previewCache.set(previewNotes,previews);}
+  const cached=previews.get(root.id);
+  if(cached)return cached;
+  const children=previewNotes===notes?notebookChildren:indexChildren(previewNotes);
+  const points=radialTree(root,previewNotes,mapPrefs.offsets,{},children);
   const maxDepth=points.reduce((depth,point)=>Math.max(depth,point.level),0);
   const thumbnailHeight=Math.min(332,Math.max(119,88+Math.ceil(Math.log2(points.length+1))*27+maxDepth*13));
   // Thumbnail framing must not inherit the interactive canvas's minimum zoom.
-  const bounds=points.reduce((v,p)=>({
-    minX:Math.min(v.minX,p.x),maxX:Math.max(v.maxX,p.x),
-    minY:Math.min(v.minY,p.y),maxY:Math.max(v.maxY,p.y)
-  }),{minX:Infinity,maxX:-Infinity,minY:Infinity,maxY:-Infinity});
+  const bounds=pointBounds(points);
   const thumbScale=Math.min(152/Math.max(1,bounds.maxX-bounds.minX),(thumbnailHeight-16)/Math.max(1,bounds.maxY-bounds.minY),1);
   const thumbX=80-(bounds.minX+bounds.maxX)*thumbScale/2;
   const thumbY=thumbnailHeight/2-(bounds.minY+bounds.maxY)*thumbScale/2;
-  const byId=new Map(visiblePoints.map(v=>[v.note.id,v]));
-  return (
+  const byId=new Map(points.map(v=>[v.note.id,v]));
+  const preview=(
     <Svg width="100%" height={thumbnailHeight} viewBox={`0 0 160 ${thumbnailHeight}`} accessibilityLabel={`Preview of ${root.title||'untitled map'}`}>
-      {visiblePoints.map(v=>{
+      {points.map(v=>{
         const parent=byId.get(v.note.parentId||'');
         return parent?<Line key={v.note.id} x1={thumbX+parent.x*thumbScale} y1={thumbY+parent.y*thumbScale} x2={thumbX+v.x*thumbScale} y2={thumbY+v.y*thumbScale} stroke={palette.connector} strokeWidth={1.2}/>:null;
       })}
-      {visiblePoints.map(v=><Circle key={v.note.id} cx={thumbX+v.x*thumbScale} cy={thumbY+v.y*thumbScale} r={v.note.id===root.id?4:2.7} fill={displayKeepColor(mapPrefs.colors[v.note.id],effectiveTheme,v.note.id===root.id?palette.accent:palette.node)} stroke={palette.border} strokeWidth={0.8}/>)}
+      {points.map(v=><Circle key={v.note.id} cx={thumbX+v.x*thumbScale} cy={thumbY+v.y*thumbScale} r={v.note.id===root.id?4:2.7} fill={displayKeepColor(mapPrefs.colors[v.note.id],effectiveTheme,v.note.id===root.id?palette.accent:palette.node)} stroke={palette.border} strokeWidth={0.8}/>)}
     </Svg>
   );
+  previews.set(root.id,preview);
+  return preview;
 };
-const applyNoteFormat=(kind:'bold'|'italic'|'underline'|'bullets'|'numbers'|'clear')=>{if(richEditorRef.current)richEditorRef.current.format(kind);else if(kind!=='clear')setBody(value=>formatSelection(value,textSelection.start,textSelection.end,kind));};
+const applyNoteFormat=(kind:'bold'|'italic'|'underline'|'bullets'|'numbers'|'clear')=>{
+ if(editorReady)richEditorRef.current?.format(kind);
+};
 const withColor=(old:Record<string,string>,targets:string[],color:string)=>{
  const next={...old};
  for(const target of targets){if(color===CARD_PALETTE[0])delete next[target];else next[target]=color;}
@@ -1080,27 +1117,26 @@ const noteBodyView=(value:string)=>value.split('\n').map((line,index)=>(
     <Text style={{fontSize:17,lineHeight:27,color:reader?noteDisplayText:palette.text}}>{parseRichLine(line).map((run,i)=><Text key={i} style={{fontWeight:run.bold?'700':'400',fontStyle:run.italic?'italic':'normal',textDecorationLine:run.underline?'underline':'none'}}>{run.text}</Text>)}</Text>
   </View>
 ));
-const listNotes=notes.filter(n=>n.parentId==='root'&&(showArchive?mapPrefs.archived.includes(n.id):!mapPrefs.archived.includes(n.id)));
 const shown=useMemo(()=>{
- const order=mapPrefs.customOrder||[];
+ const order=new Map((mapPrefs.customOrder??[]).map((id,index)=>[id,index]));
+ const archives=new Map(mapPrefs.archived.map((id,index)=>[id,index]));
+ const pinned=new Set(mapPrefs.pinned);
+ const query=librarySearch.trim().toLocaleLowerCase();
  const direction=sortDirection==='asc'?1:-1;
- return listNotes.filter(n=>(!folderFilter||hasLabel(n,folderFilter))&&matchesMapQuery(n,notes,librarySearch)).sort((a,b)=>{
-   // Archive order is independent of All Maps custom placement and sort settings.
-   // archived[] appends IDs when archived; newest archived maps appear first.
-   if(showArchive){
-     const ai=mapPrefs.archived.indexOf(a.id),bi=mapPrefs.archived.indexOf(b.id);
-     return bi-ai;
-   }
+ return notes.filter(n=>n.parentId==='root'&&archives.has(n.id)===showArchive&&
+   (!folderFilter||hasLabel(n,folderFilter))&&matchesMapQuery(n,notebookChildren,query)).sort((a,b)=>{
+   if(showArchive)return archives.get(b.id)!-archives.get(a.id)!;
    if(librarySort==='custom'){
-     const ai=order.indexOf(a.id),bi=order.indexOf(b.id);
-     return (ai<0?Number.MAX_SAFE_INTEGER:ai)-(bi<0?Number.MAX_SAFE_INTEGER:bi) || (ai<0&&bi<0?b.updatedAt-a.updatedAt:0);
+     const ai=order.get(a.id),bi=order.get(b.id);
+     return (ai??Number.MAX_SAFE_INTEGER)-(bi??Number.MAX_SAFE_INTEGER)||
+       (ai===undefined&&bi===undefined?b.updatedAt-a.updatedAt:0);
    }
-   const pinned=Number(mapPrefs.pinned.includes(b.id))-Number(mapPrefs.pinned.includes(a.id));
-   if(pinned)return pinned;
+   const pinOrder=Number(pinned.has(b.id))-Number(pinned.has(a.id));
+   if(pinOrder)return pinOrder;
    const result=librarySort==='title'?a.title.localeCompare(b.title,undefined,{sensitivity:'base'}):librarySort==='created'?Number(a.id.split('-')[0])-Number(b.id.split('-')[0]):a.updatedAt-b.updatedAt;
    return direction*result || a.id.localeCompare(b.id);
  });
-},[notes,folderFilter,librarySearch,librarySort,sortDirection,mapPrefs.customOrder,mapPrefs.pinned,mapPrefs.archived,showArchive]);
+},[notes,notebookChildren,folderFilter,librarySearch,librarySort,sortDirection,mapPrefs.customOrder,mapPrefs.pinned,mapPrefs.archived,showArchive]);
 
 // Group nearby cards into virtualized masonry sections under a single scroll owner.
  // Each section keeps the approved alternating two-column order and variable card heights.
@@ -1135,7 +1171,6 @@ const recordCardHeight=(id:string,height:number)=>{
  if(height<20)return;
  setLibraryCardHeights(p=>Math.abs((p[id]??0)-height)<2?p:{...p,[id]:height});
 };
-const [draggingMapId,setDraggingMapId]=useState<string|null>(null);
 const [dragOrigin,setDragOrigin]=useState<{id:string;top:number;left:number;chunk:number}|null>(null);
 const layoutColumnRef=useRef<Record<string,number>>({});
  const archiveColumnRef=useRef<Record<string,number>>({});
@@ -1144,67 +1179,110 @@ const lastDragTarget=useRef<string|null>(null);
 const libraryListRef=useRef<FlatList<Note[]>>(null);
 const libraryScrollOffset=useRef(0);
 const dragUpdateBusy=useRef(false);
+const pendingDrop=useRef<(()=>void)|null>(null);
+const dragSession=useRef(0);
+const finishDrag=()=>{
+  dragSession.current++;
+  pendingDrop.current=null;
+  lastDragTarget.current=null;
+  setDragOrigin(null);
+  setSelected([]);setSelectionMenu(false);setCardMenuId(null);
+};
 // Use a 70% overlap threshold for direct placement. Gaps, adjacent-column
 // slots and the list tail also accept a dragged card.
 const reorderCard=(draggedId:string,dx:number,dy:number,release=false)=>{
- if(librarySort!=='custom'||dragUpdateBusy.current)return;
+ if(librarySort!=='custom'){if(release)finishDrag();return;}
+ if(dragUpdateBusy.current){
+   if(release)pendingDrop.current=()=>reorderCard(draggedId,dx,dy,true);
+   return;
+ }
+ const session=dragSession.current;
+ const columns=folderFilter?labelColumnRefs.current[folderFilter]??{}:layoutColumnRef.current;
  const dragged=libraryCardRefs.current[draggedId];
  const candidates=shown.filter(n=>n.id!==draggedId)
   .map(n=>({id:n.id,ref:libraryCardRefs.current[n.id]})).filter(n=>n.ref);
- if(!dragged||!candidates.length)return;
+ if(!dragged||!candidates.length){if(release)finishDrag();return;}
  dragUpdateBusy.current=true;
+ let completed=false;
+ const completeMeasurement=()=>{
+   if(completed)return;
+   completed=true;
+   clearTimeout(timeout);
+   dragUpdateBusy.current=false;
+   if(release&&session===dragSession.current)finishDrag();
+   const finalDrop=pendingDrop.current;
+   pendingDrop.current=null;
+   finalDrop?.();
+ };
+ // A virtualized card may unmount before Android returns its measurement.
+ const timeout=setTimeout(completeMeasurement,150);
  dragged.measureInWindow((ox,oy,ow,oh)=>{
-  if(ow<=0||oh<=0){dragUpdateBusy.current=false;return;}
+  if(completed)return;
+  if(ow<=0||oh<=0||session!==dragSession.current){completeMeasurement();return;}
   const left=ox+dx,top=oy+dy,right=left+ow,bottom=top+oh;
   const midX=(left+right)/2,midY=(top+bottom)/2;
   const rects:{id:string;x:number;y:number;w:number;h:number;overlap:number}[]=[];
   let pending=candidates.length;
   for(const candidate of candidates){
    candidate.ref!.measureInWindow((x,y,w,h)=>{
+    if(completed)return;
     if(w>0&&h>0){
      const overlapW=Math.max(0,Math.min(right,x+w)-Math.max(left,x));
      const overlapH=Math.max(0,Math.min(bottom,y+h)-Math.max(top,y));
      rects.push({id:candidate.id,x,y,w,h,overlap:overlapW*overlapH/Math.min(ow*oh,w*h)});
     }
     if(--pending!==0)return;
-    dragUpdateBusy.current=false;
-    if(!rects.length)return;
-    const leftCard=rects.find(q=>layoutColumnRef.current[q.id]===0);
-    const rightCard=rects.find(q=>layoutColumnRef.current[q.id]===1);
-    const col=mapPrefs.viewMode==='list'?0:!leftCard?1:!rightCard?0:
-      Math.abs(midX-(leftCard.x+leftCard.w/2))<=Math.abs(midX-(rightCard.x+rightCard.w/2))?0:1;
-    const inColumn=rects.filter(q=>mapPrefs.viewMode==='list'||layoutColumnRef.current[q.id]===col).sort((a,b)=>a.y-b.y);
-    const strongest=rects.reduce((best,q)=>q.overlap>best.overlap?q:best,rects[0]);
-    let target:string|null=null,atEnd=false;
-    if(strongest.overlap>=0.70)target=strongest.id;
-    else if(inColumn.length){
-      const next=inColumn.find(q=>midY<q.y+q.h*0.5);
-      if(next)target=next.id;
-      else {
-        const tail=inColumn[inColumn.length-1];
-        if(midY>tail.y+tail.h*0.55){target=tail.id;atEnd=shown[shown.length-1]?.id===tail.id||release;}
+    try{
+      if(!rects.length||session!==dragSession.current)return;
+      const leftCard=rects.find(q=>columns[q.id]===0);
+      const rightCard=rects.find(q=>columns[q.id]===1);
+      const col=mapPrefs.viewMode==='list'?0:!leftCard?1:!rightCard?0:
+        Math.abs(midX-(leftCard.x+leftCard.w/2))<=Math.abs(midX-(rightCard.x+rightCard.w/2))?0:1;
+      const inColumn=rects.filter(q=>mapPrefs.viewMode==='list'||columns[q.id]===col).sort((a,b)=>a.y-b.y);
+      const strongest=rects.reduce((best,q)=>q.overlap>best.overlap?q:best,rects[0]);
+      let target:string|null=null,atEnd=false;
+      if(strongest.overlap>=0.70)target=strongest.id;
+      else if(inColumn.length){
+        const next=inColumn.find(q=>midY<q.y+q.h*0.5);
+        if(next)target=next.id;
+        else {
+          const tail=inColumn[inColumn.length-1];
+          if(midY>tail.y+tail.h*0.55){target=tail.id;atEnd=shown[shown.length-1]?.id===tail.id||release;}
+        }
       }
-    }
-    if(!target)return;
-    const targetKey=atEnd?'__end__':target;
-    if(!release&&lastDragTarget.current===targetKey)return;
-    lastDragTarget.current=targetKey;
-    setMapPrefs(p=>{
-     const roots=notes.filter(n=>n.parentId==='root').map(n=>n.id);
-     const current=[...new Set([...(p.customOrder||[]),...shown.map(n=>n.id),...roots])].filter(id=>roots.includes(id));
-     const from=current.indexOf(draggedId),to=current.indexOf(target!);
-     if(from<0||to<0)return p;
-     const next=current.slice();next.splice(from,1);
-     if(atEnd)next.push(draggedId);
-     else next.splice(next.indexOf(target!),0,draggedId);
-     const cols={...(p.customColumns||{}),[draggedId]:col as 0|1};
-     if(next.every((id,i)=>id===current[i])&&p.customColumns?.[draggedId]===col)return p;
-     return {...p,customOrder:next,customColumns:cols};
-    });
+      if(!target)return;
+      const targetKey=atEnd?'__end__':target;
+      if(!release&&lastDragTarget.current===targetKey)return;
+      lastDragTarget.current=targetKey;
+      setMapPrefs(p=>{
+       const roots=new Set(notes.filter(n=>n.parentId==='root').map(n=>n.id));
+       const current=[...new Set([...(p.customOrder||[]),...shown.map(n=>n.id),...roots])].filter(id=>roots.has(id));
+       const from=current.indexOf(draggedId),to=current.indexOf(target!);
+       if(from<0||to<0)return p;
+       const next=current.slice();next.splice(from,1);
+       if(atEnd)next.push(draggedId);
+       else next.splice(next.indexOf(target!),0,draggedId);
+       const cols={...(p.customColumns||{}),[draggedId]:col as 0|1};
+       if(next.every((id,i)=>id===current[i])&&p.customColumns?.[draggedId]===col)return p;
+       return {...p,customOrder:next,customColumns:cols};
+      });
+    }finally{completeMeasurement();}
    });
   }
  });
 };
+const requestDeleteLabel=(item:Folder)=>showDialog('Delete label?', 'Maps assigned this label will remain available.',[
+  {text:'Cancel',style:'cancel'},
+  {text:'Delete',style:'destructive',onPress:()=>{
+    const unassign=(list:Note[])=>list.map(note=>hasLabel(note,item.id)?removeLabel(note,item.id):note);
+    setNotes(unassign);
+    setTrash(previous=>previous.map(batch=>({...batch,notes:unassign(batch.notes)})));
+    setFolders(previous=>previous.filter(folder=>folder.id!==item.id));
+    if(folderFilter===item.id)setFolderFilter(null);
+    setEditingFolderId(null);
+  }}
+]);
+
 const moveSelection=(folderId:string|null)=>{
   if(!folderId)return;
   const allAssigned=selected.length>0&&selected.every(id=>{const n=notes.find(x=>x.id===id);return n?hasLabel(n,folderId):false;});
@@ -1213,15 +1291,8 @@ const moveSelection=(folderId:string|null)=>{
 
 const exportOne=(kind:ExportFormat,targetId?:string)=>{
   const target=notes.find(n=>n.id===(targetId||current.id))||current;
+  setExportSeparate(false);
   setExportTarget(target.id);
-  let mapRoot=target;
-  const seen=new Set<string>();
-  while(mapRoot.parentId&&mapRoot.parentId!=='root'&&!seen.has(mapRoot.id)){
-    seen.add(mapRoot.id);
-    const parent=notes.find(n=>n.id===mapRoot.parentId);
-    if(!parent)break;
-    mapRoot=parent;
-  }
   setExportName('');
   setExportKind(kind);
   setMapMenu(false);
@@ -1234,6 +1305,14 @@ const exportSelected=()=>{
   setExportName('');
   setExportKind('pdf');
   setSelectionMenu(false);
+};
+
+const exportFilename=()=>{
+  const target=notes.find(n=>n.id===exportTarget);
+  const fallback=exportTarget==='__selection__'
+    ?selected.length===1?(notes.find(n=>n.id===selected[0])?.title||'Orbit Notes'):'Selected maps'
+    :target?.title||current.title;
+  return safeExportName(exportName.trim()||fallback,'pdf');
 };
 
 const confirmExport=async()=>{
@@ -1249,8 +1328,13 @@ const confirmExport=async()=>{
       const files:{uri:string;name:string}[]=[];
       try{
         for(const root of roots)files.push({uri:await exportPDF(root,notes,mapPrefs.colors,effectiveTheme),name:root.title});
-        const count=await saveMultiplePDFsToAndroid(files);
-        if(count){setExportKind(null);showDialog('PDFs saved',`${count} separate PDF files saved to the selected folder.`);}
+        const result=await saveMultiplePDFsToAndroid(files);
+        const count=result.saved.length;
+        if(count)setExportKind(null);
+        if(result.failed){
+          const saved=count?`Saved: ${result.saved.join(', ')}. `:'';
+          showDialog(count?'Some PDFs saved':'Export failed',`${saved}Could not save ${result.failed.name}: ${String(result.failed.error)}`);
+        }else if(count)showDialog('PDFs saved',`${count} separate PDF files saved to the selected folder.`);
         else showDialog('Save cancelled','No files were saved.');
       }finally{
         for(const file of files){try{await FileSystem.deleteAsync(file.uri,{idempotent:true});}catch{}}
@@ -1261,8 +1345,7 @@ const confirmExport=async()=>{
       ?await exportMultipleMapsPDF(notes.filter(n=>selected.includes(n.id)),notes,mapPrefs.colors,effectiveTheme)
       :await exportPDF(notes.find(n=>n.id===exportTarget)||current,notes,mapPrefs.colors,effectiveTheme);
 
-    const fallbackExportName=exportTarget==='__selection__'?(selected.length===1?(notes.find(n=>n.id===selected[0])?.title||'Orbit Notes'):'Selected maps'):(notes.find(n=>n.id===exportTarget)?.title||current.title);
-    const finalExportName=exportName.trim()||fallbackExportName;
+    const finalExportName=exportFilename();
     const destination=await saveExportToAndroid(tempUri,finalExportName,kind);
 
     if(destination){
@@ -1304,15 +1387,13 @@ const runBackup=async()=>{
   setBackupBusy(true);
   try{
     if(backupMode==='save'){
-      await saveSnapshot({notes,folders,focused,trash});
       const saved=await saveEncryptedBackup(
         {notes,folders,focused,trash,mapPreferences:mapPrefs},
         backupPassword
       );
 
       if(saved){
-        setBackupMode(null);
-        setBackupPassword('');
+        closeBackup();
         showDialog(
           'Backup saved',
           'Keep your backup password safe. There is no password recovery.'
@@ -1320,26 +1401,29 @@ const runBackup=async()=>{
       }
     }else{
       const restored=await decryptSelectedBackup(backupFile!.uri,backupPassword);
-
-      if(restored){
-        await saveSnapshot({...restored,trash:splitDeletedMaps(restored.trash)});
-        setNotes(normalizeLabels(restored.notes));
-        setFolders(restored.folders);
-        setTrash(splitDeletedMaps(restored.trash));
-         if(restored.trash.length>0&&!restored.mapPreferences?.trashRetentionAcknowledged)setRetentionNotice(true);
-         setShowArchive(false);setShowTrash(false);
-        setFocused(restored.focused);
-        if(restored.mapPreferences)setMapPrefs({...emptyMapPreferences(),...restored.mapPreferences,...(restored.trash.length>0&&!restored.mapPreferences.trashRetentionAcknowledged?{trashRetentionAcknowledged:false,trashRetentionWarningSeen:false}:{})});
-         else if(restored.trash.length>0)setMapPrefs(p=>({...p,trashRetentionAcknowledged:false,trashRetentionWarningSeen:false,archived:[]}));
-        setBackupMode(null);
-        setBackupFile(null);
-        setBackupPassword('');
-        setSettings(false);
-        showDialog(
-          'Restore complete',
-          'The local notebook was replaced by the selected backup.'
-        );
+      const restoredTrash=splitDeletedMaps(restored.trash);
+      const restoredNotes=normalizeLabels(restored.notes);
+      const restoredPreferences=normalizeMapPreferences(restored.mapPreferences);
+      if(restoredTrash.length&&!restoredPreferences.trashRetentionAcknowledged){
+        restoredPreferences.trashRetentionWarningSeen=false;
       }
+      flushPreferencesWrite();
+      await saveSnapshot({...restored,notes:restoredNotes,trash:restoredTrash,mapPreferences:restoredPreferences});
+      setNotes(restoredNotes);
+      setFolders(restored.folders);
+      setTrash(restoredTrash);
+      setRetentionNotice(restoredTrash.length>0&&!restoredPreferences.trashRetentionAcknowledged);
+      setShowArchive(false);setShowTrash(false);
+      setFolderFilter(null);setSelected([]);setSelectedTrash([]);closeLibrarySearch();
+      clearUndoNotification();setArchiveUndoIds([]);
+      setFocused(restored.focused);
+      setMapPrefs(restoredPreferences);
+      closeBackup();
+      setSettings(false);
+      showDialog(
+        'Restore complete',
+        'The local notebook was replaced by the selected backup.'
+      );
     }
   }catch(e){
     showDialog('Backup operation failed',String(e));
@@ -1414,7 +1498,7 @@ if(locked){
             placeholderTextColor={palette.muted}
             style={[styles.input,{backgroundColor:palette.surface,color:palette.text,borderColor:palette.border}]}
           />
-          <Button label="Unlock" tertiary onPress={unlock}/>
+          <Button label="Unlock" tertiary disabled={unlockBusy} onPress={unlock}/>
           {biometrics&&<Button label="Use biometrics" onPress={async()=>{
             setCredentialFallback(false);
             if(bioPromptInProgress.current)return;
@@ -1469,7 +1553,7 @@ if(locked){
                     setMapPrefs(p=>{const allPinned=selected.every(id=>p.pinned.includes(id));return {...p,pinned:allPinned?p.pinned.filter(id=>!selected.includes(id)):[...new Set([...p.pinned,...selected])]};});
                     setSelected([]);
                   }}/>
-                  <IconButton label="palette" accessibilityLabel="Change selected card colors" onPress={()=>{setManualColor(selected.length===1?mapPrefs.cardColors[selected[0]]||'':'');setColorTarget('cards');}}/>
+                  <IconButton label="palette" accessibilityLabel="Change selected card colors" onPress={()=>{setColorTarget('cards');}}/>
                   <IconButton label="label" accessibilityLabel="Assign labels to selected maps" onPress={()=>{setLabelQuery('');setMoveFolderMenu(true);}}/>
                   <IconButton label="⋮" accessibilityLabel="More selection actions" onPress={()=>setSelectionMenu(v=>!v)}/>
                 </View>
@@ -1534,7 +1618,7 @@ return (
           }}
         >
           <GestureDetector
-            gesture={Gesture.Simultaneous(pan,pinch,rotate,rotateChildren)}
+            gesture={Gesture.Simultaneous(pan,pinch,rotate)}
           >
             <View style={StyleSheet.absoluteFill} collapsable={false}>
             <Animated.View
@@ -1582,20 +1666,20 @@ return (
 
         {!menu&&<View style={{height:56,flexDirection:'row',alignItems:'center',justifyContent:'space-between',paddingHorizontal:6}}>
           <View style={{flexDirection:'row',alignItems:'center',backgroundColor:palette.mapControl,borderRadius:24}}>
-            <IconButton label="−" accessibilityLabel="Zoom out" targetWidth={mapControlWidth} onPress={()=>{scale.value=withTiming(Math.max(preferredFit*1.1*0.1,preferredFit*1.1*(Math.round(scale.value/(preferredFit*1.1)*10)-1)/10));}}/>
+            <IconButton label="−" accessibilityLabel="Zoom out" targetWidth={mapControlWidth} onPress={()=>adjustZoom(-1)}/>
             <Text accessibilityLabel={`Zoom ${zoomPercent} percent`} style={{fontSize:13,color:palette.text,width:zoomLabelWidth,textAlign:'center'}}>{zoomPercent}%</Text>
-            <IconButton label="+" accessibilityLabel="Zoom in" targetWidth={mapControlWidth} onPress={()=>{scale.value=withTiming(Math.min(preferredFit*1.1*2,preferredFit*1.1*(Math.round(scale.value/(preferredFit*1.1)*10)+1)/10));}}/>
+            <IconButton label="+" accessibilityLabel="Zoom in" targetWidth={mapControlWidth} onPress={()=>adjustZoom(1)}/>
           </View>
           <IconButton label={showEntireMap?'shrinkAll':'expandAll'} accessibilityLabel={showEntireMap?'Collapse entire map':'Expand entire map'} capsule="circle" targetWidth={mapControlWidth} onPress={toggleEntireMap}/>
           <View style={{flexDirection:'row',alignItems:'center'}}>
             <IconButton label={mapCollapsed[mapFocus]?'expandBranch':'collapseBranch'} accessibilityLabel={mapCollapsed[mapFocus]?'Expand branch':'Collapse branch'} capsule="circle" targetWidth={mapControlWidth} onPress={()=>updateMapCollapsed(collapsed=>({...collapsed,[mapFocus]:!collapsed[mapFocus]}))}/>
-            {!readOnly&&<IconButton label="palette" accessibilityLabel="Node color" capsule="circle" targetWidth={mapControlWidth} onPress={()=>{setManualColor(mapPrefs.colors[focused]||'');setColorTarget('node');}}/>}
+            {!readOnly&&<IconButton label="palette" accessibilityLabel="Node color" capsule="circle" targetWidth={mapControlWidth} onPress={()=>{setColorTarget('node');}}/>}
             <IconButton label="⋮" accessibilityLabel="More map actions" capsule="pill" targetWidth={mapControlWidth} onPress={()=>setMapMenu(v=>!v)}/>
           </View>
         </View>}
           {!menu&&showMiniMap&&<View style={{height:150,marginHorizontal:12,marginBottom:6,backgroundColor:palette.canvas,borderColor:palette.border,borderWidth:1,borderRadius:16,overflow:'hidden',padding:10}}><Text style={[styles.muted,{color:palette.muted}]}>Map overview · {completeMap.length} notes</Text><Animated.View style={miniRotationStyle}><Svg width="100%" height={118} viewBox="0 0 1000 540" preserveAspectRatio="xMidYMid meet">{miniLines.map(l=><Line key={l.id} x1={l.x1*miniBounds.scale+miniBounds.dx} y1={l.y1*miniBounds.scale+miniBounds.dy} x2={l.x2*miniBounds.scale+miniBounds.dx} y2={l.y2*miniBounds.scale+miniBounds.dy} stroke={palette.connector} strokeWidth={2}/>)}{completeMap.map(v=><Circle key={v.note.id} cx={v.x*miniBounds.scale+miniBounds.dx} cy={v.y*miniBounds.scale+miniBounds.dy} r={v.note.id===mapFocus?5:3.5} fill={v.note.id===mapFocus?palette.accent:palette.muted}/>)}</Svg></Animated.View></View>}
 
-        {!readOnly&&undoOpen&&(undoBatch||pendingBranch)&&(<SwipeUndoNotice message={pendingBranch?'Branch deleted':'Moved to Deleted'} onUndo={undoDeletion} onDismiss={clearUndoNotification} bottom={74}/>)}
+        {!readOnly&&deletionUndo&&(<SwipeUndoNotice message={deletionUndo.kind==='branch'?'Branch deleted':'Moved to Deleted'} onUndo={undoDeletion} onDismiss={clearUndoNotification} bottom={74}/>)}
         <Modal visible={gestureHelp} transparent animationType="fade" onRequestClose={()=>setGestureHelp(false)}>
           <View style={{flex:1,justifyContent:'flex-end',backgroundColor:'rgba(0,0,0,0.35)'}}>
             <Pressable style={StyleSheet.absoluteFill} accessibilityLabel="Dismiss gesture help" onPress={()=>setGestureHelp(false)}/>
@@ -1667,7 +1751,7 @@ return (
                 autoCapitalize="sentences"
               />}
               <Text style={[styles.muted,{color:palette.muted}]}>
-                {exportSeparate?`${selected.length} individual PDF files (named after each map)` :safeExportName(exportName.trim()||(exportTarget==='__selection__'?(selected.length===1?(notes.find(n=>n.id===selected[0])?.title||'Orbit Notes'):'Selected maps'):(notes.find(n=>n.id===exportTarget)?.title||current.title)),exportKind||'pdf')}
+                {exportSeparate?`${selected.length} individual PDF files (named after each map)` :exportFilename()}
               </Text>
               <View style={styles.wrap}>
                 <Button
@@ -1699,17 +1783,13 @@ return (
             biometric={biometrics}
             registerBack={handler=>{settingsBack.current=handler;}}
             appVersion={appInfo.expo.version}
-            buildNumber={String(appInfo.expo.android.versionCode)}
             onClose={()=>setSettings(false)}
             onToggleLock={async enabled=>{await setPinLockEnabled(enabled);setPinLockEnabledState(enabled);if(!enabled)setLocked(false);}}
             onToggleBiometric={async enabled=>{await setBiometricEnabled(enabled);setBiometrics(enabled);}}
             onVerify={async value=>{
-              const status=await lockStatus();
-              if(Date.now()<status.blockedUntil)throw new Error('Too many attempts. Please try later.');
-              const ok=await checkPin(value);
-              const next=await recordPinAttempt(ok);
-              setPinAttempts(next.attempts);setBlockedUntil(next.blockedUntil);
-              return ok;
+              const result=await verifyCredential(value);
+              if(result.alreadyBlocked)throw new Error('Too many attempts. Please try later.');
+              return result.ok;
             }}
             onSaveCredential={async(value,kind)=>{
               await setPin(value,kind);
@@ -1720,7 +1800,7 @@ return (
             }}
             onResetCredential={async()=>{await removePin();setPinConfigured(false);setPinLockEnabledState(false);setBiometrics(false);setLocked(false);setCredentialFallback(false);}}
             onVerifyBiometric={async()=>{if(!biometrics)return false;bioPromptInProgress.current=true;try{return await authenticateBiometric();}finally{bioPromptInProgress.current=false;}}}
-            onBackup={kind=>{setBackupPassword('');setBackupFile(null);setBackupMode(kind);}}
+            onBackup={kind=>{closeBackup();setBackupMode(kind);}}
             onLockNow={()=>{bioPrompted.current=false;setCredentialFallback(false);setSettings(false);setLocked(true);}}
           />
         </Modal>}
@@ -1729,9 +1809,7 @@ return (
           visible={backupMode!==null}
           transparent
           animationType="fade"
-          onRequestClose={()=>{
-            if(!backupBusy)setBackupMode(null);
-          }}
+          onRequestClose={()=>{if(!backupBusy)closeBackup();}}
         >
           <View style={{
             flex:1,
@@ -1739,7 +1817,7 @@ return (
             justifyContent:'center',
             padding:22
           }}>
-            <Pressable accessibilityLabel="Close backup dialog" onPress={()=>{if(!backupBusy){setBackupMode(null);setBackupFile(null);setBackupPassword('');}}} style={StyleSheet.absoluteFill}/>
+            <Pressable accessibilityLabel="Close backup dialog" onPress={()=>{if(!backupBusy)closeBackup();}} style={StyleSheet.absoluteFill}/>
             <View style={{
               backgroundColor:palette.surface,
                padding:20,
@@ -1757,9 +1835,16 @@ return (
                   :'Select the backup file first. Then enter its password. Restoring will REPLACE the current notebook.'}
               </Text>
               {backupMode==='restore'&&<>
-                <Button label={backupFile?'Change backup file':'Select backup file'} onPress={async()=>{
-                  try{const file=await selectBackupFile();if(file){setBackupFile(file);setBackupPassword('');}}
-                  catch(e){showDialog('Backup selection failed',String(e));}
+                <Button label={backupFile?'Change backup file':'Select backup file'} disabled={backupBusy} onPress={async()=>{
+                  const request=++backupPickerRequest.current;
+                  try{
+                    const file=await selectBackupFile();
+                    if(!file)return;
+                    if(request!==backupPickerRequest.current){await discardBackupFile(file.uri);return;}
+                    setBackupFile(file);setBackupPassword('');
+                  }catch(e){
+                    if(request===backupPickerRequest.current)showDialog('Backup selection failed',String(e));
+                  }
                 }}/>
                 {backupFile&&<Text style={[styles.muted,{color:palette.muted}]}>{backupFile.name}</Text>}
               </>}
@@ -1775,13 +1860,7 @@ return (
               <View style={styles.wrap}>
                 <Button
                   label="Cancel"
-                  onPress={()=>{
-                    if(!backupBusy){
-                      setBackupMode(null);
-                      setBackupFile(null);
-                      setBackupPassword('');
-                    }
-                  }}
+                  onPress={()=>{if(!backupBusy)closeBackup();}}
                 />
                 <Button
                   label={backupBusy
@@ -1852,23 +1931,23 @@ return (
                 <View style={[styles.editorField,{flex:1}]}>
                   <Text style={[styles.editorLabel,{color:palette.muted}]}>Note content</Text>
                   <RichNoteEditor key={reader||'note'} ref={richEditorRef} initialText={body} onChangeText={setBody} onFormatStateChange={state=>setEditorFormats(previous=>({...previous,...state}))}
-                     dark={effectiveTheme==='dark'} textColor={noteDisplayText} backgroundColor={noteDisplayColor}/>
+                     onReady={()=>setEditorReady(true)} textColor={noteDisplayText} backgroundColor={noteDisplayColor}/>
                 </View>
                 <View style={{gap:5}}>
                   {formatToolbar&&<View style={{flexDirection:'row',alignItems:'center',justifyContent:'space-between',borderRadius:16,borderWidth:1,borderColor:palette.border,backgroundColor:palette.surface,paddingHorizontal:2}}>
-                    <IconButton label="bold" active={editorFormats.bold} accessibilityLabel="Bold text" onPress={()=>applyNoteFormat('bold')}/>
-                    <IconButton label="italic" active={editorFormats.italic} accessibilityLabel="Italic text" onPress={()=>applyNoteFormat('italic')}/>
-                    <IconButton label="underline" active={editorFormats.underline} accessibilityLabel="Underline text" onPress={()=>applyNoteFormat('underline')}/>
-                    <IconButton label="clearFormat" accessibilityLabel="Remove formatting" onPress={()=>applyNoteFormat('clear')}/>
+                    <IconButton label="bold" disabled={!editorReady} active={editorFormats.bold} accessibilityLabel="Bold text" onPress={()=>applyNoteFormat('bold')}/>
+                    <IconButton label="italic" disabled={!editorReady} active={editorFormats.italic} accessibilityLabel="Italic text" onPress={()=>applyNoteFormat('italic')}/>
+                    <IconButton label="underline" disabled={!editorReady} active={editorFormats.underline} accessibilityLabel="Underline text" onPress={()=>applyNoteFormat('underline')}/>
+                    <IconButton label="clearFormat" disabled={!editorReady} accessibilityLabel="Remove formatting" onPress={()=>applyNoteFormat('clear')}/>
                     <IconButton label="×" accessibilityLabel="Close formatting toolbar" onPress={()=>setFormatToolbar(false)}/>
                   </View>}
                   <View style={{flexDirection:'row',alignItems:'center',gap:5}}>
-                    <IconButton label="undo" disabled={!editorFormats.canUndo} accessibilityLabel="Undo note edit" onPress={()=>richEditorRef.current?.format('undo')}/>
-                    <IconButton label="redo" disabled={!editorFormats.canRedo} accessibilityLabel="Redo note edit" onPress={()=>richEditorRef.current?.format('redo')}/>
-                    <IconButton label="format" active={formatToolbar} accessibilityLabel="Text formatting" onPress={()=>setFormatToolbar(true)}/>
-                    <IconButton label="bullets" active={editorFormats.bullets} accessibilityLabel="Bulleted list" onPress={()=>applyNoteFormat('bullets')}/>
-                    <IconButton label="numbers" active={editorFormats.numbers} accessibilityLabel="Numbered list" onPress={()=>applyNoteFormat('numbers')}/>
-                    <IconButton label="palette" accessibilityLabel="Note color" onPress={()=>{setManualColor(mapPrefs.noteColors[reader||'']||'');setColorTarget('note');}}/>
+                    <IconButton label="undo" disabled={!editorReady||!editorFormats.canUndo} accessibilityLabel="Undo note edit" onPress={()=>richEditorRef.current?.format('undo')}/>
+                    <IconButton label="redo" disabled={!editorReady||!editorFormats.canRedo} accessibilityLabel="Redo note edit" onPress={()=>richEditorRef.current?.format('redo')}/>
+                    <IconButton label="format" disabled={!editorReady} active={formatToolbar} accessibilityLabel="Text formatting" onPress={()=>setFormatToolbar(true)}/>
+                    <IconButton label="bullets" disabled={!editorReady} active={editorFormats.bullets} accessibilityLabel="Bulleted list" onPress={()=>applyNoteFormat('bullets')}/>
+                    <IconButton label="numbers" disabled={!editorReady} active={editorFormats.numbers} accessibilityLabel="Numbered list" onPress={()=>applyNoteFormat('numbers')}/>
+                    <IconButton label="palette" accessibilityLabel="Note color" onPress={()=>{setColorTarget('note');}}/>
                   </View>
                 </View>
               </KeyboardAvoidingView>
@@ -1894,7 +1973,7 @@ return (
           animationType="slide"
           statusBarTranslucent
           navigationBarTranslucent
-          onRequestClose={()=>{if(sidebar)setSidebar(false);else if(selectionMenu||moveFolderMenu||sortMenu||trashMenu||cardMenuId){setSelectionMenu(false);setMoveFolderMenu(false);setSortMenu(false);setTrashMenu(false);setCardMenuId(null);}else if(selected.length)setSelected([]);else if(selectedTrash.length)setSelectedTrash([]);else if(librarySearching)closeLibrarySearch();else BackHandler.exitApp();}}
+          onRequestClose={()=>handleLibraryBack()}
         >
           <GestureHandlerRootView style={{flex:1}}><InsetSafeAreaView style={[styles.screen,{backgroundColor:palette.background}]} edges={['top']}>
             {showTrash&&libraryToolbar}
@@ -1906,7 +1985,7 @@ return (
                 const target=cardMenuId!;setMapPrefs(p=>({...p,pinned:p.pinned.includes(target)?p.pinned.filter(item=>item!==target):[...p.pinned,target]}));setCardMenuId(null);
               }}/>
               <ActionRow label="Labels" icon="label" onPress={()=>{setSelected([cardMenuId!]);setCardMenuId(null);setLabelQuery('');setMoveFolderMenu(true);}}/>
-              <ActionRow label="Color" icon="palette" onPress={()=>{setSelected([cardMenuId!]);setManualColor(mapPrefs.cardColors[cardMenuId!]||'');setCardMenuId(null);setColorTarget('cards');}}/>
+              <ActionRow label="Color" icon="palette" onPress={()=>{setSelected([cardMenuId!]);setCardMenuId(null);setColorTarget('cards');}}/>
               <ActionRow label={showArchive?'Unarchive':'Archive'} icon={showArchive?'unarchive':'archive'} onPress={()=>{archiveOne(cardMenuId!,!showArchive);setCardMenuId(null);}}/>
               <ActionRow label="Export PDF" icon="exportIcon" onPress={()=>{exportOne('pdf',cardMenuId!);setCardMenuId(null);}}/>
               <View style={{height:1,backgroundColor:palette.border,marginVertical:3}}/>
@@ -2054,19 +2133,13 @@ return (
                     <View key={item.id} style={{flexDirection:'row',alignItems:'center',gap:10,padding:8,minHeight:56,backgroundColor:editingFolderId===item.id?palette.control:'transparent'}}>
                       {editingFolderId===item.id?(
                         <>
-                          <IconButton label="🗑" accessibilityLabel={'Delete label '+item.name} danger onPress={()=>showDialog('Delete label?', 'Maps assigned this label will remain available.',[
-                            {text:'Cancel',style:'cancel'},
-                            {text:'Delete',style:'destructive',onPress:()=>{setNotes(ns=>ns.map(n=>hasLabel(n,item.id)?removeLabel(n,item.id):n));setTrash(previous=>previous.map(batch=>({...batch,notes:batch.notes.map(n=>hasLabel(n,item.id)?removeLabel(n,item.id):n)})));setFolders(fs=>fs.filter(x=>x.id!==item.id));if(folderFilter===item.id)setFolderFilter(null);setEditingFolderId(null);}}
-                          ])}/>
+                          <IconButton label="🗑" accessibilityLabel={'Delete label '+item.name} danger onPress={()=>requestDeleteLabel(item)}/>
                           <TextInput accessibilityLabel="Rename label" value={folderName} onChangeText={setFolderName} autoFocus style={{flex:1,borderBottomWidth:1,borderBottomColor:palette.accent,color:palette.text,fontSize:16}}/>
                           <IconButton label="✓" accessibilityLabel="Save label name" onPress={()=>{if(folderName.trim())setFolders(fs=>fs.map(x=>x.id===item.id?{...x,name:folderName.trim()}:x));setEditingFolderId(null);}}/>
                         </>
                       ):(
                         <>
-                          <IconButton label="🗑" accessibilityLabel={'Delete label '+item.name} danger onPress={()=>showDialog('Delete label?', 'Maps assigned this label will remain available.',[
-                            {text:'Cancel',style:'cancel'},
-                            {text:'Delete',style:'destructive',onPress:()=>{setNotes(ns=>ns.map(n=>hasLabel(n,item.id)?removeLabel(n,item.id):n));setTrash(previous=>previous.map(batch=>({...batch,notes:batch.notes.map(n=>hasLabel(n,item.id)?removeLabel(n,item.id):n)})));setFolders(fs=>fs.filter(x=>x.id!==item.id));if(folderFilter===item.id)setFolderFilter(null);setEditingFolderId(null);}}
-                          ])}/>
+                          <IconButton label="🗑" accessibilityLabel={'Delete label '+item.name} danger onPress={()=>requestDeleteLabel(item)}/>
                           <Text style={{flex:1,color:palette.text,fontSize:16}}>{item.name}</Text>
                           <IconButton label="✎" accessibilityLabel={'Edit label '+item.name} onPress={()=>{setEditingFolderId(item.id);setFolderName(item.name);}}/>
                         </>
@@ -2141,23 +2214,22 @@ return (
                       registerRef={view=>{libraryCardRefs.current[n.id]=view;}}
                       onArchive={()=>archiveOne(n.id,true)}
                       onSelect={()=>setSelected(v=>v.includes(n.id)?v:[...v,n.id])}
-                      onDragStart={()=>{lastDragTarget.current=null;setSelected([]);setSelectionMenu(false);setDragOrigin({id:n.id,top,left:column*(cellWidth+gutter),chunk:chunkIndex});setDraggingMapId(n.id);}}
+                      onDragStart={()=>{dragSession.current++;pendingDrop.current=null;lastDragTarget.current=null;setSelected([]);setSelectionMenu(false);setDragOrigin({id:n.id,top,left:column*(cellWidth+gutter),chunk:chunkIndex});}}
                       onDragMove={(dx,dy)=>{
                         reorderCard(n.id,dx,dy);
-                        libraryCardRefs.current[n.id]?.measureInWindow((x,y,w,h)=>{
+                        libraryCardRefs.current[n.id]?.measureInWindow((_x,y,_w,h)=>{
                           const fingerY=y+dy+h/2;
                           if(fingerY>H-135)libraryListRef.current?.scrollToOffset({offset:libraryScrollOffset.current+24,animated:true});
                           else if(fingerY<130)libraryListRef.current?.scrollToOffset({offset:Math.max(0,libraryScrollOffset.current-24),animated:true});
                         });
                       }}
-                      onDrop={(_x,_y)=>{
-                        lastDragTarget.current=null;setDraggingMapId(null);setDragOrigin(null);
-                        setSelected([]);setSelectionMenu(false);setCardMenuId(null);
-                      }}>
+                      onDrop={(dx,dy)=>reorderCard(n.id,dx,dy,true)}
+                      onDragCancel={finishDrag}>
                     <Pressable
                       accessibilityRole="button"
                       accessibilityLabel={`${n.title||'Untitled map'}${mapPrefs.pinned.includes(n.id)?', pinned':''}${selected.includes(n.id)?', selected':''}`}
-                      accessibilityHint={librarySort==='custom'?"Tap to open; hold and drag to reorder; swipe to archive":"Tap to open; long press to select; swipe to archive"}
+                      accessibilityHint={showArchive?'Tap to open; long press to select':
+                        librarySort==='custom'?'Tap to open; long press to select or drag to reorder; swipe to archive':'Tap to open; long press to select; swipe to archive'}
                       style={[styles.listRow,{backgroundColor:card.backgroundColor,borderColor:selected.includes(n.id)?(selectionMenu?palette.accent:palette.tertiaryInk):palette.border,borderWidth:selected.includes(n.id)?3:1},mapPrefs.viewMode==='grid'&&{width:'100%',alignItems:'stretch',flexDirection:'column',padding:10}]}
                       onPress={()=>{
                         if(selected.length){
@@ -2172,7 +2244,7 @@ return (
                           ty.value=withTiming(0);
                           scale.value=withTiming(preferredFit*1.1);
                           setMenu(false);
-                          setSidebar(false);setFoldersExpanded(false);
+                          setSidebar(false);
                         }
                       }}
                       onLongPress={()=>
@@ -2238,8 +2310,8 @@ return (
             {!showTrash&&!showArchive&&selected.length===0&&<Pressable accessibilityRole="button" accessibilityLabel="Create new map" onPress={newMap} style={{position:'absolute',right:22,bottom:48,width:60,height:60,borderRadius:20,backgroundColor:sidebar?palette.accent:palette.tertiary,alignItems:'center',justifyContent:'center',elevation:5,zIndex:10}}>
               <Text style={{fontSize:32,color:sidebar?palette.onAccent:palette.onTertiary}}>+</Text>
             </Pressable>}
-          {undoOpen&&(undoBatch||pendingBranch)&&(
-            <SwipeUndoNotice message={pendingBranch?'Branch deleted':'Moved to Deleted'} onUndo={undoDeletion} onDismiss={clearUndoNotification} bottom={archiveUndoIds.length?150:90}/>
+          {deletionUndo&&(
+            <SwipeUndoNotice message={deletionUndo.kind==='branch'?'Branch deleted':'Moved to Deleted'} onUndo={undoDeletion} onDismiss={clearUndoNotification} bottom={archiveUndoIds.length?150:90}/>
           )}
           {archiveUndoIds.length>0&&(
             <SwipeUndoNotice message={archiveUndoIds.length===1?'Map archived':archiveUndoIds.length+' maps archived'} onUndo={undoArchive} onDismiss={()=>setArchiveUndoIds([])}/>
@@ -2326,25 +2398,10 @@ const styles=StyleSheet.create({
     minHeight:48,
     justifyContent:'center'
   },
-  primary:{
-    backgroundColor:'#b65e4d'
-  },
-  danger:{
-    backgroundColor:'#dc2626'
-  },
   buttonText:{
     fontSize:14,
     fontWeight:'700',
     color:'#563f38'
-  },
-  toolbar:{
-    flexDirection:'row',
-    flexWrap:'wrap',
-    justifyContent:'space-around',
-    alignItems:'center',
-    gap:6,
-    paddingHorizontal:8,
-    paddingVertical:7
   },
   canvas:{
     flex:1,
@@ -2366,10 +2423,6 @@ const styles=StyleSheet.create({
   nodeTitle:{
     fontWeight:'700',
     textAlign:'center'
-  },
-  footer:{
-    paddingBottom:12,
-    paddingHorizontal:4
   },
   popup:{
     position:'absolute',
@@ -2458,19 +2511,10 @@ const styles=StyleSheet.create({
     borderWidth:1,
     borderColor:'#e2e8f0'
   },
-  listIndex:{
-    fontSize:17,
-    fontWeight:'800',
-    color:'#315fd6'
-  },
   listTitle:{
     fontSize:16,
     fontFamily:'Roboto',
     fontWeight:'600',
     color:'#0f172a'
   },
-  checkbox:{
-    fontSize:25,
-    color:'#315fd6'
-  }
 });

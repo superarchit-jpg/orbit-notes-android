@@ -1,24 +1,6 @@
 /** Offline-only formatting helpers. Notes remain plain UTF-8 text for backward compatibility. */
-export type FormatAction='bold'|'italic'|'underline'|'bullets'|'numbers';
 export type RichRun={text:string;bold:boolean;italic:boolean;underline:boolean};
 
-export function formatSelection(body:string,start:number,end:number,action:FormatAction):string{
-  const a=Math.max(0,Math.min(body.length,Math.min(start,end)));
-  const b=Math.max(a,Math.min(body.length,Math.max(start,end)));
-  if(action==='bullets'||action==='numbers'){
-    const lineStart=body.lastIndexOf('\n',a-1)+1;
-    const lineEnd=body.indexOf('\n',b);
-    const endLine=lineEnd===-1?body.length:lineEnd;
-    const lines=body.slice(lineStart,endLine).split('\n');
-    return body.slice(0,lineStart)+lines.map((line,i)=>{
-      const existing=line.replace(/^(?:•\s+|\d+\.\s+)/,'');
-      return action==='bullets'?'• '+existing:`${i+1}. ${existing}`;
-    }).join('\n')+body.slice(endLine);
-  }
-  const marker=action==='bold'?'**':action==='underline'?'__':'*';
-  const selected=body.slice(a,b);
-  return body.slice(0,a)+marker+selected+marker+body.slice(b);
-}
 /** Render combinations of bold, italic and underline while preserving unmatched markers as plain text. */
 export function parseRichLine(line:string):RichRun[]{
   const runs:RichRun[]=[];

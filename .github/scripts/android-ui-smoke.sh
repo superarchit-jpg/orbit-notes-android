@@ -45,3 +45,84 @@ if [[ "$FOUND" != 1 ]]; then
   exit 1
 fi
 echo 'TEST-01 PASS: Release APK launches into library with Create map action'
+
+# Verify a human-visible control after each navigation step.
+ui_element() {
+  local label="$1"
+  local action="${2:-find}"
+  local attempt point
+  for attempt in $(seq 1 8); do
+    if adb shell uiautomator dump /sdcard/orbit-ui.xml >/tmp/orbit-dump.log 2>&1 &&
+       adb pull /sdcard/orbit-ui.xml /tmp/orbit-ui.xml >/tmp/orbit-pull.log 2>&1 &&
+       point=$(python3 - "$label" /tmp/orbit-ui.xml <<'PY'
+import re
+import sys
+import xml.etree.ElementTree as ET
+for node in ET.parse(sys.argv[2]).iter('node'):
+    if sys.argv[1] not in (node.get('text'), node.get('content-desc')):
+        continue
+    x0, y0, x1, y1 = map(int, re.findall(r'\d+', node.get('bounds', '')))
+    if x1 > x0 and y1 > y0:
+        print((x0 + x1) // 2, (y0 + y1) // 2)
+        break
+else:
+    sys.exit(1)
+PY
+    ); then
+      if [[ "$action" == tap ]]; then
+        local x y
+        read -r x y <<<"$point"
+        adb shell input tap "$x" "$y"
+      fi
+      return 0
+    fi
+    sleep 2
+  done
+  echo "Android smoke test could not find '$label'"
+  return 1
+}
+
+ui_element 'Search maps' tap
+ui_element 'Exit search'
+adb shell input text OrbitSmoke
+ui_element 'No matching maps'
+ui_element 'Clear search' tap
+ui_element 'Your library is ready'
+ui_element 'Exit search' tap
+ui_element 'Open sidebar' tap
+ui_element 'Settings' tap
+ui_element 'App Lock' tap
+ui_element 'Back to Settings'
+adb shell input keyevent 4
+ui_element 'Backup & Restore' tap
+ui_element 'Restore Backup' tap
+ui_element 'Select backup file'
+adb shell input keyevent 4
+ui_element 'Back to Settings' tap
+ui_element 'Back to previous library screen' tap
+ui_element 'Open sidebar' tap
+ui_element 'Deleted' tap
+ui_element 'No notes in Deleted'
+echo 'TEST-02 PASS: search, App Lock, Backup & Restore, and Deleted navigation'
+
+# Exercise read-only navigation with a synthetic map.
+ui_element 'Open sidebar' tap
+ui_element 'Maps' tap
+ui_element 'Create new map' tap
+ui_element 'Note title' tap
+adb shell input text OrbitSmokeMap
+ui_element 'Done' tap
+ui_element 'Back to library' tap
+ui_element 'More actions for OrbitSmokeMap' tap
+ui_element 'Delete' tap
+ui_element 'Move' tap
+ui_element 'Open sidebar' tap
+ui_element 'Deleted' tap
+ui_element 'Open deleted map OrbitSmokeMap' tap
+ui_element 'Back to Deleted'
+ui_element 'Fit map to screen'
+if grep -q 'content-desc="Add child note"\|content-desc="Node color"' /tmp/orbit-ui.xml; then
+  echo 'TEST-03 FAIL: Deleted view exposes editing controls'
+  exit 1
+fi
+echo 'TEST-03 PASS: Deleted uses the shared map in read-only mode'

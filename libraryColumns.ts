@@ -1,11 +1,3 @@
-/** Stable two-column partition; preserves Keep-style alternating masonry order. */
-export function partitionLibraryColumns<T>(items:readonly T[],grid:boolean):T[][]{
- if(!grid)return [Array.from(items)];
- const columns:T[][]=[[],[]];
- items.forEach((item,index)=>columns[index%2].push(item));
- return columns;
-}
-
 /** Balanced, stable visual placement. Preserve the item order used for Custom sorting.
  * Prefer a prior column to avoid shifting unrelated cards. Use the shorter column
  * when keeping the prior column would leave a significant empty space.

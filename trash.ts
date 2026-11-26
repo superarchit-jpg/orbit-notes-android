@@ -39,3 +39,20 @@ export function splitDeletedMaps(batches:TrashBatch[]):TrashBatch[]{
  }
  return normalized;
 }
+
+/** Restore only the deleted maps' membership, retaining intervening Archive changes. */
+export function restoreArchiveOrder(current:string[],before:string[],restored:ReadonlySet<string>):string[]{
+ const result=current.slice();
+ const present=new Set(current);
+ const original=new Set(before);
+ let next=current.find(id=>!original.has(id));
+ for(let i=before.length-1;i>=0;i--){
+  const id=before[i];
+  if(restored.has(id)&&!present.has(id)){
+   result.splice(next===undefined?result.length:result.indexOf(next),0,id);
+   present.add(id);
+  }
+  if(present.has(id))next=id;
+ }
+ return result;
+}

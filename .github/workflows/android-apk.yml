@@ -44,9 +44,7 @@ jobs:
           packages: ''
 
       - name: Install JavaScript dependencies
-        run: |
-          npm install --no-audit --no-fund
-          npm install --save-dev babel-preset-expo@~54.0.0 --no-audit --no-fund
+        run: npm ci --no-audit --no-fund
 
       - name: Run project checks
         run: |

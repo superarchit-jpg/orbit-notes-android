@@ -2,9 +2,6 @@
 export type OrbitTheme='light'|'dark';
 export const KEEP_LIGHT_PRESETS=['#ffffff','#FAAFA9','#F29F75','#FFF8B9','#E2F6D3','#B4DED4','#D5E3EE','#AFCCDC','#D3BFDB','#F5E2DC','#E9E3D3','#EFEFF1','#D18D86','#D27B5C','#C9AE54','#75AD7B','#5AACA2','#698FB0','#8A7DB1','#AC7198'] as const;
 export const KEEP_DARK_PRESETS=['#0A0E1A','#740D32','#762C1E','#86550A','#2B5635','#137263','#2D4F63','#2A687A','#523160','#733C54','#575247','#292B2F','#5F2936','#603626','#59471F','#234D38','#204A4A','#28405C','#42365D','#5D304E'] as const;
-export const KEEP_DARK_BACKGROUND='#11182A';
-export const KEEP_DARK_SURFACE='#0A0E1A';
-export const KEEP_DARK_SELECTED='#ADC3F9';
 /** Option A card presets; legacy Keep colors remain accepted in stored notes. */
 export const ORBIT_LIGHT_PRESETS=['#FFFCF7','#F6DAD7','#F2D5BE','#F8EAC6','#E7EBCF','#D4E8DF','#DFEAF1','#C9DDE8','#E6DDF0','#F1DED7','#EAE1D5','#EFECE7','#DFA9A2','#DBAD8B','#D6C08A','#B9CDA8','#9FC5BE','#91AFC4','#B5A9CD','#CBA5B8'] as const;
 export const ORBIT_DARK_PRESETS=['#222B36','#563A45','#604739','#564A32','#414B3C','#31534B','#344654','#345568','#49415A','#554249','#4B4741','#363941','#634147','#644935','#675B3C','#3D5744','#325B55','#37516A','#4E4868','#60455B'] as const;

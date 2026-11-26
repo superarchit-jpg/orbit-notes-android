@@ -3,17 +3,10 @@ const {execFileSync}=require('node:child_process');
 const fs=require('node:fs');const os=require('node:os');const path=require('node:path');const assert=require('node:assert/strict');
 const temp=fs.mkdtempSync(path.join(os.tmpdir(),'orbit-tests-'));
 try{
- execFileSync('tsc',['layout.ts','trash.ts','mapGeometry.ts','noteFormatting.ts','labels.ts','librarySearch.ts','richTextMarkup.ts','keepTheme.ts','libraryColumns.ts','orbitThemeTokens.ts','pdfNodeStyle.ts','--module','commonjs','--target','es2020','--outDir',temp,'--skipLibCheck','--noEmitOnError','false'],{stdio:'pipe'});
-}catch(e){if(!fs.existsSync(path.join(temp,'layout.js')))throw e;}
+ execFileSync('tsc',['trash.ts','mapGeometry.ts','noteFormatting.ts','labels.ts','librarySearch.ts','richTextMarkup.ts','keepTheme.ts','libraryColumns.ts','orbitThemeTokens.ts','pdfNodeStyle.ts','--module','commonjs','--target','es2020','--outDir',temp,'--skipLibCheck','--noEmitOnError','false'],{stdio:'pipe'});
+}catch(e){if(!fs.existsSync(path.join(temp,'mapGeometry.js')))throw e;}
 // Audit regressions: alternating masonry order, large collections and theme roles.
-const {partitionLibraryColumns,balancedLibraryPositions}=require(path.join(temp,'libraryColumns.js'));
-const many=Array.from({length:250},(_,i)=>'map-'+i);
-const grid=partitionLibraryColumns(many,true);
-assert.equal(grid.length,2);
-assert.deepEqual(grid[0].slice(0,3),['map-0','map-2','map-4']);
-assert.deepEqual(grid[1].slice(0,3),['map-1','map-3','map-5']);
-assert.deepEqual(partitionLibraryColumns(many,false)[0],many);
-assert.equal(grid[0].length+grid[1].length,250);
+const {balancedLibraryPositions}=require(path.join(temp,'libraryColumns.js'));
 const {LIGHT,DARK,uiRoles}=require(path.join(temp,'orbitThemeTokens.js'));
 assert.equal(uiRoles(LIGHT).textPrimary,LIGHT.text);
 assert.equal(uiRoles(DARK).surface,DARK.surface);
@@ -41,16 +34,11 @@ assert.equal(forced[0].column,1,'An odd final card can remain in the right colum
 const manual=balancedLibraryPositions([{id:'left'},{id:'right'},{id:'moved'}],{left:200,right:200,moved:100},true,{}, {moved:1});
 assert.equal(manual[2].column,1,'Manual cross-column drop is honored before automatic balancing');
 console.log('PASS: stable height-balanced Custom library placement');
-console.log('PASS: virtualized-library partition and semantic theme roles');
+console.log('PASS: semantic theme roles');
 
-const {radialLayout,overviewLayout}=require(path.join(temp,'layout.js'));
-const {deleteBranches,restoreBatch,pruneTrash,splitDeletedMaps}=require(path.join(temp,'trash.js'));
-for(const n of [1,10,50,100]){
- const pts=radialLayout(n);assert.equal(pts.length,n);
- for(let i=0;i<n;i++)for(let j=i+1;j<n;j++)assert.ok(Math.hypot(pts[i].x-pts[j].x,pts[i].y-pts[j].y)>85,'overlapping circles');
- const l=overviewLayout(Array.from({length:Math.min(n,20)},(_,i)=>i%7));
- assert.equal(l.parents.length,Math.min(n,20));
-}
+const {deleteBranches,restoreBatch,pruneTrash,splitDeletedMaps,restoreArchiveOrder}=require(path.join(temp,'trash.js'));
+assert.deepEqual(restoreArchiveOrder(['b','d','new'],['a','b','c','d'],new Set(['a','c'])),['a','b','c','d','new']);
+assert.deepEqual(restoreArchiveOrder(['b','new'],['a','b','c','d'],new Set(['a','d'])),['a','b','d','new']);
 const notes=[{id:'root',parentId:null},{id:'a',parentId:'root'},{id:'b',parentId:'a'},{id:'c',parentId:'root'}];
 const {remaining,batch}=deleteBranches(notes,['a']);assert.deepEqual(remaining.map(x=>x.id),['root','c']);
 assert.deepEqual(restoreBatch(remaining,batch).map(x=>x.id),['root','c','a','b']);
@@ -120,7 +108,7 @@ assert.equal(pdfNodeStyle('uncoloured',2,false,{},'light').fill,'#F0F3FC');
 assert.equal(pdfNodeStyle('uncoloured',2,false,{},'dark').fill,'#1B293E');
 console.log('PASS: saved PDF node fill, readable text, and Light/Dark palette mapping');
 
-const {radialTree}=require(path.join(temp,'mapGeometry.js'));
+const {indexChildren,fitMap,radialTree}=require(path.join(temp,'mapGeometry.js'));
 const diameters=[120,110,90,80,75,70];
 const deepNotes=Array.from({length:9},(_,i)=>({id:'n'+i,parentId:i?'n'+(i-1):null}));
 const deepPositions=radialTree(deepNotes[0],deepNotes);
@@ -132,12 +120,7 @@ for(let i=1;i<deepPositions.length;i++){
  assert.ok(clearance>=29.99,`insufficient connector clearance at level ${child.level}: ${clearance}`);
 }
 console.log('PASS: GEO-03 deep-level connector clearance');
-const {formatSelection,parseRichLine,plainNoteText}=require(path.join(temp,'noteFormatting.js'));
-assert.equal(formatSelection('hello world',0,5,'bold'),'**hello** world');
-assert.equal(formatSelection('hello world',0,5,'italic'),'*hello* world');
-assert.equal(formatSelection('one\ntwo',0,7,'bullets'),'• one\n• two');
-assert.equal(formatSelection('one\ntwo',0,7,'numbers'),'1. one\n2. two');
-assert.equal(formatSelection('hello',0,5,'underline'),'__hello__');
+const {parseRichLine,plainNoteText}=require(path.join(temp,'noteFormatting.js'));
 assert.deepEqual(parseRichLine('hello **bold** and *italic*').filter(x=>x.bold||x.italic).map(x=>x.text),['bold','italic']);
 assert.equal(parseRichLine('__underlined__')[0].underline,true);
 assert.equal(plainNoteText('__underlined__'),'underlined');
@@ -151,7 +134,7 @@ assert.deepEqual(parseRichLine('**bold *and italic* still bold**').filter(run=>r
 ]);
 assert.equal(plainNoteText('literal **unclosed'),'literal **unclosed');
 assert.equal(plainNoteText('**bold *and italic* still bold**'),'bold and italic still bold');
-console.log('PASS: local rich-text helpers and checklist behavior');
+console.log('PASS: local rich-text helpers');
 
 const {labelIds,withLabels,addLabel,removeLabel,hasLabel,normalizeLabels}=require(path.join(temp,'labels.js'));
 const legacy={id:'old-map',parentId:'root',folderId:'old-label'};
@@ -178,11 +161,12 @@ const searchNotes=[
  {id:'grandchild',parentId:'child',title:'Third level',body:'UniqueOrbitSearchTerm in paragraph'},
  {id:'other',parentId:'root',title:'Other map',body:'irrelevant'}
 ];
-assert.equal(matchesMapQuery(searchNotes[1],searchNotes,'uniqueorbitsearchterm'),true);
-assert.equal(matchesMapQuery(searchNotes[1],searchNotes,'third level'),true);
-assert.equal(matchesMapQuery(searchNotes[1],searchNotes,'map'),true);
-assert.equal(matchesMapQuery(searchNotes[4],searchNotes,'uniqueorbitsearchterm'),false);
-assert.equal(matchesMapQuery(searchNotes[1],searchNotes,'  '),true);
+const searchIndex=indexChildren(searchNotes);
+assert.equal(matchesMapQuery(searchNotes[1],searchIndex,'uniqueorbitsearchterm'),true);
+assert.equal(matchesMapQuery(searchNotes[1],searchIndex,'third level'),true);
+assert.equal(matchesMapQuery(searchNotes[1],searchIndex,'map'),true);
+assert.equal(matchesMapQuery(searchNotes[4],searchIndex,'uniqueorbitsearchterm'),false);
+assert.equal(matchesMapQuery(searchNotes[1],searchIndex,'' ),true);
 console.log('PASS: offline full-depth map search');
 const {markupToHtml}=require(path.join(temp,'richTextMarkup.js'));
 const numbered=markupToHtml('Before\n1. First\n2. **Second**\n3. *Third*\nAfter');
@@ -190,16 +174,13 @@ assert.ok(numbered.includes('<ol start="1"><li>First</li><li><strong>Second</str
 assert.ok(numbered.includes('<div>Before</div>')&&numbered.includes('<div>After</div>'));
 assert.ok(markupToHtml('4. Fourth\n5. Fifth').includes('<ol start="4">'));
 assert.ok(markupToHtml('• A\n• B').includes('<ul><li>A</li><li>B</li></ul>'));
-assert.equal(formatSelection('one',0,3,'numbers'),'1. one');
-assert.equal(formatSelection('one\ntwo',0,7,'numbers'),'1. one\n2. two');
 console.log('PASS: numbered lists and combined formatting emit semantic ordered-list HTML');
 
 console.log('PASS: executable layout and trash tests');
 
-const {KEEP_LIGHT_PRESETS,KEEP_DARK_PRESETS,KEEP_DARK_BACKGROUND,ORBIT_LIGHT_PRESETS,ORBIT_DARK_PRESETS,displayKeepColor,swatchKeepColor,keepForeground,keepChipStyle}=require(path.join(temp,'keepTheme.js'));
+const {KEEP_LIGHT_PRESETS,KEEP_DARK_PRESETS,ORBIT_LIGHT_PRESETS,ORBIT_DARK_PRESETS,displayKeepColor,swatchKeepColor,keepForeground,keepChipStyle}=require(path.join(temp,'keepTheme.js'));
 assert.equal(KEEP_LIGHT_PRESETS.length,20);
 assert.equal(KEEP_DARK_PRESETS.length,20);
-assert.equal(KEEP_DARK_BACKGROUND,'#11182A');
 assert.equal(swatchKeepColor(1,'light'),'#FAAFA9');
 assert.equal(swatchKeepColor(1,'dark'),'#740D32');
 assert.equal(displayKeepColor('#FAAFA9','dark','#11182A'),KEEP_DARK_PRESETS[1],'original dark palette must remain in use');
@@ -218,3 +199,9 @@ assert.equal(displayKeepColor(ORBIT_LIGHT_PRESETS[17],'dark','#000000'),KEEP_DAR
 assert.equal(swatchKeepColor(0,'light'),KEEP_LIGHT_PRESETS[0]);
 assert.equal(swatchKeepColor(0,'dark'),KEEP_DARK_PRESETS[0]);
 console.log('PASS: twenty original presets; Option A saved colors still map safely');
+
+const longChain=Array.from({length:10000},(_,i)=>({id:String(i),parentId:i?String(i-1):null}));
+assert.equal(radialTree(longChain[0],longChain).length,longChain.length);
+assert.ok(Number.isFinite(fitMap(Array(150000).fill({x:25,y:25}),500,800).scale));
+assert.equal(markupToHtml('2. Parent\n  • **Child**\n  • Sister\n5. Next'),'<ol start="2"><li>Parent<ul><li><strong>Child</strong></li><li>Sister</li></ul></li><li value="5">Next</li></ol>');
+console.log('PASS: wide and deep map bounds, nested lists and explicit list ordinals');

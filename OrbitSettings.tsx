@@ -24,7 +24,7 @@ type Props={
  onResetCredential:()=>Promise<void>;
  onVerifyBiometric:()=>Promise<boolean>;
  registerBack:(handler:()=>void)=>void;
- appVersion:string; buildNumber:string;
+ appVersion:string;
  onBackup:(kind:'save'|'restore')=>void;
  onLockNow:()=>void;
  onClose:()=>void;
@@ -84,7 +84,7 @@ const AppInfoBackdrop=({dark}:{dark:boolean})=>{
    </G>
  </Svg>;
 };
-export default function OrbitSettings({palette:appPalette,appInfoPalette,themeMode,onTheme,lockEnabled,configured,selectedKind,biometric,onToggleLock,onToggleBiometric,onVerify,onSaveCredential,onResetCredential,onVerifyBiometric,registerBack,appVersion,buildNumber,onBackup,onLockNow,onClose}:Props){
+export default function OrbitSettings({palette:appPalette,appInfoPalette,themeMode,onTheme,lockEnabled,configured,selectedKind,biometric,onToggleLock,onToggleBiometric,onVerify,onSaveCredential,onResetCredential,onVerifyBiometric,registerBack,appVersion,onBackup,onLockNow,onClose}:Props){
  const [page,setPage]=useState<Page>('home');
  const palette=page==='about'?appInfoPalette:appPalette;
  const [credentialModal,setCredentialModal]=useState<CredentialKind|null>(null);

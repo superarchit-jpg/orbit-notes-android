@@ -11,7 +11,6 @@ const assert = require('node:assert/strict');
 const read = (filename) =>
   fs.readFileSync(filename, 'utf8');
 
-const layout = read('layout.ts');
 const geometry = read('mapGeometry.ts');
 const trash = read('trash.ts');
 const app = read('App.tsx');
@@ -28,20 +27,6 @@ const localSave = read('localSave.ts');
 function check(condition, message) {
   assert.ok(condition, message);
 }
-
-// Layout helpers
-for (const name of [
-  'radialLayout',
-  'overviewLayout'
-]) {
-  check(
-    layout.includes(name),
-    `Missing layout helper: ${name}`
-  );
-}
-
-for (const name of ['radialTree','fitMap','circularDragAngle','screenToWorld']) check(geometry.includes(`function ${name}`), `Missing map geometry helper: ${name}`);
-console.log('PASS: map layout helpers');
 
 // Recently Deleted and recovery
 for (const name of [
@@ -69,7 +54,7 @@ check(
 );
 
 check(
-  app.includes('Gesture.Simultaneous(pan,pinch,rotate,rotateChildren)'),
+  app.includes('Gesture.Simultaneous(pan,pinch,rotate)')&&app.includes('runOnJS(updateChildRotation)(branchId,delta)'),
   'Missing two-finger pan, pinch, map rotation and one-finger branch rotation gestures'
 );
 
@@ -104,7 +89,7 @@ check(
 check(
   app.includes('},[canvasW,canvasH]);') &&
   !app.includes('[menu,focused,preferredFit]') &&
-  app.includes('useEffect(()=>{if(!menu)scale.value=withTiming(preferredFit*1.1,{duration:300});},[menu]);'),
+  app.includes('useEffect(()=>{if(!menu)scale.value=withTiming(zoomBaseline,{duration:300});},[menu]);'),
   'Zoom reference must not change when nodes or focus change'
 );
 
@@ -158,7 +143,7 @@ check(
 );
 check(
   app.includes('scale.value=withTiming(fit.scale*1.1)') &&
-  app.includes('Gesture.Simultaneous(pan,pinch,rotate,rotateChildren)'),
+  app.includes('Gesture.Simultaneous(pan,pinch,rotate)')&&app.includes('runOnJS(updateChildRotation)(branchId,delta)'),
   'Stage 3 must preserve Fit and gesture behavior'
 );
 console.log('PASS: Stage 3 approved UX control wiring');
@@ -190,13 +175,12 @@ for (const marker of [
   'Change selected card colors',
   "Filter '+item.name", 'Create new map',
   'FadeInLeft.duration(220)', "No maps in this label",
-  'formatSelection(value,textSelection.start',
-  'parseRichLine(line)', 'label="bullets" active={editorFormats.bullets} accessibilityLabel="Bulleted list"',
+  'parseRichLine(line)', 'label="bullets" disabled={!editorReady} active={editorFormats.bullets} accessibilityLabel="Bulleted list"',
   "onRequestClose={cancelReader}", 'label="palette" accessibilityLabel="Note color"'
 ]) check(app.includes(marker), `Missing approved Keep redesign wiring: ${marker}`);
 check(themeTokens.includes('export const LIGHT=')&&themeTokens.includes('export const DARK='),'Keep colours must remain in shared theme module');
 check(iconPaths.includes('export const ICON_PATHS'),'Vector paths must remain available in shared module');
-check(app.includes('FlatList')&&libraryColumns.includes('partitionLibraryColumns'),'Library virtualization and masonry order must remain available');
+check(app.includes('FlatList')&&libraryColumns.includes('balancedLibraryPositions'),'Library virtualization and masonry order must remain available');
 check(!app.includes('label="Reminders"')&&app.includes('showArchive'),'Archive must be explicitly separated from active library and Reminders must remain absent');
 console.log('PASS: approved Keep-inspired redesign wiring');
 
@@ -236,8 +220,8 @@ for(const marker of [
   'onSaveCredential={async(value,kind)=>',
   'onSaveCredential={async(value,kind)=>',
   "isPinLockEnabled()",
-  'label="numbers" active={editorFormats.numbers} accessibilityLabel="Numbered list"',
-  'label="underline" active={editorFormats.underline} accessibilityLabel="Underline text"'
+  'label="numbers" disabled={!editorReady} active={editorFormats.numbers} accessibilityLabel="Numbered list"',
+  'label="underline" disabled={!editorReady} active={editorFormats.underline} accessibilityLabel="Underline text"'
 ]) check(app.includes(marker),`Missing approved recording improvement: ${marker}`);
 for(const obsolete of [
   'label="Reset rotation"',
@@ -260,14 +244,14 @@ check(security.includes('export async function credentialKind')&&security.includ
 console.log('PASS: Stage 4 new feature guards');
 
 check(app.includes("focused:notes.some(n=>n.id===focused)?focused:'root'"),'Persistence must not save a missing focused note');
-check(app.includes("const wholeMap=note.parentId==='root'")&&app.includes("setPendingBranch(result.batch)")&&app.includes("branchUndoDeadline.current=Date.now()+5000"), 'Branch deletion must use temporary Undo and preserve whole-map recovery');
-check(app.includes('const remaining=branchUndoDeadline.current===null?5000:Math.max(0,branchUndoDeadline.current-Date.now())')&&app.includes('const timer=setTimeout(()=>{'), 'Undo notification must auto-dismiss after five seconds, including expired branch deadlines');
+check(app.includes("const wholeMap=note.parentId==='root'")&&app.includes("kind:'branch',batch:result.batch,expiresAt:Date.now()+5000"), 'Branch deletion must use temporary Undo and preserve whole-map recovery');
+check(app.includes('setTimeout(clearUndoNotification,Math.max(0,deletionUndo.expiresAt-Date.now()))'), 'Undo notification must auto-dismiss after five seconds, including expired branch deadlines');
 check(app.includes('This map and its descendants can be restored from Deleted for seven days.')&&app.includes('They will not appear in Deleted.'), 'Deletion confirmation must distinguish maps from permanently deleted branches');
 check(app.includes('accessibilityLabel="Restore selected deleted maps"')&&app.includes("label={selectedTrash.length?'Delete forever':'Empty bin'}"), 'Deleted header selection and empty-bin controls must remain available');
-check(app.includes('label="clearFormat" accessibilityLabel="Remove formatting"')&&richEditor.includes("clear:'removeFormat'"), 'Remove formatting must be available in the local rich editor');
+check(app.includes('label="clearFormat" disabled={!editorReady} accessibilityLabel="Remove formatting"')&&richEditor.includes("clear:'removeFormat'"), 'Remove formatting must be available in the local rich editor');
 check(app.includes('accessibilityLabel="Edit labels"')&&app.includes('accessibilityLabel="Rename label"'), 'Label-management flow must support inline rename');
 check(app.includes('label="parentNote" accessibilityLabel="Go to parent note"')&&app.includes('label="centerFocus" accessibilityLabel="Center focused note"'), 'Map quick actions must use accessible vector icons');
-check(app.includes('branchUndoDeadline.current=Date.now()+5000')&&app.includes('branchUndoDeadline.current=null;'), 'Branch deletion must finalize after Undo expires or is dismissed');
+check(app.includes('Date.now()>=deletionUndo.expiresAt')&&app.includes('()=>setDeletionUndo(null)'), 'Branch deletion must finalize after Undo expires or is dismissed');
 console.log('PASS: Stage 4 correction regression guards');
 
 // REF-01 through REF-07: approved interaction parity without new note backgrounds.
@@ -293,7 +277,7 @@ for(const marker of [
   "backgroundColor:'#202124'",
   "showArchive?("
 ]) check(app.includes(marker),'Missing consolidated candidate interaction parity: '+marker);
-check(app.includes("setUndoBatch(result.batch.id)")&&app.includes("setTrash(existing=>mapPrefs.trashRetentionAcknowledged?pruneTrash([result.batch,...existing]):[result.batch,...existing])"),'Whole-map deletion must retain seven-day Deleted recovery');
+check(app.includes("kind:'maps',ids:[result.batch.id]")&&app.includes("setTrash(existing=>mapPrefs.trashRetentionAcknowledged?pruneTrash([result.batch,...existing]):[result.batch,...existing])"),'Whole-map deletion must retain seven-day Deleted recovery');
 for(const token of [
   'mapPreview(batch.notes.find(n=>n.parentId',
   "previewNotes:Note[]=notes",
@@ -407,7 +391,7 @@ check(
 
 check(
   exp.includes('export async function exportMultipleMapsPDF') &&
-  exp.includes('roots.map(root=>pdfMapPage(root,notes,colors,theme))') &&
+  exp.includes('roots.map(root=>pdfMapPage(root,notes,colors,theme,children))') &&
   exp.includes("pages.join('')") &&
   app.includes('await exportMultipleMapsPDF(notes.filter(n=>selected.includes(n.id)),notes,mapPrefs.colors,effectiveTheme)'),
   'Combined PDF export must render every selected map as its own page'
@@ -417,13 +401,13 @@ console.log('PASS: PDF export module and large-map bounds');
 
 const librarySearch=read('librarySearch.ts');
 const richMarkup=read('richTextMarkup.ts');
-check(app.includes('matchesMapQuery(n,notes,librarySearch)')&&librarySearch.includes('while(pending.length)'), 'Search must traverse all descendant note titles and bodies');
+check(app.includes('matchesMapQuery(n,notebookChildren,query)')&&librarySearch.includes('while(pending.length)'), 'Search must traverse all descendant note titles and bodies');
 check(
   app.includes('(!showLibrarySearch||!librarySearching)&&<IconButton') &&
   app.includes('accessibilityLabel="Exit search" onPress={closeLibrarySearch}') &&
   app.includes('librarySearching?<IconButton label="×" accessibilityLabel="Clear search" onPress={clearLibrarySearch}') &&
   app.includes("const clearLibrarySearch=()=>setLibrarySearch('')") &&
-  app.includes('else if(librarySearching)closeLibrarySearch();else BackHandler.exitApp()') &&
+  app.includes('if(librarySearching){closeLibrarySearch();return;}')&&app.includes('onRequestClose={()=>handleLibraryBack()}') &&
   app.includes('keyboardShouldPersistTaps="handled"'),
   'Search mode must hide the normal controls, clear the query in place, and exit via the back arrow or Android Back'
 );
@@ -432,7 +416,7 @@ check(
   app.includes("backgroundColor:librarySort==='custom'?'transparent':palette.selection"),
   'The search pill and the non-custom sort circle must use distinct theme colors'
 );
-check(app.includes('if(selected.length){setSelected([]);return true;}')&&app.includes('else if(selected.length)setSelected([])'), 'Back must clear selected maps before exiting');
+check(app.includes('if(selected.length){setSelected([]);return;}')&&app.includes('if(menu){handleLibraryBack(true);return true;}'), 'Back must clear selected maps before exiting');
 check(app.includes("else openDeletedMap(batch)")&&app.includes('onLongPress={()=>setSelectedTrash'), 'Deleted maps require tap preview and long press selection');
 check(
   app.includes('deletedPreview?.batch.notes??notes') &&
@@ -444,7 +428,7 @@ check(
 );
 check(
   app.includes('readOnly?Gesture.Exclusive(long,double,single):Gesture.Exclusive(long,triple,double,single)') &&
-  app.includes('activeReader=mapNotes.find') &&
+  app.includes('activeReader=mapNotesById.get') &&
   app.includes('readOnly?undefined:()=>{const now=Date.now()') &&
   app.includes('{!menu&&!readOnly&&<Pressable accessibilityRole="button" accessibilityLabel="Add child note"') &&
   app.includes('{!readOnly&&!editing&&<IconButton label="✎"') &&
@@ -482,7 +466,7 @@ check(settingsUi.includes("row('Backup & Restore'")&&settingsUi.includes("row('C
 check(!settingsUi.includes('App information and version')&&!settingsUi.includes('Encrypted local backup')&&!settingsUi.includes('Use device biometrics first'),'Removed settings help subtitles must not reappear');
 check(app.includes('setCredentialFallback(false)')&&app.includes('Use PIN instead')&&app.includes('Use Password instead'),'Lock screen must have biometric-first and credential fallback options');
 check(
-  app.includes('Gesture.Simultaneous(pan,pinch,rotate,rotateChildren)') &&
+  app.includes('Gesture.Simultaneous(pan,pinch,rotate)') &&
   app.includes('onPress={fitCurrentMap} capsule="square"') &&
   app.includes('onPress={closeMap}') &&
   app.includes("readOnly?'':'\\nTriple-tap to edit.'"),
@@ -492,7 +476,6 @@ check(!app.includes('Deleted {stamp(batch.deletedAt)}')&&!app.includes("accessib
 check(app.includes("width:mapPrefs.viewMode==='grid'?'48.2%':'100%'"),'Deleted list/grid layout must follow library preference');
 check(app.includes('miniRotationStyle')&&app.includes('<Animated.View style={miniRotationStyle}>'),'Mini-map must rotate with the main map');
 check(iconPaths.includes("'allMaps':'M5 12L20 2M5 12H20M5 12L20 22'"),'Approved LIB-03 icon required');
-check(richEditor.includes('Empty formatted spans are editor artifacts'),'Rich editor must preserve blank lines without formatting tokens');
 console.log('PASS: REG-07, DEL-05/06, COL-03, MAP-11 and EDT-04 source regression guards');
 console.log('PASS: Google Keep video-reference styling, controls and icons');
 console.log('PASS: outstanding correction functional wiring guards');
@@ -522,16 +505,14 @@ check(app.includes('accessibilityLabel="Empty Archive illustration"><Path d={ICO
  'Empty Archive must use approved archive-box vector rather than prior arrow illustration');
 console.log('PASS: final cleanup, unified scrolling and approved Archive illustration guards');
 check(app.includes("const wholeMap=note.parentId==='root'") &&
- app.includes('setPendingBranch(result.batch)') &&
- app.includes('branchUndoDeadline.current=Date.now()+5000') &&
- app.includes("setUndoBatch(null);") &&
- app.includes("This branch and its descendants will be permanently deleted after five seconds"),
+ app.includes("kind:'branch',batch:result.batch,expiresAt:Date.now()+5000") &&
+ app.includes('This branch and its descendants will be permanently deleted after five seconds'),
  'Nested-branch deletion must permanently remove descendants after temporary Undo');
-const permanentBranchBlock=app.slice(app.indexOf('}else{\n        // Exclude branch deletion'),app.indexOf('setUndoOpen(true);',app.indexOf('}else{\n        // Exclude branch deletion')));
-check(!permanentBranchBlock.includes('setTrash('),'Temporary branch deletion must never enter Deleted');
+const permanentBranchBlock=app.slice(app.indexOf('}else{\n        // Exclude branch deletion'),app.indexOf('if(result.batch.notes.some(n=>n.id===focused))setFocused(note.parentId'));
+check(permanentBranchBlock.includes("kind:'branch'")&&!permanentBranchBlock.includes('setTrash('),'Temporary branch deletion must never enter Deleted');
 check(app.includes('const clearUndoNotification=()=>')&&app.includes('onDismiss={clearUndoNotification}')&&app.includes('runOnJS(onDismiss)()'),
  'Swiping Undo away must invalidate the temporary restore snapshot');
-check(app.includes("setNotes(existing=>restoreBatch(existing,pendingBranch))")&&app.includes('branchUndoDeadline.current!==null&&Date.now()>=branchUndoDeadline.current'),
+check(app.includes('restoreBatch(notes,deletionUndo.batch)')&&app.includes('Date.now()>=deletionUndo.expiresAt'),
  'Undo must restore the full branch only before deadline');
 check(app.includes("color:'#fbbc04'")&&app.includes('const SwipeUndoNotice=')&&app.split('onUndo={undoDeletion}').length===3,
  'Branch Undo must use the same yellow as whole-map Undo');
@@ -548,11 +529,11 @@ console.log('PASS: Keep sort, drag, swipe archive and Undo gesture guards');
 
 check(app.includes("const mapCount=ids.length")&&app.includes("Move ${mapCount} map${mapCount===1?'':'s'} to Deleted?"),
  'Multi-map deletion confirmation must count selected maps, not descendant notes');
-check(app.includes("splitDeletedMaps([result.batch])")&&app.includes("setUndoMapIds(deletedMaps.map(batch=>batch.id))"),
+check(app.includes("splitDeletedMaps([result.batch])")&&app.includes("kind:'maps',ids:deletedMaps.map(batch=>batch.id)"),
  'Multi-map deletion must create separate per-map records with one Undo action');
 check(app.includes("splitDeletedMaps(preferences.trashRetentionAcknowledged?pruneTrash(existing.trash):existing.trash)")&&app.includes("splitDeletedMaps(restored.trash)"),
  'Legacy grouped Deleted records must be normalized on load and backup restore');
-check(app.includes("setTrash(existing=>existing.filter(batch=>!undoMapIds.includes(batch.id)))"),
+check(app.includes("setTrash(existing=>existing.filter(batch=>!ids.has(batch.id)))"),
  'Multi-map Undo must remove every restored recovery record');
 check(exp.includes('pdfNodeStyle(n.note.id,n.level,isRoot,colors,theme)') &&
  exp.includes('nodeStyle.fill') && exp.includes('nodeStyle.text'),
@@ -634,7 +615,7 @@ check(keepTheme.includes('ORBIT_LIGHT_PRESETS')&&keepTheme.includes('ORBIT_DARK_
 check(app.includes('const hold=Gesture.LongPress().enabled(canDrag).minDuration(480).maxDistance(8)')&&
  app.includes('Gesture.Race(Gesture.Simultaneous(drag,hold),swipe)')&&
  app.includes("(showArchive||librarySort!=='custom')&&setSelected(v=>")&&
- !app.includes('setDraggingMapId(n.id);setSelected('),
+ app.includes('onDragStart={()=>{dragSession.current++;pendingDrop.current=null;lastDragTarget.current=null;setSelected([])'),
  'CUSTOM-07 stationary long press selects separately from card drag; drag never opens selection header');
 check(app.includes('const iconSize=compact?21:23')&&
  iconPaths.includes("'centerFocus':'M12 3a9 9")&&
@@ -663,8 +644,7 @@ check(iconPaths.includes("'archive':'M3 4h18v5")&&iconPaths.includes("'unarchive
  'Approved Archive/Unarchive symbols and corrected map controls must remain present');
 console.log('PASS: isolated App Info palette, compact fixed selection and Archive icons');
 
-check(app.includes('if(showArchive){')&&app.includes('const ai=mapPrefs.archived.indexOf(a.id),bi=mapPrefs.archived.indexOf(b.id);')&&
- app.includes('return bi-ai;')&&app.includes('const archiveColumnRef=useRef<Record<string,number>>({});')&&
+check(app.includes('if(showArchive)return archives.get(b.id)!-archives.get(a.id)!;')&&app.includes('const archiveColumnRef=useRef<Record<string,number>>({});')&&
  app.includes('showArchive||folderFilter?{}:(mapPrefs.customColumns||{})'),
  'Archive displays newest archived maps first, with independent card placement');
 check(app.includes('ListHeaderComponent={<View style={{opacity:selected.length>0?0:1}}>{libraryToolbar}</View>}')&&

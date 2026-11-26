@@ -20,6 +20,7 @@ export function encryptSnapshot(snapshot:LocalSnapshot,password:string):string{
   if(password.length<12)throw new Error('Backup password must contain at least 12 characters');
   const salt=Crypto.getRandomBytes(16),nonce=Crypto.getRandomBytes(12);
   const plaintext=utf8ToBytes(JSON.stringify(snapshot));
+  if(plaintext.length+16>MAX_BYTES)throw new Error('Backup is too large');
   const ciphertext=gcm(derive(password,salt,ITERATIONS),nonce).encrypt(plaintext);
   const envelope:Envelope={format:'orbit-notes-encrypted-backup',version:1,kdf:'pbkdf2-sha256',iterations:ITERATIONS,salt:fromByteArray(salt),nonce:fromByteArray(nonce),ciphertext:fromByteArray(ciphertext)};
   return JSON.stringify(envelope);
@@ -28,7 +29,7 @@ export function decryptSnapshot(content:string,password:string):LocalSnapshot{
   if(content.length>MAX_BYTES*2)throw new Error('Backup is too large');
   let e:Envelope;
   try{e=JSON.parse(content);}catch{throw new Error('Invalid backup file');}
-  if(e?.format!=='orbit-notes-encrypted-backup'||e.version!==1||e.kdf!=='pbkdf2-sha256'||e.iterations!==ITERATIONS||typeof e.ciphertext!=='string')throw new Error('Unsupported or invalid backup');
+  if(e?.format!=='orbit-notes-encrypted-backup'||e.version!==1||e.kdf!=='pbkdf2-sha256'||e.iterations!==ITERATIONS||typeof e.salt!=='string'||typeof e.nonce!=='string'||typeof e.ciphertext!=='string')throw new Error('Unsupported or invalid backup');
   const salt=toByteArray(e.salt),nonce=toByteArray(e.nonce),ciphertext=toByteArray(e.ciphertext);
   if(salt.length!==16||nonce.length!==12||ciphertext.length>MAX_BYTES)throw new Error('Invalid backup size or parameters');
   let raw:Uint8Array;
@@ -51,19 +52,29 @@ export async function selectBackupFile():Promise<{uri:string;name:string}|null>{
   if(result.canceled)return null;
   const asset=result.assets[0];
   if(!asset?.uri)throw new Error('No backup selected');
-  const info=await FileSystem.getInfoAsync(asset.uri);
-  if(!info.exists||('size' in info&&typeof info.size==='number'&&info.size>MAX_BYTES*2))
-    throw new Error('Backup file too large');
-  return {uri:asset.uri,name:asset.name||'Selected backup'};
+  try{
+    await validateBackupFile(asset.uri);
+    return {uri:asset.uri,name:asset.name||'Selected backup'};
+  }catch(error){
+    await discardBackupFile(asset.uri);
+    throw error;
+  }
 }
-export async function decryptSelectedBackup(uri:string,password:string):Promise<LocalSnapshot>{
+async function validateBackupFile(uri:string){
   const info=await FileSystem.getInfoAsync(uri);
-  if(!info.exists||('size' in info&&typeof info.size==='number'&&info.size>MAX_BYTES*2))
-    throw new Error('Backup file too large');
+  if(!info.exists)throw new Error('Backup file unavailable');
+  if(typeof info.size==='number'&&info.size>MAX_BYTES*2)throw new Error('Backup file too large');
+}
+
+export async function discardBackupFile(uri:string){
+  // The picker normally returns a cache copy. Never delete an original document.
+  if(FileSystem.cacheDirectory&&uri.startsWith(FileSystem.cacheDirectory)){
+    await FileSystem.deleteAsync(uri,{idempotent:true}).catch(()=>{});
+  }
+}
+
+export async function decryptSelectedBackup(uri:string,password:string):Promise<LocalSnapshot>{
+  await validateBackupFile(uri);
   const content=await FileSystem.readAsStringAsync(uri,{encoding:FileSystem.EncodingType.UTF8});
   return decryptSnapshot(content,password);
-}
-export async function selectAndDecryptBackup(password:string):Promise<LocalSnapshot|null>{
-  const selected=await selectBackupFile();
-  return selected?decryptSelectedBackup(selected.uri,password):null;
 }

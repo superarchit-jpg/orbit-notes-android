@@ -25,18 +25,51 @@ export function getDatabase():Promise<SQLite.SQLiteDatabase>{
  })().catch(e=>{database=undefined;throw e;});
  return database;
 }
+function validateNotes(notes:Note[],requireParents:boolean){
+ const byId=new Map<string,Note>();
+ for(const note of notes){
+  if(!note||typeof note.id!=='string'||!note.id||byId.has(note.id)||typeof note.title!=='string'||typeof note.body!=='string'||
+     !Number.isFinite(note.updatedAt)||(note.parentId!==null&&typeof note.parentId!=='string')||
+     (note.folderId!=null&&typeof note.folderId!=='string')||
+     (note.labelIds!==undefined&&(!Array.isArray(note.labelIds)||note.labelIds.some(id=>typeof id!=='string'))))
+   throw new Error('Invalid or duplicate note');
+  byId.set(note.id,note);
+ }
+ const checked=new Set<string>();
+ for(const note of notes){
+  const path=new Set<string>();
+  let current:Note|undefined=note;
+  while(current&&!checked.has(current.id)){
+   if(path.has(current.id))throw new Error('Circular note hierarchy');
+   path.add(current.id);
+   const parentId:string|null=current.parentId;
+   current=parentId===null?undefined:byId.get(parentId);
+   if(parentId!==null&&!current&&requireParents)throw new Error('Note parent missing');
+  }
+  path.forEach(id=>checked.add(id));
+ }
+ return byId;
+}
+
 export function assertSnapshot(s:LocalSnapshot):void{
  if(!s||!Array.isArray(s.notes)||!Array.isArray(s.folders)||!Array.isArray(s.trash)||typeof s.focused!=='string')throw new Error('Invalid notebook snapshot');
- const ids=new Set<string>();
- for(const n of s.notes){if(!n||typeof n.id!=='string'||ids.has(n.id)||typeof n.title!=='string'||typeof n.body!=='string'||typeof n.updatedAt!=='number'||(n.parentId!==null&&typeof n.parentId!=='string'))throw new Error('Invalid or duplicate note');ids.add(n.id);}
- if(s.mapPreferences && (typeof s.mapPreferences!=='object'||!s.mapPreferences.colors||!s.mapPreferences.cardColors||!s.mapPreferences.noteColors))throw new Error('Invalid map appearance preferences');
- if(!ids.has('root'))throw new Error('Notebook root missing');
- for(const n of s.notes)if(n.parentId!==null&&!ids.has(n.parentId))throw new Error('Note parent missing');
- if(!ids.has(s.focused))throw new Error('Focused note missing');
- for(const n of s.notes){if(n.labelIds!==undefined&&(!Array.isArray(n.labelIds)||n.labelIds.some(id=>typeof id!=='string')))throw new Error('Invalid note labels');}
- for(const n of s.notes){const visited=new Set<string>();let p:Note|undefined=n;while(p){if(visited.has(p.id))throw new Error('Circular note hierarchy');visited.add(p.id);p=s.notes.find(x=>x.id===p?.parentId);}}
- for(const f of s.folders)if(!f||typeof f.id!=='string'||typeof f.name!=='string')throw new Error('Invalid folder');
- for(const b of s.trash)if(!b||typeof b.id!=='string'||!Array.isArray(b.notes)||typeof b.deletedAt!=='number')throw new Error('Invalid trash batch');
+ const notes=validateNotes(s.notes,true);
+ if(notes.get('root')?.parentId!==null)throw new Error('Notebook root missing or invalid');
+ if(!notes.has(s.focused))throw new Error('Focused note missing');
+ const folders=new Set<string>();
+ for(const f of s.folders){
+  if(!f||typeof f.id!=='string'||folders.has(f.id)||typeof f.name!=='string')throw new Error('Invalid or duplicate label');
+  folders.add(f.id);
+ }
+ const batches=new Set<string>();
+ for(const b of s.trash){
+  if(!b||typeof b.id!=='string'||batches.has(b.id)||!Array.isArray(b.notes)||!b.notes.length||!Number.isFinite(b.deletedAt))
+   throw new Error('Invalid or duplicate Deleted entry');
+  validateNotes(b.notes,false);
+  if(b.notes.some(n=>n.id==='root'))throw new Error('Notebook root cannot be in Deleted');
+  batches.add(b.id);
+ }
+ if(s.mapPreferences!==undefined)validateMapPreferences(s.mapPreferences);
 }
 export async function loadSnapshot():Promise<LocalSnapshot|null>{
  await writeQueue;
@@ -72,6 +105,7 @@ export function saveSnapshot(snapshot:LocalSnapshot):Promise<void>{
    const trashIds=new Set(snapshot.trash.map(x=>x.id));for(const t of oldTrash)if(!trashIds.has(t.id))await tx.runAsync('DELETE FROM trash WHERE id=?',t.id);
    const previousTrash=new Map(oldTrash.map(x=>[x.id,x.payload]));for(const t of snapshot.trash){const payload=JSON.stringify(t);if(previousTrash.get(t.id)!==payload)await tx.runAsync('INSERT INTO trash(id,payload,deleted_at) VALUES(?,?,?) ON CONFLICT(id) DO UPDATE SET payload=excluded.payload,deleted_at=excluded.deleted_at',t.id,payload,t.deletedAt);}
    await tx.runAsync("INSERT INTO metadata(key,value) VALUES('focused',?) ON CONFLICT(key) DO UPDATE SET value=excluded.value",snapshot.focused);
+   if(snapshot.mapPreferences!==undefined)await writeMapPreferences(tx,snapshot.mapPreferences);
    await tx.runAsync("INSERT INTO metadata(key,value) VALUES('initialized','1') ON CONFLICT(key) DO NOTHING");
   });
  });
@@ -101,37 +135,68 @@ export const emptyMapPreferences=():MapPreferences=>({
   offsets:{},collapsed:{},colors:{},pinned:[],
   theme:'light',viewMode:'grid',cardColors:{},noteColors:{},archived:[],trashRetentionAcknowledged:false,trashRetentionWarningSeen:false,themeMode:'light',librarySort:'custom',sortDirection:'desc',customOrder:[],customColumns:{}
 });
+function isRecord(value:unknown):value is Record<string,unknown>{
+ return !!value&&typeof value==='object'&&!Array.isArray(value);
+}
+
+const recordOf=(valid:(item:unknown)=>boolean)=>(value:unknown)=>isRecord(value)&&Object.values(value).every(valid);
+const strings=(value:unknown)=>Array.isArray(value)&&value.every(item=>typeof item==='string');
+const choices=(...allowed:unknown[])=>(value:unknown)=>allowed.includes(value);
+const validColor=recordOf(value=>typeof value==='string'&&/^#[0-9a-f]{6}$/i.test(value));
+const preferenceFields:{[K in keyof Required<MapPreferences>]: (value:unknown)=>boolean}={
+ offsets:recordOf(Number.isFinite),
+ collapsed:recordOf(value=>typeof value==='boolean'),
+ colors:validColor,cardColors:validColor,noteColors:validColor,
+ customColumns:recordOf(choices(0,1)),
+ pinned:strings,archived:strings,customOrder:strings,
+ theme:choices('light','dark'),
+ themeMode:choices('light','dark','system'),
+ viewMode:choices('grid','list'),
+ librarySort:choices('custom','created','modified','title'),
+ sortDirection:choices('asc','desc'),
+ trashRetentionAcknowledged:choices(true,false),
+ trashRetentionWarningSeen:choices(true,false),
+};
+
+function validateMapPreferences(value:unknown):void{
+ if(!isRecord(value)||Object.entries(preferenceFields).some(([key,valid])=>value[key]!==undefined&&!valid(value[key])))
+  throw new Error('Invalid map preferences');
+}
+
+export function normalizeMapPreferences(prefs:unknown):MapPreferences{
+ const raw=isRecord(prefs)?prefs:{};
+ const accepted=Object.fromEntries(Object.entries(preferenceFields)
+  .filter(([key,valid])=>valid(raw[key])).map(([key])=>[key,raw[key]])) as Partial<MapPreferences>;
+ return {...emptyMapPreferences(),...accepted,themeMode:accepted.themeMode??accepted.theme??'light'};
+}
+
 export async function loadMapPreferences():Promise<MapPreferences>{
-  await writeQueue;
+ await writeQueue;
+ const db=await getDatabase();
+ const row=await db.getFirstAsync<{value:string}>("SELECT value FROM metadata WHERE key='map_preferences'");
+ if(!row)return emptyMapPreferences();
+ try{
+  return normalizeMapPreferences(JSON.parse(row.value));
+ }catch{return emptyMapPreferences();}
+}
+
+function writeMapPreferences(db:Pick<SQLite.SQLiteDatabase,'runAsync'>,prefs:MapPreferences){
+ return db.runAsync("INSERT INTO metadata(key,value) VALUES('map_preferences',?) ON CONFLICT(key) DO UPDATE SET value=excluded.value",JSON.stringify(prefs));
+}
+
+/** Browsing changes a single metadata row and leaves notebook tables untouched. */
+export function saveFocusedNote(focused:string):Promise<void>{
+ const job=writeQueue.catch(()=>{}).then(async()=>{
   const db=await getDatabase();
-  const row=await db.getFirstAsync<{value:string}>("SELECT value FROM metadata WHERE key='map_preferences'");
-  if(!row)return emptyMapPreferences();
-  try{
-    const parsed=JSON.parse(row.value) as Partial<MapPreferences>;
-    return {
-      offsets:parsed.offsets&&typeof parsed.offsets==='object'?parsed.offsets:{},
-      collapsed:parsed.collapsed&&typeof parsed.collapsed==='object'?parsed.collapsed:{},
-      colors:parsed.colors&&typeof parsed.colors==='object'?parsed.colors:{},
-      pinned:Array.isArray(parsed.pinned)?parsed.pinned.filter((x):x is string=>typeof x==='string'):[],
-      theme:parsed.theme==='dark'?'dark':'light',
-      viewMode:parsed.viewMode==='list'?'list':'grid',
-      cardColors:parsed.cardColors&&typeof parsed.cardColors==='object'?parsed.cardColors:{},
-      noteColors:parsed.noteColors&&typeof parsed.noteColors==='object'?parsed.noteColors:{},
-      archived:Array.isArray(parsed.archived)?parsed.archived.filter((x):x is string=>typeof x==='string'):[],
-      trashRetentionAcknowledged:parsed.trashRetentionAcknowledged===true,
-      trashRetentionWarningSeen:parsed.trashRetentionWarningSeen===true,
-      themeMode:parsed.themeMode==='system'?'system':parsed.theme==='dark'?'dark':'light',
-      librarySort:['custom','created','modified','title'].includes(parsed.librarySort||'')?parsed.librarySort:'custom',
-      sortDirection:parsed.sortDirection==='asc'?'asc':'desc',
-      customOrder:Array.isArray(parsed.customOrder)?parsed.customOrder.filter((id):id is string=>typeof id==='string'):[],
-      customColumns:parsed.customColumns&&typeof parsed.customColumns==='object'?Object.fromEntries(Object.entries(parsed.customColumns).filter(([,value])=>value===0||value===1)) as Record<string,0|1>:{}
-    };
-  }catch{return emptyMapPreferences();}
+  await db.runAsync("UPDATE metadata SET value=CASE WHEN EXISTS(SELECT 1 FROM notes WHERE id=?) THEN ? ELSE 'root' END WHERE key='focused' AND value<>?",focused,focused,focused);
+ });
+ writeQueue=job;
+ return job;
 }
 export function saveMapPreferences(prefs:MapPreferences):Promise<void>{
   const job=writeQueue.catch(()=>{}).then(async()=>{
     const db=await getDatabase();
-    await db.runAsync("INSERT INTO metadata(key,value) VALUES('map_preferences',?) ON CONFLICT(key) DO UPDATE SET value=excluded.value",JSON.stringify(prefs));
+    await writeMapPreferences(db,prefs);
   });
   writeQueue=job;
   return job;
